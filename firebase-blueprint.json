@@ -1,0 +1,125 @@
+{
+  "entities": {
+    "User": {
+      "title": "User Profile",
+      "description": "Configurações e preferências do usuário",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string" },
+        "displayName": { "type": "string" },
+        "email": { "type": "string" },
+        "isTrustedDevice": { "type": "boolean" },
+        "primaryGoal": { "type": "string" },
+        "experienceLevel": { "type": "string" },
+        "availableDays": { "type": "array" },
+        "equipments": { "type": "array" },
+        "habitAnchor": { "type": "string" },
+        "soundEnabled": { "type": "boolean" },
+        "hapticEnabled": { "type": "boolean" },
+        "createdAt": { "type": "number" },
+        "updatedAt": { "type": "number" }
+      },
+      "required": ["uid"]
+    },
+    "Plan": {
+      "title": "Workout Plan",
+      "description": "Ficha ou plano de treino",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "ownerUid": { "type": "string" },
+        "title": { "type": "string" },
+        "description": { "type": "string" },
+        "version": { "type": "number" },
+        "isProfessional": { "type": "boolean" },
+        "authorName": { "type": "string" },
+        "exercises": { "type": "array" },
+        "estimatedDurationMinutes": { "type": "number" },
+        "createdAt": { "type": "number" },
+        "updatedAt": { "type": "number" }
+      },
+      "required": ["ownerUid", "title"]
+    },
+    "Session": {
+      "title": "Workout Session",
+      "description": "Sessão de treino realizada ou em andamento",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "ownerUid": { "type": "string" },
+        "planId": { "type": "string" },
+        "planTitle": { "type": "string" },
+        "status": { "type": "string", "enum": ["in_progress", "completed", "abandoned"] },
+        "startedAt": { "type": "number" },
+        "completedAt": { "type": "number" },
+        "durationSeconds": { "type": "number" },
+        "totalSets": { "type": "number" },
+        "totalReps": { "type": "number" },
+        "prsAchieved": { "type": "number" },
+        "feedbackEffort": { "type": "number" },
+        "notes": { "type": "string" }
+      },
+      "required": ["ownerUid", "planTitle", "status"]
+    },
+    "SetEvent": {
+      "title": "Set Event",
+      "description": "Registro imutável de série concluída",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "ownerUid": { "type": "string" },
+        "sessionId": { "type": "string" },
+        "exerciseId": { "type": "string" },
+        "exerciseName": { "type": "string" },
+        "setIndex": { "type": "number" },
+        "targetReps": { "type": "number" },
+        "actualReps": { "type": "number" },
+        "targetDurationSeconds": { "type": "number" },
+        "actualDurationSeconds": { "type": "number" },
+        "restDurationSeconds": { "type": "number" },
+        "isPR": { "type": "boolean" },
+        "clientEventId": { "type": "string" },
+        "recordedAt": { "type": "number" }
+      },
+      "required": ["ownerUid", "sessionId", "exerciseId", "clientEventId"]
+    },
+    "CalendarDay": {
+      "title": "Calendar Day",
+      "description": "Planejamento de um dia da semana",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "ownerUid": { "type": "string" },
+        "dayOfWeek": { "type": "number" },
+        "activityType": { "type": "string", "enum": ["strength", "active_recovery", "rest", "walk"] },
+        "planId": { "type": "string" },
+        "planTitle": { "type": "string" },
+        "isCompleted": { "type": "boolean" },
+        "notes": { "type": "string" }
+      },
+      "required": ["ownerUid", "dayOfWeek", "activityType"]
+    }
+  },
+  "firestore": {
+    "/users/{uid}": {
+      "schema": { "$ref": "#/entities/User" },
+      "description": "Documento de preferências e perfil do usuário"
+    },
+    "/users/{uid}/plans/{docId}": {
+      "schema": { "$ref": "#/entities/Plan" },
+      "description": "Coleção de planos e fichas de treino do usuário"
+    },
+    "/users/{uid}/sessions/{docId}": {
+      "schema": { "$ref": "#/entities/Session" },
+      "description": "Histórico e sessões de treino ativas ou concluídas"
+    },
+    "/users/{uid}/setEvents/{eventId}": {
+      "schema": { "$ref": "#/entities/SetEvent" },
+      "description": "Eventos append-only de séries confirmadas"
+    },
+    "/users/{uid}/calendar/{docId}": {
+      "schema": { "$ref": "#/entities/CalendarDay" },
+      "description": "Planejamento dos dias da semana (treino, mobilidade, descanso)"
+    }
+  }
+}

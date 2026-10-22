@@ -1,0 +1,279 @@
+{
+  "name": "Superação MVP kit completo visual + estrutura",
+  "version": "4.0",
+  "date": "2026-10-22",
+  "count_files_excluding_manifest": 54,
+  "status": "handoff para desenvolvimento; nao aplicativo pronto",
+  "items": [
+    {
+      "path": "PROMPT_MESTRE_AI_STUDIO.md",
+      "bytes": 8736,
+      "sha256": "644970884c21f3bffb6b38d71a2b606f72e1f740b33ebc50be8743c889295c31"
+    },
+    {
+      "path": "README_COMECE_AQUI.md",
+      "bytes": 3258,
+      "sha256": "fa5a4a25b85032d19bd773f421f5de64768de4bc4d7696d4fbac2157478c2112"
+    },
+    {
+      "path": "Superacao_Planejamento_Completo_Visual_v4.xlsx",
+      "bytes": 41117,
+      "sha256": "0d155fc940f4e6d68ce92747d5ce24b54a3bf0664b6b092bc676c751c0db7940"
+    },
+    {
+      "path": "data/catalogo_manifest.json",
+      "bytes": 369,
+      "sha256": "d35de7258a89d880998f589c4c5b1d7dfa423cc5439085fae32d96cdd8f6e56c"
+    },
+    {
+      "path": "data/exercicios_seed.csv",
+      "bytes": 13825,
+      "sha256": "315d5c98239ade4ee293103bcce864544592c4de128d55e6b8a8262a16bb3a98"
+    },
+    {
+      "path": "data/exercicios_seed.json",
+      "bytes": 31493,
+      "sha256": "fc0be4fcbd9c4578fa8c066fe7287406e138ce5140145576af73269dcfde4813"
+    },
+    {
+      "path": "data/fontes_e_licencas.csv",
+      "bytes": 2062,
+      "sha256": "64d582931b22e8d45a1889c4f04daa8512e5fd76fd6c813b1dfc2f2ac625ea18"
+    },
+    {
+      "path": "data/templates_itens.csv",
+      "bytes": 2673,
+      "sha256": "9fdec5011ef1d0447ffa42a231527072e3870996e6f949d1afdd51936360f860"
+    },
+    {
+      "path": "data/templates_seed.json",
+      "bytes": 7835,
+      "sha256": "d035f9ffb679ba57becac38e2b6a908f8b15ff495eb9783555d56c4f05edd87d"
+    },
+    {
+      "path": "docs/01_PRODUTO_E_MVP.md",
+      "bytes": 5362,
+      "sha256": "210d7df0a462d27967bc3231ee1b4924e1bb48eb5c18c372ede5be824f56017e"
+    },
+    {
+      "path": "docs/02_DADOS_ARQUITETURA.md",
+      "bytes": 6029,
+      "sha256": "7a9294b9803d1b5b4d724fc693d0f4827549607deb363078ecd65983cf4d0cdc"
+    },
+    {
+      "path": "docs/03_TELAS_FLUXOS.md",
+      "bytes": 3744,
+      "sha256": "4dbf127cf4177ef7a17e0bb0357a1bc57d702a67c71ae053b1a8e44180dd440e"
+    },
+    {
+      "path": "docs/04_LLM_CUSTOS.md",
+      "bytes": 5515,
+      "sha256": "07f959a31ceedf863c063c3ab01a514f54f8c2c2cd589b8b169f2c1a51c42aa9"
+    },
+    {
+      "path": "docs/05_GATES_E_TESTES.md",
+      "bytes": 4768,
+      "sha256": "ffa2ff879c1c0a2c76788458d307b385a72a638785ed1edc1d69b30374fb2346"
+    },
+    {
+      "path": "docs/06_FIREBASE_OFFLINE_SYNC.md",
+      "bytes": 9042,
+      "sha256": "33892308373d3ca664f3b74452e96a18006cdc288207466f2ad6dab997e72453"
+    },
+    {
+      "path": "docs/07_IDENTIDADE_VISUAL.md",
+      "bytes": 4721,
+      "sha256": "489775e157e6ccb4f8bfd0309e6127f81b62be251b1ca0518c7234f76dd2bcc3"
+    },
+    {
+      "path": "docs/08_INVENTARIO_TELAS_ESTADOS.md",
+      "bytes": 3933,
+      "sha256": "ef9ed0ef5930755ffe1f0af86acedf7e2b1cf20630ce84fcd95d7974c232f75f"
+    },
+    {
+      "path": "docs/09_REFERENCIAS_VISUAIS.md",
+      "bytes": 2885,
+      "sha256": "c59e6c0f890c15aa7e1e05f05ff3a399d8d229ead3e3084b2820b444a35fa2de"
+    },
+    {
+      "path": "docs/10_PROMPT_VISUAL_AI_STUDIO.md",
+      "bytes": 3291,
+      "sha256": "d343fa76d52efcd11f3cc3f13a26be85ee5d58cbfbc794413e62847958080b40"
+    },
+    {
+      "path": "docs/11_AUDITORIA_ANTES_DESIGN.md",
+      "bytes": 3588,
+      "sha256": "580c721e5930d0994fbb9bf85fd7facc50b90452c2239a14669b096cfc199a12"
+    },
+    {
+      "path": "docs/12_TESTES_VISUAIS_UX.md",
+      "bytes": 2037,
+      "sha256": "dc102eb6aacfe7a4abb5e8615479ef675b21c3ee90fc5caa59bfd04ea59a5d88"
+    },
+    {
+      "path": "firebase/firestore.indexes.json",
+      "bytes": 35,
+      "sha256": "4c0b2a463a52aa28ec77497bf89e227f296dabe757bc4c0f2c8da5b23749b1aa"
+    },
+    {
+      "path": "firebase/firestore.rules",
+      "bytes": 2166,
+      "sha256": "b02bbb49751652be324e3ee66687187ebe330ea7cefe77c0b775c09c2b121e79"
+    },
+    {
+      "path": "prompts/SPRINT_00_FIREBASE_AUTH_SYNC.md",
+      "bytes": 2850,
+      "sha256": "27c16443f05cc771a7cbc337b20cc5af4c839e3e56e9b0d86c626acc016aa205"
+    },
+    {
+      "path": "prompts/SPRINT_01_CATALOGO_EDITOR.md",
+      "bytes": 712,
+      "sha256": "f7f7da3a6dea381be0f1b6d728a11e84c7f044f49e6d9e1c652af097dc7a6cd4"
+    },
+    {
+      "path": "prompts/SPRINT_02_EXECUCAO_REGISTRO.md",
+      "bytes": 987,
+      "sha256": "20b4f3b93b636f97131c7bb9bec501a32105e43a9595f9ca67b0d233d1bcbfad"
+    },
+    {
+      "path": "prompts/SPRINT_03_CALENDARIO_HABITO.md",
+      "bytes": 819,
+      "sha256": "be991581ced8d6ae06560b18a2620cea094b12d56fe2ed0fe4cf3f2641b37c7b"
+    },
+    {
+      "path": "prompts/SPRINT_04_IA_CONVERSACIONAL.md",
+      "bytes": 1016,
+      "sha256": "697d255e4a5973bed930562115a9c5e5bbca1b9169ea55439b90ec19e8220ce1"
+    },
+    {
+      "path": "prompts/SPRINT_05_DESIGN_UI.md",
+      "bytes": 1250,
+      "sha256": "2914a5b0d9a8a7fe48b71d88580e29802faa6c7f58a379b58f7c00a4849b8521"
+    },
+    {
+      "path": "schemas/exercise.schema.json",
+      "bytes": 1288,
+      "sha256": "03aaedaa17333142fa235830f47e591b2094930fb20e26efb56289ef974e5157"
+    },
+    {
+      "path": "schemas/llm-action.schema.json",
+      "bytes": 1006,
+      "sha256": "de3f7a30d5a2bceb14d79fdf05e4f00e05a4047ac230366c287bd621ab7c7de1"
+    },
+    {
+      "path": "schemas/workout-template.schema.json",
+      "bytes": 1504,
+      "sha256": "5b5ad8195e6f5449de41c43846cb5e5c71d6fac5cd6883f92b840077f88f5b35"
+    },
+    {
+      "path": "tests/backlog_mvp.csv",
+      "bytes": 2025,
+      "sha256": "6e5b2a31af1065375ffba8e7684fade81ac971e1b4aa76ede4214c29c2086bb9"
+    },
+    {
+      "path": "tests/casos_de_aceite.csv",
+      "bytes": 3101,
+      "sha256": "6027187282135fa46b8760f62e96a34c5b06c80937cc75b0faa81bb8460075db"
+    },
+    {
+      "path": "tests/testes_firebase_offline.csv",
+      "bytes": 2619,
+      "sha256": "8ed7728b96f0b99444b6542d420a0afe542900b76b27fc52a32395ed87eb676f"
+    },
+    {
+      "path": "visual/PROTOTIPO_NAVEGAVEL.html",
+      "bytes": 28565,
+      "sha256": "939e9e8cbf49ee9ca49222af4cb0123d92b9058e142c5c9b83f7f6bd4c35b76b"
+    },
+    {
+      "path": "visual/assets/icon-192.png",
+      "bytes": 1132,
+      "sha256": "0c5e192a16cc171111444c685acccec1647f972f567854a9de158b0752589ba2"
+    },
+    {
+      "path": "visual/assets/icon-512.png",
+      "bytes": 3367,
+      "sha256": "ceb8d9fa585810e22cb69b4fae13baea19614f0ff8b9d90ff4eecac8d4271132"
+    },
+    {
+      "path": "visual/assets/logo-superacao.svg",
+      "bytes": 479,
+      "sha256": "7c2862e522d8c80065f13b84f4440e284770e4cab09c88785cc8b9037d3f17e8"
+    },
+    {
+      "path": "visual/design-tokens.json",
+      "bytes": 1966,
+      "sha256": "f18e6513a8369168b501b70030ef36550dca8ada336f113258e8461a227a5e13"
+    },
+    {
+      "path": "visual/previews/VISUAL_QUATRO_TELAS.png",
+      "bytes": 322054,
+      "sha256": "7718ae5f75b7807ac661717e68fd17df1420cdc52d32a78eb5a3c94f9381ec0a"
+    },
+    {
+      "path": "visual/previews/mobile_active.png",
+      "bytes": 80088,
+      "sha256": "a0bb885baeb05874aa8d11ffa8c9b7060a50ab85b5d0462680e61cdf1ccb31b0"
+    },
+    {
+      "path": "visual/previews/mobile_home.png",
+      "bytes": 102642,
+      "sha256": "b8dbf70602b7129983b06b1646b1c0899f57baab74724c6d18a31ece6166fbaf"
+    },
+    {
+      "path": "visual/previews/tela_active.png",
+      "bytes": 668182,
+      "sha256": "cc401fdf3d0a19743cda88135136232feae44ed48e9b5f07899c2388c1f154fe"
+    },
+    {
+      "path": "visual/previews/tela_builder.png",
+      "bytes": 645381,
+      "sha256": "4ab58ec3203bff6f5a7ae57df5174ac85053eb076d1b4f4f262582fd055b45a5"
+    },
+    {
+      "path": "visual/previews/tela_calendar.png",
+      "bytes": 641906,
+      "sha256": "fc27c31965ec93d7882f106fbdcedc98cccaed59410ea9f101c032e90224e92d"
+    },
+    {
+      "path": "visual/previews/tela_confirmacao.png",
+      "bytes": 665757,
+      "sha256": "c5e2c262b6fb539091fe13423b1f722e4821482ade4c812ef36b96f02c1d20c9"
+    },
+    {
+      "path": "visual/previews/tela_explore.png",
+      "bytes": 657889,
+      "sha256": "ee41704559bf0106285b27d3dc9e62e60001ecb793a18d6b8d4c78f20e02a059"
+    },
+    {
+      "path": "visual/previews/tela_home.png",
+      "bytes": 685810,
+      "sha256": "d9a422a855b30a121c650d7587d63a2030546f283bb33fecb124fd91cbaac120"
+    },
+    {
+      "path": "visual/previews/tela_profile.png",
+      "bytes": 646489,
+      "sha256": "765474b68a3e6e63f9d850bbd2700effdf19cc353f1e5dac8a7509438f3cbb64"
+    },
+    {
+      "path": "visual/previews/tela_progress.png",
+      "bytes": 639032,
+      "sha256": "94f6e8bb3a5b9d28c7595d006f786d32011c261229889c4e0b197afc7d2e5f06"
+    },
+    {
+      "path": "visual/previews/tela_rest.png",
+      "bytes": 701854,
+      "sha256": "cd31c52b806a3a1181dede86f554c44cad45a6a2d9fb5ea03663959fd54659ff"
+    },
+    {
+      "path": "visual/previews/tela_workouts.png",
+      "bytes": 640418,
+      "sha256": "2710e7d7e5b983548b631ad35c03dd9104efcf5ffc677e3cd5892ca8f97b0705"
+    },
+    {
+      "path": "visual/referencias.csv",
+      "bytes": 941,
+      "sha256": "36a71e858147e5e8b13eb8d3737b3235e374fc1d0f5329be95f9ff9ae9500853"
+    }
+  ]
+}

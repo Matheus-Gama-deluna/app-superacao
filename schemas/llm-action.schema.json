@@ -1,0 +1,53 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "SuperacaoAssistantProposal",
+  "type": "object",
+  "required": [
+    "intent",
+    "reply_pt",
+    "requires_confirmation"
+  ],
+  "properties": {
+    "intent": {
+      "enum": [
+        "search_exercises",
+        "explain_exercise",
+        "explain_plan",
+        "draft_workout",
+        "draft_schedule_change",
+        "summarize_history",
+        "habit_support",
+        "unknown"
+      ]
+    },
+    "reply_pt": {
+      "type": "string",
+      "maxLength": 1600
+    },
+    "requires_confirmation": {
+      "type": "boolean"
+    },
+    "candidate_exercise_ids": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "proposed_changes": {
+      "type": "array",
+      "items": {
+        "type": "object"
+      }
+    },
+    "risk_flag": {
+      "type": "boolean"
+    },
+    "refusal_reason": {
+      "type": [
+        "string",
+        "null"
+      ]
+    }
+  },
+  "additionalProperties": false
+}

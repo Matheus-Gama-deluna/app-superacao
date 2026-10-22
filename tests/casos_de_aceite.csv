@@ -1,0 +1,25 @@
+﻿id,area,scenario,steps,expected,phase,priority,status
+T01,Catálogo,Filtro equipamento,Filtrar mini_band e faixa_longa,Resultados correspondentes; sem confundir equipamentos,P0,Crítico,Não iniciado
+T02,Catálogo,Busca PT-BR,Buscar por nome parcial sem acento,Exercício correto listado,P0,Alto,Não iniciado
+T03,Biblioteca,Mídia ausente,Abrir exercício sem media_url,"Instruções textuais visíveis, sem imagem quebrada",P0,Alto,Não iniciado
+T04,Editor,Criar plano,Criar e salvar treino com 3 exercícios,Treino persistido após reload,P0,Crítico,Não iniciado
+T05,Editor,Duplicar plano,Duplicar modelo e alterar séries,Cópia independente; origem e status preservados,P0,Alto,Não iniciado
+T06,Sessão,Não inferir resultado,Meta planejada 10 reps; usuário confirma 6,"Histórico exibe 6 como realizado, 10 como meta",P0,Crítico,Não iniciado
+T07,Sessão,Persistência imediata,Confirmar série e fechar aba,Após reabrir não perder série,P0,Crítico,Não iniciado
+T08,Sessão,Idempotência,Tentar confirmar a mesma série 2 vezes,Uma série salva; XP sem duplicação,P0,Crítico,Não iniciado
+T09,Sessão,Pausar/retomar,Alternar apps Android e voltar,"Retoma série correta, dados preservados",P0,Crítico,Não iniciado
+T10,Sessão,Registro tempo,Exercício por duração,"Gravar tempo real confirmado, não meta",P0,Crítico,Não iniciado
+T11,Caminhada,Registro livre,Inserir caminhada tempo e distância opcional,Permitir salvar sem GPS,P1,Alto,Não iniciado
+T12,Agenda,Descanso completo,Marcar dia full_rest,Dia não é falha; próximo treino correto,P1,Crítico,Não iniciado
+T13,Agenda,Reagendar,Mover treino previsto para outro dia,Histórico antigo não apagado,P1,Crítico,Não iniciado
+T14,Home,Sem plano,Abrir conta vazia,CTAs criar/explorar/importar profissional,P1,Alto,Não iniciado
+T15,Home,Retorno após pausa,Voltar após ausência,Oferece replanejar sem punir/reiniciar,P1,Alto,Não iniciado
+T16,Profissional,Plano de profissional,"Cadastrar autoria e versão, tentar sugerir mudança auto",Sem alteração silenciosa,P1,Crítico,Não iniciado
+T17,Segurança,Seed pendente,Abrir template publishable=false,Indicação demonstração/em revisão; não selo aprovado,P1,Crítico,Não iniciado
+T18,Privacidade,Exportar,Exportar/importar JSON versionado,Dados recuperados com confirmação,P1,Crítico,Não iniciado
+T19,Privacidade,Apagar dados,Solicitar exclusão local,Confirmação e exclusão verificável,P1,Crítico,Não iniciado
+T20,Offline,Cair internet,Executar treino offline após carregamento,Sem perda de registro local,P1,Crítico,Não iniciado
+T21,IA,Sem chave,Acessar app sem GEMINI_API_KEY,Treino/editor/histórico funcionam; chat indisponível,P2,Alto,Não iniciado
+T22,IA,Schema,LLM sugere id que não existe,Backend rejeita alteração,P2,Crítico,Não iniciado
+T23,IA,Confirmação,LLM propõe trocar exercício,Mostrar diff e exigir ação explícita,P2,Crítico,Não iniciado
+T24,IA,Dados sensíveis,Chat tenta enviar perfil médico integral,Remover/mascarar por padrão; optar por minimização,P2,Crítico,Não iniciado

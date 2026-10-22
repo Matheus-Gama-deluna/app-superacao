@@ -1,0 +1,12 @@
+{
+  "name": "Superacao seeds iniciais",
+  "created_at": "2026-10-20",
+  "exercise_count": 44,
+  "template_count": 9,
+  "template_item_count": 24,
+  "review_status": "PENDENTE_REVISAO_PROFISSIONAL",
+  "media_status": "SEM_ASSETS_DE_TERCEIROS",
+  "publishable_templates": 0,
+  "exercise_seed": "data/exercicios_seed.json",
+  "templates_seed": "data/templates_seed.json"
+}

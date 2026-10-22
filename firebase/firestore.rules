@@ -1,0 +1,54 @@
+// REGRAS DE PARTIDA - USAR EMULADOR E REVISAR SCHEMA ANTES DA PUBLICACAO.
+// Defende isolamento por UID e imutabilidade de alguns eventos.
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function signedInAs(uid) { return request.auth != null && request.auth.uid == uid; }
+    function owned(uid) { return request.resource.data.ownerUid == uid; }
+
+    match /exercise_catalog/{exerciseId} {
+      allow read: if true;
+      allow write: if false; // catalogo curado publicado por ferramenta administrativa
+    }
+    match /users/{uid} {
+      allow read: if signedInAs(uid);
+      allow create, update: if signedInAs(uid);
+      allow delete: if signedInAs(uid); // exclusao completa exige rotina de limpeza da subarvore
+
+      match /setEvents/{eventId} {
+        allow read: if signedInAs(uid);
+        allow create: if signedInAs(uid) && owned(uid);
+        allow update: if false; // correcao = novo evento
+        allow delete: if false; // remover via fluxo de exclusao de conta seguro
+      }
+      match /progressEvents/{eventId} {
+        allow read: if signedInAs(uid);
+        allow create: if signedInAs(uid) && owned(uid);
+        allow update: if false;
+        allow delete: if false;
+      }
+      // Paths mutaveis permitidos explicitamente. Evitar curinga de colecao!
+      // Um wildcard generico aqui poderia LIBERAR updates em setEvents por OR.
+      match /plans/{docId} {
+        allow read: if signedInAs(uid);
+        allow create, update: if signedInAs(uid) && owned(uid);
+        allow delete: if signedInAs(uid);
+      }
+      match /sessions/{docId} {
+        allow read: if signedInAs(uid);
+        allow create, update: if signedInAs(uid) && owned(uid);
+        allow delete: if signedInAs(uid);
+      }
+      match /activities/{docId} {
+        allow read: if signedInAs(uid);
+        allow create, update: if signedInAs(uid) && owned(uid);
+        allow delete: if signedInAs(uid);
+      }
+      match /calendar/{docId} {
+        allow read: if signedInAs(uid);
+        allow create, update: if signedInAs(uid) && owned(uid);
+        allow delete: if signedInAs(uid);
+      }
+    }
+  }
+}

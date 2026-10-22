@@ -1,0 +1,25 @@
+﻿template_id,template_name,exercise_id,order,sets,target_reps_example,target_duration_seconds_example,rest_seconds,review_status
+tpl_casa_iniciante,Casa: movimentos básicos,corpo_sentar_levantar,1,2,8,,45,pendente_revisao_profissional
+tpl_casa_iniciante,Casa: movimentos básicos,corpo_flexao_parede,2,2,8,,45,pendente_revisao_profissional
+tpl_casa_iniciante,Casa: movimentos básicos,corpo_ponte_gluteos,3,2,8,,45,pendente_revisao_profissional
+tpl_casa_iniciante,Casa: movimentos básicos,corpo_elevacao_panturrilha,4,2,10,,45,pendente_revisao_profissional
+tpl_casa_curto,Casa: sessão curta,corpo_sentar_levantar,1,1,8,,45,pendente_revisao_profissional
+tpl_casa_curto,Casa: sessão curta,corpo_flexao_parede,2,1,8,,45,pendente_revisao_profissional
+tpl_casa_curto,Casa: sessão curta,corpo_marcha_local,3,1,,180,45,pendente_revisao_profissional
+tpl_casa_curto,Casa: sessão curta,mob_circulos_ombros,4,1,8,,45,pendente_revisao_profissional
+tpl_faixa_longa,Faixa longa: força geral,banda_remada_sentada,1,2,8,,45,pendente_revisao_profissional
+tpl_faixa_longa,Faixa longa: força geral,banda_rosca_biceps,2,2,8,,45,pendente_revisao_profissional
+tpl_faixa_longa,Faixa longa: força geral,banda_puxada_abertura,3,2,8,,45,pendente_revisao_profissional
+tpl_faixa_longa,Faixa longa: força geral,banda_press_frente,4,2,8,,45,pendente_revisao_profissional
+tpl_faixa_longa_superior,Faixa longa: membros superiores,banda_remada_sentada,1,2,8,,45,pendente_revisao_profissional
+tpl_faixa_longa_superior,Faixa longa: membros superiores,banda_rosca_biceps,2,2,8,,45,pendente_revisao_profissional
+tpl_faixa_longa_superior,Faixa longa: membros superiores,banda_puxada_abertura,3,2,8,,45,pendente_revisao_profissional
+tpl_miniband,Mini band: estabilidade de quadril,mini_abducao_sentada,1,2,8,,45,pendente_revisao_profissional
+tpl_miniband,Mini band: estabilidade de quadril,mini_caminhada_lateral,2,2,8,,45,pendente_revisao_profissional
+tpl_miniband,Mini band: estabilidade de quadril,mini_clamshell,3,2,8,,45,pendente_revisao_profissional
+tpl_caminhada_leve,Rua: caminhada livre,rua_caminhada_livre,1,1,,720,0,pendente_revisao_profissional
+tpl_caminhada_ambiente,Rua: passeio em parque,rua_passeio_parque,1,1,,1080,0,pendente_revisao_profissional
+tpl_mobilidade_leve,Casa: mobilidade leve,mob_circulos_ombros,1,1,8,,45,pendente_revisao_profissional
+tpl_mobilidade_leve,Casa: mobilidade leve,mob_tornozelo,2,1,8,,45,pendente_revisao_profissional
+tpl_mobilidade_leve,Casa: mobilidade leve,mob_rotacao_tronco_sentado,3,1,6,,45,pendente_revisao_profissional
+tpl_mobilidade_leve,Casa: mobilidade leve,mob_along_panturrilha,4,1,,20,0,pendente_revisao_profissional

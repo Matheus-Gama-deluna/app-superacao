@@ -1,0 +1,22 @@
+id,cenario,acao,resultado_esperado,prioridade
+F01,Login Google online,Autenticar com conta A,UID real persistido e isolamento por UID,Alta
+F02,Primeiro login sem rede,Abrir em aparelho novo offline,Informar que login precisa de rede e permitir convidado local se habilitado,Alta
+F03,Sessao ja autenticada offline,Desligar rede e reabrir PWA,Historico local da identidade anterior acessivel,Alta
+F04,Serie offline,Confirmar serie sem rede,"Evento visivel no cache com hasPendingWrites=true, ID estavel",Crítica
+F05,Sincronizacao tardia,Reabrir online apos fechar com escrita pendente no cache,hasPendingWrites=false e evento visivel em segundo aparelho sem duplicar,Crítica
+F06,Retentativa idempotente,Repetir escrita com mesmo ID de evento apos timeout,Nao gerar duas series ou XP duplo,Crítica
+F07,Conta trocada,Sair A e entrar B no mesmo browser,Nao exibir cache de A a B,Crítica
+F08,Regras A/B,Conta B tenta ler documents de A via SDK,Permissao negada,Crítica
+F09,Write de outro UID,Conta B tenta gravar dados de A,Permissao negada,Crítica
+F10,Imutabilidade de series,Alterar setEvent remoto existente,Permissao negada,Crítica
+F11,Concorrencia de plano,Editar mesmo plano offline em dois aparelhos,Mostrar conflito e preservar ambas as versoes,Alta
+F12,Falha de quota/regras,Provocar permission-denied no sync,"Alertar rejeicao e tratar rollback; oferecer recuperacao/backup, nao fingir sucesso",Crítica
+F13,Modo convidado,Usar offline e depois login Google,Migrar somente com revisao/confirmacao sem colisao de IDs,Alta
+F14,Publicacao,Inspecionar Console e Hosting,Rules publicadas revisadas HTTPS authDomain e plano custo controlado,Alta
+F15,Offline completo,Desligar WiFi e dados abrir app ja instalado,Executor e catalogo disponiveis via assets pre-cacheados,Crítica
+F16,Deletar dados,Pedir exclusao de conta e dados,Fluxo documentado remove cloud e trata backups/cache local,Alta
+F17,Cache nao aquecido,Abrir pela primeira vez e desligar rede antes de carregar plano,Mensagem dados indisponiveis; nao confundir lista vazia com plano vazio,Critica
+F18,Estado e metadados,Desativar rede e depois reconectar,Validar hasPendingWrites e fromCache com includeMetadataChanges,Alta
+F19,Cache dispositivo compartilhado,Selecionar memoria sem persistencia e sair,Nao persistir dados de treino em disco neste modo,Critica
+F20,Rejeicao remota tardia,Gerar evento offline rejeitado por rules na reconexao,Notificar rollback/erro e testar estrategia de recuperacao de registro,Critica
+F21,Multiplas abas,Abrir PWA e site na mesma origem e gravar,Cache multi-tab sem bloqueio ou duplicacao,Alta

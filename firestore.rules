@@ -1,0 +1,56 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function signedInAs(uid) { return request.auth != null && request.auth.uid == uid; }
+    function owned(uid) { return request.resource.data.ownerUid == uid; }
+
+    match /exercise_catalog/{exerciseId} {
+      allow read: if true;
+      allow write: if false;
+    }
+
+    match /users/{uid} {
+      allow read: if signedInAs(uid);
+      allow create, update: if signedInAs(uid);
+      allow delete: if signedInAs(uid);
+
+      match /setEvents/{eventId} {
+        allow read: if signedInAs(uid);
+        allow create: if signedInAs(uid) && owned(uid);
+        allow update: if false; // Append-only: correções gravadas como novos eventos
+        allow delete: if false;
+      }
+
+      match /progressEvents/{eventId} {
+        allow read: if signedInAs(uid);
+        allow create: if signedInAs(uid) && owned(uid);
+        allow update: if false;
+        allow delete: if false;
+      }
+
+      match /plans/{docId} {
+        allow read: if signedInAs(uid);
+        allow create, update: if signedInAs(uid) && owned(uid);
+        allow delete: if signedInAs(uid);
+      }
+
+      match /sessions/{docId} {
+        allow read: if signedInAs(uid);
+        allow create, update: if signedInAs(uid) && owned(uid);
+        allow delete: if signedInAs(uid);
+      }
+
+      match /activities/{docId} {
+        allow read: if signedInAs(uid);
+        allow create, update: if signedInAs(uid) && owned(uid);
+        allow delete: if signedInAs(uid);
+      }
+
+      match /calendar/{docId} {
+        allow read: if signedInAs(uid);
+        allow create, update: if signedInAs(uid) && owned(uid);
+        allow delete: if signedInAs(uid);
+      }
+    }
+  }
+}

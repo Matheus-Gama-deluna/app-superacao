@@ -1,0 +1,1014 @@
+[
+  {
+    "id": "corpo_sentar_levantar",
+    "name_pt": "Sentar e levantar de cadeira",
+    "modality": "forca",
+    "movement_pattern": "agachar",
+    "equipment": [
+      "cadeira"
+    ],
+    "environment": [
+      "casa"
+    ],
+    "difficulty_candidate": "iniciante",
+    "tracking": "reps",
+    "requires_anchor": false,
+    "instructions_pt": "Use cadeira estável; sente e levante com movimento controlado.",
+    "caution_pt": "Não utilizar cadeira instável.",
+    "review_status": "pendente_revisao_profissional",
+    "media_url": null,
+    "source_kind": "conteudo_original_rascunho",
+    "source_url": null,
+    "license_text": "autoral_rascunho",
+    "version": "0.1.0"
+  },
+  {
+    "id": "corpo_agachamento",
+    "name_pt": "Agachamento com peso corporal",
+    "modality": "forca",
+    "movement_pattern": "agachar",
+    "equipment": [
+      "nenhum"
+    ],
+    "environment": [
+      "casa"
+    ],
+    "difficulty_candidate": "intermediario",
+    "tracking": "reps",
+    "requires_anchor": false,
+    "instructions_pt": "Faça o movimento dentro de uma amplitude confortável, com base estável.",
+    "caution_pt": "Reduza ou interrompa se ocorrer desconforto.",
+    "review_status": "pendente_revisao_profissional",
+    "media_url": null,
+    "source_kind": "conteudo_original_rascunho",
+    "source_url": null,
+    "license_text": "autoral_rascunho",
+    "version": "0.1.0"
+  },
+  {
+    "id": "corpo_flexao_parede",
+    "name_pt": "Flexão na parede",
+    "modality": "forca",
+    "movement_pattern": "empurrar_horizontal",
+    "equipment": [
+      "parede"
+    ],
+    "environment": [
+      "casa"
+    ],
+    "difficulty_candidate": "iniciante",
+    "tracking": "reps",
+    "requires_anchor": false,
+    "instructions_pt": "Mantenha as mãos apoiadas em parede firme e o corpo alinhado durante o movimento.",
+    "caution_pt": "Evite apoio escorregadio.",
+    "review_status": "pendente_revisao_profissional",
+    "media_url": null,
+    "source_kind": "conteudo_original_rascunho",
+    "source_url": null,
+    "license_text": "autoral_rascunho",
+    "version": "0.1.0"
+  },
+  {
+    "id": "corpo_flexao_inclinada",
+    "name_pt": "Flexão inclinada em apoio estável",
+    "modality": "forca",
+    "movement_pattern": "empurrar_horizontal",
+    "equipment": [
+      "apoio_estavel"
+    ],
+    "environment": [
+      "casa"
+    ],
+    "difficulty_candidate": "intermediario",
+    "tracking": "reps",
+    "requires_anchor": false,
+    "instructions_pt": "Use superfície firme, imóvel e apropriada ao seu tamanho.",
+    "caution_pt": "Não usar mesa/cadeira que possa tombar.",
+    "review_status": "pendente_revisao_profissional",
+    "media_url": null,
+    "source_kind": "conteudo_original_rascunho",
+    "source_url": null,
+    "license_text": "autoral_rascunho",
+    "version": "0.1.0"
+  },
+  {
+    "id": "corpo_ponte_gluteos",
+    "name_pt": "Ponte de glúteos",
+    "modality": "forca",
+    "movement_pattern": "extensao_quadril",
+    "equipment": [
+      "colchonete"
+    ],
+    "environment": [
+      "casa"
+    ],
+    "difficulty_candidate": "iniciante",
+    "tracking": "reps",
+    "requires_anchor": false,
+    "instructions_pt": "Deitado, eleve o quadril lentamente sem forçar as costas.",
+    "caution_pt": "Interrompa se houver dor.",
+    "review_status": "pendente_revisao_profissional",
+    "media_url": null,
+    "source_kind": "conteudo_original_rascunho",
+    "source_url": null,
+    "license_text": "autoral_rascunho",
+    "version": "0.1.0"
+  },
+  {
+    "id": "corpo_elevacao_panturrilha",
+    "name_pt": "Elevação de panturrilha em pé",
+    "modality": "forca",
+    "movement_pattern": "tornozelo",
+    "equipment": [
+      "apoio_estavel"
+    ],
+    "environment": [
+      "casa"
+    ],
+    "difficulty_candidate": "iniciante",
+    "tracking": "reps",
+    "requires_anchor": false,
+    "instructions_pt": "Suba e desça os calcanhares de forma controlada, junto de apoio se necessário.",
+    "caution_pt": "Priorize equilíbrio e apoio.",
+    "review_status": "pendente_revisao_profissional",
+    "media_url": null,
+    "source_kind": "conteudo_original_rascunho",
+    "source_url": null,
+    "license_text": "autoral_rascunho",
+    "version": "0.1.0"
+  },
+  {
+    "id": "corpo_passada_re",
+    "name_pt": "Passada reversa com apoio",
+    "modality": "forca",
+    "movement_pattern": "afundo",
+    "equipment": [
+      "apoio_estavel"
+    ],
+    "environment": [
+      "casa"
+    ],
+    "difficulty_candidate": "intermediario",
+    "tracking": "reps",
+    "requires_anchor": false,
+    "instructions_pt": "Dê um passo para trás e retorne de modo controlado, perto de apoio firme.",
+    "caution_pt": "Não forçar amplitude.",
+    "review_status": "pendente_revisao_profissional",
+    "media_url": null,
+    "source_kind": "conteudo_original_rascunho",
+    "source_url": null,
+    "license_text": "autoral_rascunho",
+    "version": "0.1.0"
+  },
+  {
+    "id": "corpo_quadrupedia_alternada",
+    "name_pt": "Elevação alternada em quatro apoios",
+    "modality": "estabilidade",
+    "movement_pattern": "estabilizacao",
+    "equipment": [
+      "colchonete"
+    ],
+    "environment": [
+      "casa"
+    ],
+    "difficulty_candidate": "iniciante",
+    "tracking": "reps",
+    "requires_anchor": false,
+    "instructions_pt": "Em quatro apoios, estenda lentamente braço ou perna, mantendo o tronco estável.",
+    "caution_pt": "Evite extensão desconfortável da coluna.",
+    "review_status": "pendente_revisao_profissional",
+    "media_url": null,
+    "source_kind": "conteudo_original_rascunho",
+    "source_url": null,
+    "license_text": "autoral_rascunho",
+    "version": "0.1.0"
+  },
+  {
+    "id": "corpo_dead_bug",
+    "name_pt": "Dead bug adaptado",
+    "modality": "estabilidade",
+    "movement_pattern": "estabilizacao",
+    "equipment": [
+      "colchonete"
+    ],
+    "environment": [
+      "casa"
+    ],
+    "difficulty_candidate": "intermediario",
+    "tracking": "reps",
+    "requires_anchor": false,
+    "instructions_pt": "Deitado, mova membros alternadamente sem perder o controle do tronco.",
+    "caution_pt": "Use variação mais simples se houver desconforto.",
+    "review_status": "pendente_revisao_profissional",
+    "media_url": null,
+    "source_kind": "conteudo_original_rascunho",
+    "source_url": null,
+    "license_text": "autoral_rascunho",
+    "version": "0.1.0"
+  },
+  {
+    "id": "corpo_prancha_joelhos",
+    "name_pt": "Prancha com joelhos apoiados",
+    "modality": "estabilidade",
+    "movement_pattern": "isometria",
+    "equipment": [
+      "colchonete"
+    ],
+    "environment": [
+      "casa"
+    ],
+    "difficulty_candidate": "intermediario",
+    "tracking": "tempo_seg",
+    "requires_anchor": false,
+    "instructions_pt": "Mantenha apoio estável dos antebraços e joelhos, sem prender a respiração.",
+    "caution_pt": "Parar ao perder a técnica.",
+    "review_status": "pendente_revisao_profissional",
+    "media_url": null,
+    "source_kind": "conteudo_original_rascunho",
+    "source_url": null,
+    "license_text": "autoral_rascunho",
+    "version": "0.1.0"
+  },
+  {
+    "id": "corpo_abducao_quadril",
+    "name_pt": "Afastamento lateral de perna com apoio",
+    "modality": "forca",
+    "movement_pattern": "abdutor_quadril",
+    "equipment": [
+      "apoio_estavel"
+    ],
+    "environment": [
+      "casa"
+    ],
+    "difficulty_candidate": "iniciante",
+    "tracking": "reps",
+    "requires_anchor": false,
+    "instructions_pt": "Em pé junto a apoio firme, mova a perna lateralmente com amplitude confortável.",
+    "caution_pt": "Apoio deve prevenir perda de equilíbrio.",
+    "review_status": "pendente_revisao_profissional",
+    "media_url": null,
+    "source_kind": "conteudo_original_rascunho",
+    "source_url": null,
+    "license_text": "autoral_rascunho",
+    "version": "0.1.0"
+  },
+  {
+    "id": "corpo_agachamento_parede",
+    "name_pt": "Agachamento parcial com apoio na parede",
+    "modality": "forca",
+    "movement_pattern": "agachar",
+    "equipment": [
+      "parede"
+    ],
+    "environment": [
+      "casa"
+    ],
+    "difficulty_candidate": "intermediario",
+    "tracking": "reps",
+    "requires_anchor": false,
+    "instructions_pt": "Use a parede como referência e controle a profundidade.",
+    "caution_pt": "Evitar esforço articular desconfortável.",
+    "review_status": "pendente_revisao_profissional",
+    "media_url": null,
+    "source_kind": "conteudo_original_rascunho",
+    "source_url": null,
+    "license_text": "autoral_rascunho",
+    "version": "0.1.0"
+  },
+  {
+    "id": "corpo_marcha_local",
+    "name_pt": "Marcha leve no lugar",
+    "modality": "cardio",
+    "movement_pattern": "marcha",
+    "equipment": [
+      "nenhum"
+    ],
+    "environment": [
+      "casa"
+    ],
+    "difficulty_candidate": "iniciante",
+    "tracking": "tempo_seg",
+    "requires_anchor": false,
+    "instructions_pt": "Caminhe no lugar em ritmo confortável e mantenha um espaço livre de obstáculos.",
+    "caution_pt": "Manter ambiente ventilado e seguro.",
+    "review_status": "pendente_revisao_profissional",
+    "media_url": null,
+    "source_kind": "conteudo_original_rascunho",
+    "source_url": null,
+    "license_text": "autoral_rascunho",
+    "version": "0.1.0"
+  },
+  {
+    "id": "corpo_elevacao_bracos",
+    "name_pt": "Elevação alternada de braços sem peso",
+    "modality": "mobilidade",
+    "movement_pattern": "ombro",
+    "equipment": [
+      "nenhum"
+    ],
+    "environment": [
+      "casa"
+    ],
+    "difficulty_candidate": "iniciante",
+    "tracking": "reps",
+    "requires_anchor": false,
+    "instructions_pt": "Eleve os braços dentro da amplitude confortável.",
+    "caution_pt": "Não insistir em movimento doloroso.",
+    "review_status": "pendente_revisao_profissional",
+    "media_url": null,
+    "source_kind": "conteudo_original_rascunho",
+    "source_url": null,
+    "license_text": "autoral_rascunho",
+    "version": "0.1.0"
+  },
+  {
+    "id": "banda_remada_sentada",
+    "name_pt": "Remada sentada com faixa longa",
+    "modality": "forca",
+    "movement_pattern": "puxar_horizontal",
+    "equipment": [
+      "faixa_longa"
+    ],
+    "environment": [
+      "casa"
+    ],
+    "difficulty_candidate": "iniciante",
+    "tracking": "reps",
+    "requires_anchor": false,
+    "instructions_pt": "Use faixa apropriada, mantendo as pontas seguras, e puxe de maneira controlada.",
+    "caution_pt": "Confira desgaste e firmeza da faixa; atenção ao retorno elástico.",
+    "review_status": "pendente_revisao_profissional",
+    "media_url": null,
+    "source_kind": "conteudo_original_rascunho",
+    "source_url": null,
+    "license_text": "autoral_rascunho",
+    "version": "0.1.0"
+  },
+  {
+    "id": "banda_rosca_biceps",
+    "name_pt": "Rosca de bíceps com faixa longa",
+    "modality": "forca",
+    "movement_pattern": "flexao_cotovelo",
+    "equipment": [
+      "faixa_longa"
+    ],
+    "environment": [
+      "casa"
+    ],
+    "difficulty_candidate": "iniciante",
+    "tracking": "reps",
+    "requires_anchor": false,
+    "instructions_pt": "Pise na faixa de modo estável e flexione o cotovelo controladamente.",
+    "caution_pt": "Não usar faixa deteriorada ou excessivamente tensionada.",
+    "review_status": "pendente_revisao_profissional",
+    "media_url": null,
+    "source_kind": "conteudo_original_rascunho",
+    "source_url": null,
+    "license_text": "autoral_rascunho",
+    "version": "0.1.0"
+  },
+  {
+    "id": "banda_puxada_abertura",
+    "name_pt": "Abertura horizontal de faixa (pull-apart)",
+    "modality": "forca",
+    "movement_pattern": "puxar_horizontal",
+    "equipment": [
+      "faixa_longa"
+    ],
+    "environment": [
+      "casa"
+    ],
+    "difficulty_candidate": "iniciante",
+    "tracking": "reps",
+    "requires_anchor": false,
+    "instructions_pt": "Afaste as mãos em trajetória confortável e controle a volta da faixa.",
+    "caution_pt": "Não posicionar a faixa junto ao rosto.",
+    "review_status": "pendente_revisao_profissional",
+    "media_url": null,
+    "source_kind": "conteudo_original_rascunho",
+    "source_url": null,
+    "license_text": "autoral_rascunho",
+    "version": "0.1.0"
+  },
+  {
+    "id": "banda_ext_rotacao",
+    "name_pt": "Rotação externa de ombro com faixa",
+    "modality": "forca",
+    "movement_pattern": "rotacao_ombro",
+    "equipment": [
+      "faixa_longa"
+    ],
+    "environment": [
+      "casa"
+    ],
+    "difficulty_candidate": "intermediario",
+    "tracking": "reps",
+    "requires_anchor": true,
+    "instructions_pt": "Execute com ponto de fixação apropriado e movimento pequeno e controlado.",
+    "caution_pt": "Necessita ancoragem testada; parar se incomodar o ombro.",
+    "review_status": "pendente_revisao_profissional",
+    "media_url": null,
+    "source_kind": "conteudo_original_rascunho",
+    "source_url": null,
+    "license_text": "autoral_rascunho",
+    "version": "0.1.0"
+  },
+  {
+    "id": "banda_remada_em_pe",
+    "name_pt": "Remada em pé com faixa ancorada",
+    "modality": "forca",
+    "movement_pattern": "puxar_horizontal",
+    "equipment": [
+      "faixa_longa"
+    ],
+    "environment": [
+      "casa"
+    ],
+    "difficulty_candidate": "intermediario",
+    "tracking": "reps",
+    "requires_anchor": true,
+    "instructions_pt": "Puxe com controle usando uma âncora apropriada para exercícios.",
+    "caution_pt": "Nunca improvise âncora em porta ou móvel instável.",
+    "review_status": "pendente_revisao_profissional",
+    "media_url": null,
+    "source_kind": "conteudo_original_rascunho",
+    "source_url": null,
+    "license_text": "autoral_rascunho",
+    "version": "0.1.0"
+  },
+  {
+    "id": "banda_bom_dia",
+    "name_pt": "Inclinação de quadril com faixa longa",
+    "modality": "forca",
+    "movement_pattern": "dobradica_quadril",
+    "equipment": [
+      "faixa_longa"
+    ],
+    "environment": [
+      "casa"
+    ],
+    "difficulty_candidate": "intermediario",
+    "tracking": "reps",
+    "requires_anchor": false,
+    "instructions_pt": "Realize a flexão do quadril mantendo controle do tronco e a faixa estável.",
+    "caution_pt": "Não substituir orientação técnica se há dor lombar.",
+    "review_status": "pendente_revisao_profissional",
+    "media_url": null,
+    "source_kind": "conteudo_original_rascunho",
+    "source_url": null,
+    "license_text": "autoral_rascunho",
+    "version": "0.1.0"
+  },
+  {
+    "id": "banda_press_frente",
+    "name_pt": "Empurrada frontal com faixa ao redor das costas",
+    "modality": "forca",
+    "movement_pattern": "empurrar_horizontal",
+    "equipment": [
+      "faixa_longa"
+    ],
+    "environment": [
+      "casa"
+    ],
+    "difficulty_candidate": "intermediario",
+    "tracking": "reps",
+    "requires_anchor": false,
+    "instructions_pt": "Posicione a faixa com firmeza e empurre à frente sem perder controle da volta.",
+    "caution_pt": "Evite que o elástico escorregue ou bata no rosto.",
+    "review_status": "pendente_revisao_profissional",
+    "media_url": null,
+    "source_kind": "conteudo_original_rascunho",
+    "source_url": null,
+    "license_text": "autoral_rascunho",
+    "version": "0.1.0"
+  },
+  {
+    "id": "banda_pallof",
+    "name_pt": "Pressão anti-rotação com faixa",
+    "modality": "estabilidade",
+    "movement_pattern": "anti_rotacao",
+    "equipment": [
+      "faixa_longa"
+    ],
+    "environment": [
+      "casa"
+    ],
+    "difficulty_candidate": "intermediario",
+    "tracking": "reps",
+    "requires_anchor": true,
+    "instructions_pt": "Com faixa ancorada lateralmente, afaste as mãos do tronco mantendo postura estável.",
+    "caution_pt": "Exige ancoragem segura e intensidade apropriada.",
+    "review_status": "pendente_revisao_profissional",
+    "media_url": null,
+    "source_kind": "conteudo_original_rascunho",
+    "source_url": null,
+    "license_text": "autoral_rascunho",
+    "version": "0.1.0"
+  },
+  {
+    "id": "banda_elevacao_lateral",
+    "name_pt": "Elevação lateral de ombro com faixa",
+    "modality": "forca",
+    "movement_pattern": "elevacao_ombro",
+    "equipment": [
+      "faixa_longa"
+    ],
+    "environment": [
+      "casa"
+    ],
+    "difficulty_candidate": "intermediario",
+    "tracking": "reps",
+    "requires_anchor": false,
+    "instructions_pt": "Eleve o braço em amplitude confortável com faixa bem estabilizada.",
+    "caution_pt": "Evite elevação dolorosa.",
+    "review_status": "pendente_revisao_profissional",
+    "media_url": null,
+    "source_kind": "conteudo_original_rascunho",
+    "source_url": null,
+    "license_text": "autoral_rascunho",
+    "version": "0.1.0"
+  },
+  {
+    "id": "banda_triceps",
+    "name_pt": "Extensão de tríceps com faixa",
+    "modality": "forca",
+    "movement_pattern": "extensao_cotovelo",
+    "equipment": [
+      "faixa_longa"
+    ],
+    "environment": [
+      "casa"
+    ],
+    "difficulty_candidate": "intermediario",
+    "tracking": "reps",
+    "requires_anchor": true,
+    "instructions_pt": "Realize extensão do cotovelo lentamente com âncora própria e estável.",
+    "caution_pt": "Não improvisar âncora no teto/porta.",
+    "review_status": "pendente_revisao_profissional",
+    "media_url": null,
+    "source_kind": "conteudo_original_rascunho",
+    "source_url": null,
+    "license_text": "autoral_rascunho",
+    "version": "0.1.0"
+  },
+  {
+    "id": "mini_caminhada_lateral",
+    "name_pt": "Passos laterais com mini band",
+    "modality": "forca",
+    "movement_pattern": "abdutor_quadril",
+    "equipment": [
+      "mini_band"
+    ],
+    "environment": [
+      "casa"
+    ],
+    "difficulty_candidate": "iniciante",
+    "tracking": "reps",
+    "requires_anchor": false,
+    "instructions_pt": "Coloque a mini band na posição definida pela orientação técnica e dê pequenos passos laterais.",
+    "caution_pt": "Manter equilíbrio; não deixar faixa enrolar.",
+    "review_status": "pendente_revisao_profissional",
+    "media_url": null,
+    "source_kind": "conteudo_original_rascunho",
+    "source_url": null,
+    "license_text": "autoral_rascunho",
+    "version": "0.1.0"
+  },
+  {
+    "id": "mini_marcha_lateral",
+    "name_pt": "Caminhada curta lateral com mini band",
+    "modality": "forca",
+    "movement_pattern": "abdutor_quadril",
+    "equipment": [
+      "mini_band"
+    ],
+    "environment": [
+      "casa"
+    ],
+    "difficulty_candidate": "intermediario",
+    "tracking": "reps",
+    "requires_anchor": false,
+    "instructions_pt": "Desloque-se lateralmente em passos pequenos mantendo controle dos joelhos.",
+    "caution_pt": "Retire obstáculos e verifique resistência.",
+    "review_status": "pendente_revisao_profissional",
+    "media_url": null,
+    "source_kind": "conteudo_original_rascunho",
+    "source_url": null,
+    "license_text": "autoral_rascunho",
+    "version": "0.1.0"
+  },
+  {
+    "id": "mini_ponte",
+    "name_pt": "Ponte de glúteos com mini band",
+    "modality": "forca",
+    "movement_pattern": "extensao_quadril",
+    "equipment": [
+      "mini_band"
+    ],
+    "environment": [
+      "casa"
+    ],
+    "difficulty_candidate": "intermediario",
+    "tracking": "reps",
+    "requires_anchor": false,
+    "instructions_pt": "Execute ponte com faixa posicionada de forma segura e controlada.",
+    "caution_pt": "Evitar tensão excessiva e dor.",
+    "review_status": "pendente_revisao_profissional",
+    "media_url": null,
+    "source_kind": "conteudo_original_rascunho",
+    "source_url": null,
+    "license_text": "autoral_rascunho",
+    "version": "0.1.0"
+  },
+  {
+    "id": "mini_abducao_sentada",
+    "name_pt": "Abertura de joelhos sentada com mini band",
+    "modality": "forca",
+    "movement_pattern": "abdutor_quadril",
+    "equipment": [
+      "mini_band"
+    ],
+    "environment": [
+      "casa"
+    ],
+    "difficulty_candidate": "iniciante",
+    "tracking": "reps",
+    "requires_anchor": false,
+    "instructions_pt": "Sentado em cadeira estável, afaste suavemente os joelhos contra a faixa.",
+    "caution_pt": "Não sobrecarregar joelhos.",
+    "review_status": "pendente_revisao_profissional",
+    "media_url": null,
+    "source_kind": "conteudo_original_rascunho",
+    "source_url": null,
+    "license_text": "autoral_rascunho",
+    "version": "0.1.0"
+  },
+  {
+    "id": "mini_clamshell",
+    "name_pt": "Clamshell com mini band",
+    "modality": "forca",
+    "movement_pattern": "abdutor_quadril",
+    "equipment": [
+      "mini_band"
+    ],
+    "environment": [
+      "casa"
+    ],
+    "difficulty_candidate": "intermediario",
+    "tracking": "reps",
+    "requires_anchor": false,
+    "instructions_pt": "De lado, mantenha pés próximos e abra os joelhos na amplitude confortável.",
+    "caution_pt": "Sem torcer quadril ou forçar joelhos.",
+    "review_status": "pendente_revisao_profissional",
+    "media_url": null,
+    "source_kind": "conteudo_original_rascunho",
+    "source_url": null,
+    "license_text": "autoral_rascunho",
+    "version": "0.1.0"
+  },
+  {
+    "id": "mini_extensao_perna",
+    "name_pt": "Extensão lateral de perna com mini band",
+    "modality": "forca",
+    "movement_pattern": "abdutor_quadril",
+    "equipment": [
+      "mini_band"
+    ],
+    "environment": [
+      "casa"
+    ],
+    "difficulty_candidate": "intermediario",
+    "tracking": "reps",
+    "requires_anchor": false,
+    "instructions_pt": "Com apoio estável, afaste a perna lateralmente com resistência leve e controlada.",
+    "caution_pt": "Priorize equilíbrio.",
+    "review_status": "pendente_revisao_profissional",
+    "media_url": null,
+    "source_kind": "conteudo_original_rascunho",
+    "source_url": null,
+    "license_text": "autoral_rascunho",
+    "version": "0.1.0"
+  },
+  {
+    "id": "rua_caminhada_livre",
+    "name_pt": "Caminhada em terreno plano",
+    "modality": "caminhada",
+    "movement_pattern": "marcha",
+    "equipment": [
+      "nenhum"
+    ],
+    "environment": [
+      "rua"
+    ],
+    "difficulty_candidate": "iniciante",
+    "tracking": "tempo_seg",
+    "requires_anchor": false,
+    "instructions_pt": "Escolha percurso seguro e ritmo confortável; registre o tempo ao final.",
+    "caution_pt": "Considere clima, piso, trânsito e sua condição atual.",
+    "review_status": "pendente_revisao_profissional",
+    "media_url": null,
+    "source_kind": "conteudo_original_rascunho",
+    "source_url": null,
+    "license_text": "autoral_rascunho",
+    "version": "0.1.0"
+  },
+  {
+    "id": "rua_caminhada_intervalos",
+    "name_pt": "Caminhada com alternância de ritmo",
+    "modality": "caminhada",
+    "movement_pattern": "marcha",
+    "equipment": [
+      "nenhum"
+    ],
+    "environment": [
+      "rua"
+    ],
+    "difficulty_candidate": "intermediario",
+    "tracking": "tempo_seg",
+    "requires_anchor": false,
+    "instructions_pt": "Alterne ritmos conforme estrutura de sessão previamente revisada.",
+    "caution_pt": "Não fazer intervalos intensos sem adequação e revisão do plano.",
+    "review_status": "pendente_revisao_profissional",
+    "media_url": null,
+    "source_kind": "conteudo_original_rascunho",
+    "source_url": null,
+    "license_text": "autoral_rascunho",
+    "version": "0.1.0"
+  },
+  {
+    "id": "rua_caminhada_distancia",
+    "name_pt": "Caminhada por percurso conhecido",
+    "modality": "caminhada",
+    "movement_pattern": "marcha",
+    "equipment": [
+      "nenhum"
+    ],
+    "environment": [
+      "rua"
+    ],
+    "difficulty_candidate": "iniciante",
+    "tracking": "distancia_km",
+    "requires_anchor": false,
+    "instructions_pt": "Registre o trajeto ou a distância aproximada se desejar.",
+    "caution_pt": "GPS não é obrigatório; respeite condições do percurso.",
+    "review_status": "pendente_revisao_profissional",
+    "media_url": null,
+    "source_kind": "conteudo_original_rascunho",
+    "source_url": null,
+    "license_text": "autoral_rascunho",
+    "version": "0.1.0"
+  },
+  {
+    "id": "rua_passeio_parque",
+    "name_pt": "Caminhada leve em parque",
+    "modality": "caminhada",
+    "movement_pattern": "marcha",
+    "equipment": [
+      "nenhum"
+    ],
+    "environment": [
+      "rua"
+    ],
+    "difficulty_candidate": "iniciante",
+    "tracking": "tempo_seg",
+    "requires_anchor": false,
+    "instructions_pt": "Caminhe num percurso adequado sem compromisso com velocidade.",
+    "caution_pt": "Considerar segurança do ambiente e sinais de desconforto.",
+    "review_status": "pendente_revisao_profissional",
+    "media_url": null,
+    "source_kind": "conteudo_original_rascunho",
+    "source_url": null,
+    "license_text": "autoral_rascunho",
+    "version": "0.1.0"
+  },
+  {
+    "id": "rua_caminhada_inclinacao",
+    "name_pt": "Caminhada em inclinação leve",
+    "modality": "caminhada",
+    "movement_pattern": "marcha",
+    "equipment": [
+      "nenhum"
+    ],
+    "environment": [
+      "rua"
+    ],
+    "difficulty_candidate": "intermediario",
+    "tracking": "tempo_seg",
+    "requires_anchor": false,
+    "instructions_pt": "Escolha uma subida leve apenas quando compatível com seu planejamento.",
+    "caution_pt": "A inclinação pode elevar o esforço; não é equivalente ao plano.",
+    "review_status": "pendente_revisao_profissional",
+    "media_url": null,
+    "source_kind": "conteudo_original_rascunho",
+    "source_url": null,
+    "license_text": "autoral_rascunho",
+    "version": "0.1.0"
+  },
+  {
+    "id": "mob_circulos_ombros",
+    "name_pt": "Círculos pequenos de ombros",
+    "modality": "mobilidade",
+    "movement_pattern": "ombro",
+    "equipment": [
+      "nenhum"
+    ],
+    "environment": [
+      "casa"
+    ],
+    "difficulty_candidate": "iniciante",
+    "tracking": "reps",
+    "requires_anchor": false,
+    "instructions_pt": "Faça movimentos circulares suaves dos ombros sem forçar a amplitude.",
+    "caution_pt": "Evite dor.",
+    "review_status": "pendente_revisao_profissional",
+    "media_url": null,
+    "source_kind": "conteudo_original_rascunho",
+    "source_url": null,
+    "license_text": "autoral_rascunho",
+    "version": "0.1.0"
+  },
+  {
+    "id": "mob_tornozelo",
+    "name_pt": "Mobilidade de tornozelo com apoio",
+    "modality": "mobilidade",
+    "movement_pattern": "tornozelo",
+    "equipment": [
+      "apoio_estavel"
+    ],
+    "environment": [
+      "casa"
+    ],
+    "difficulty_candidate": "iniciante",
+    "tracking": "reps",
+    "requires_anchor": false,
+    "instructions_pt": "Próximo de um apoio firme, faça movimentos pequenos de tornozelo.",
+    "caution_pt": "Priorize equilíbrio.",
+    "review_status": "pendente_revisao_profissional",
+    "media_url": null,
+    "source_kind": "conteudo_original_rascunho",
+    "source_url": null,
+    "license_text": "autoral_rascunho",
+    "version": "0.1.0"
+  },
+  {
+    "id": "mob_coluna_quatro",
+    "name_pt": "Mobilidade suave da coluna em quatro apoios",
+    "modality": "mobilidade",
+    "movement_pattern": "coluna",
+    "equipment": [
+      "colchonete"
+    ],
+    "environment": [
+      "casa"
+    ],
+    "difficulty_candidate": "iniciante",
+    "tracking": "reps",
+    "requires_anchor": false,
+    "instructions_pt": "Alterne posições confortáveis da coluna, respirando normalmente.",
+    "caution_pt": "Parar se houver dor.",
+    "review_status": "pendente_revisao_profissional",
+    "media_url": null,
+    "source_kind": "conteudo_original_rascunho",
+    "source_url": null,
+    "license_text": "autoral_rascunho",
+    "version": "0.1.0"
+  },
+  {
+    "id": "mob_rotacao_tronco_sentado",
+    "name_pt": "Rotação suave de tronco sentado",
+    "modality": "mobilidade",
+    "movement_pattern": "rotacao_tronco",
+    "equipment": [
+      "cadeira"
+    ],
+    "environment": [
+      "casa"
+    ],
+    "difficulty_candidate": "iniciante",
+    "tracking": "reps",
+    "requires_anchor": false,
+    "instructions_pt": "Sentado em cadeira estável, gire lentamente o tronco sem forçar o pescoço.",
+    "caution_pt": "Evite amplitude dolorosa.",
+    "review_status": "pendente_revisao_profissional",
+    "media_url": null,
+    "source_kind": "conteudo_original_rascunho",
+    "source_url": null,
+    "license_text": "autoral_rascunho",
+    "version": "0.1.0"
+  },
+  {
+    "id": "mob_along_panturrilha",
+    "name_pt": "Alongamento leve de panturrilha na parede",
+    "modality": "alongamento",
+    "movement_pattern": "panturrilha",
+    "equipment": [
+      "parede"
+    ],
+    "environment": [
+      "casa"
+    ],
+    "difficulty_candidate": "iniciante",
+    "tracking": "tempo_seg",
+    "requires_anchor": false,
+    "instructions_pt": "Apoie-se em parede firme e mantenha a posição de alongamento suave.",
+    "caution_pt": "Não provocar dor e não prender a respiração.",
+    "review_status": "pendente_revisao_profissional",
+    "media_url": null,
+    "source_kind": "conteudo_original_rascunho",
+    "source_url": null,
+    "license_text": "autoral_rascunho",
+    "version": "0.1.0"
+  },
+  {
+    "id": "mob_along_peitoral",
+    "name_pt": "Abertura suave de peito",
+    "modality": "alongamento",
+    "movement_pattern": "peito",
+    "equipment": [
+      "nenhum"
+    ],
+    "environment": [
+      "casa"
+    ],
+    "difficulty_candidate": "iniciante",
+    "tracking": "tempo_seg",
+    "requires_anchor": false,
+    "instructions_pt": "Afaste suavemente os braços dentro de amplitude confortável.",
+    "caution_pt": "Não forçar articulação do ombro.",
+    "review_status": "pendente_revisao_profissional",
+    "media_url": null,
+    "source_kind": "conteudo_original_rascunho",
+    "source_url": null,
+    "license_text": "autoral_rascunho",
+    "version": "0.1.0"
+  },
+  {
+    "id": "mob_along_posterior",
+    "name_pt": "Alongamento leve posterior de coxa sentado",
+    "modality": "alongamento",
+    "movement_pattern": "posterior_coxa",
+    "equipment": [
+      "cadeira"
+    ],
+    "environment": [
+      "casa"
+    ],
+    "difficulty_candidate": "iniciante",
+    "tracking": "tempo_seg",
+    "requires_anchor": false,
+    "instructions_pt": "Sente-se em apoio firme e incline suavemente o tronco na amplitude confortável.",
+    "caution_pt": "Não arredondar a coluna de forma desconfortável.",
+    "review_status": "pendente_revisao_profissional",
+    "media_url": null,
+    "source_kind": "conteudo_original_rascunho",
+    "source_url": null,
+    "license_text": "autoral_rascunho",
+    "version": "0.1.0"
+  },
+  {
+    "id": "mob_mov_quadril",
+    "name_pt": "Mobilidade suave de quadril em pé",
+    "modality": "mobilidade",
+    "movement_pattern": "quadril",
+    "equipment": [
+      "apoio_estavel"
+    ],
+    "environment": [
+      "casa"
+    ],
+    "difficulty_candidate": "iniciante",
+    "tracking": "reps",
+    "requires_anchor": false,
+    "instructions_pt": "Com apoio, faça movimentos leves do quadril sem perder equilíbrio.",
+    "caution_pt": "Evite torções bruscas.",
+    "review_status": "pendente_revisao_profissional",
+    "media_url": null,
+    "source_kind": "conteudo_original_rascunho",
+    "source_url": null,
+    "license_text": "autoral_rascunho",
+    "version": "0.1.0"
+  },
+  {
+    "id": "mob_punhos",
+    "name_pt": "Círculos suaves de punhos",
+    "modality": "mobilidade",
+    "movement_pattern": "punho",
+    "equipment": [
+      "nenhum"
+    ],
+    "environment": [
+      "casa"
+    ],
+    "difficulty_candidate": "iniciante",
+    "tracking": "reps",
+    "requires_anchor": false,
+    "instructions_pt": "Gire os punhos em movimentos controlados e pequenos.",
+    "caution_pt": "Evite movimentos dolorosos.",
+    "review_status": "pendente_revisao_profissional",
+    "media_url": null,
+    "source_kind": "conteudo_original_rascunho",
+    "source_url": null,
+    "license_text": "autoral_rascunho",
+    "version": "0.1.0"
+  }
+]

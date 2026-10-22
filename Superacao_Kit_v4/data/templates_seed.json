@@ -1,0 +1,306 @@
+[
+  {
+    "id": "tpl_casa_iniciante",
+    "name_pt": "Casa: movimentos básicos",
+    "environment": "casa",
+    "modality": "forca",
+    "required_equipment": [
+      "nenhum",
+      "cadeira",
+      "parede",
+      "colchonete",
+      "apoio_estavel"
+    ],
+    "estimated_minutes_example": 20,
+    "items": [
+      {
+        "exercise_id": "corpo_sentar_levantar",
+        "sets": 2,
+        "rest_seconds": 45,
+        "target_reps_example": 8
+      },
+      {
+        "exercise_id": "corpo_flexao_parede",
+        "sets": 2,
+        "rest_seconds": 45,
+        "target_reps_example": 8
+      },
+      {
+        "exercise_id": "corpo_ponte_gluteos",
+        "sets": 2,
+        "rest_seconds": 45,
+        "target_reps_example": 8
+      },
+      {
+        "exercise_id": "corpo_elevacao_panturrilha",
+        "sets": 2,
+        "rest_seconds": 45,
+        "target_reps_example": 10
+      }
+    ],
+    "review_status": "pendente_revisao_profissional",
+    "publishable": false,
+    "source": "modelo_original_demonstrativo",
+    "version": "0.1.0",
+    "note": "Modelo demonstrativo, não constitui prescrição."
+  },
+  {
+    "id": "tpl_casa_curto",
+    "name_pt": "Casa: sessão curta",
+    "environment": "casa",
+    "modality": "misto",
+    "required_equipment": [
+      "nenhum",
+      "parede",
+      "cadeira"
+    ],
+    "estimated_minutes_example": 12,
+    "items": [
+      {
+        "exercise_id": "corpo_sentar_levantar",
+        "sets": 1,
+        "rest_seconds": 45,
+        "target_reps_example": 8
+      },
+      {
+        "exercise_id": "corpo_flexao_parede",
+        "sets": 1,
+        "rest_seconds": 45,
+        "target_reps_example": 8
+      },
+      {
+        "exercise_id": "corpo_marcha_local",
+        "sets": 1,
+        "rest_seconds": 45,
+        "target_duration_seconds_example": 180
+      },
+      {
+        "exercise_id": "mob_circulos_ombros",
+        "sets": 1,
+        "rest_seconds": 45,
+        "target_reps_example": 8
+      }
+    ],
+    "review_status": "pendente_revisao_profissional",
+    "publishable": false,
+    "source": "modelo_original_demonstrativo",
+    "version": "0.1.0",
+    "note": "Regras de duração meramente demonstrativas."
+  },
+  {
+    "id": "tpl_faixa_longa",
+    "name_pt": "Faixa longa: força geral",
+    "environment": "casa",
+    "modality": "forca",
+    "required_equipment": [
+      "faixa_longa"
+    ],
+    "estimated_minutes_example": 25,
+    "items": [
+      {
+        "exercise_id": "banda_remada_sentada",
+        "sets": 2,
+        "rest_seconds": 45,
+        "target_reps_example": 8
+      },
+      {
+        "exercise_id": "banda_rosca_biceps",
+        "sets": 2,
+        "rest_seconds": 45,
+        "target_reps_example": 8
+      },
+      {
+        "exercise_id": "banda_puxada_abertura",
+        "sets": 2,
+        "rest_seconds": 45,
+        "target_reps_example": 8
+      },
+      {
+        "exercise_id": "banda_press_frente",
+        "sets": 2,
+        "rest_seconds": 45,
+        "target_reps_example": 8
+      }
+    ],
+    "review_status": "pendente_revisao_profissional",
+    "publishable": false,
+    "source": "modelo_original_demonstrativo",
+    "version": "0.1.0",
+    "note": "Exemplos de seleção; verificar faixa, técnica e adequação."
+  },
+  {
+    "id": "tpl_faixa_longa_superior",
+    "name_pt": "Faixa longa: membros superiores",
+    "environment": "casa",
+    "modality": "forca",
+    "required_equipment": [
+      "faixa_longa"
+    ],
+    "estimated_minutes_example": 16,
+    "items": [
+      {
+        "exercise_id": "banda_remada_sentada",
+        "sets": 2,
+        "rest_seconds": 45,
+        "target_reps_example": 8
+      },
+      {
+        "exercise_id": "banda_rosca_biceps",
+        "sets": 2,
+        "rest_seconds": 45,
+        "target_reps_example": 8
+      },
+      {
+        "exercise_id": "banda_puxada_abertura",
+        "sets": 2,
+        "rest_seconds": 45,
+        "target_reps_example": 8
+      }
+    ],
+    "review_status": "pendente_revisao_profissional",
+    "publishable": false,
+    "source": "modelo_original_demonstrativo",
+    "version": "0.1.0",
+    "note": "Sem exercícios com âncora improvisada."
+  },
+  {
+    "id": "tpl_miniband",
+    "name_pt": "Mini band: estabilidade de quadril",
+    "environment": "casa",
+    "modality": "forca",
+    "required_equipment": [
+      "mini_band",
+      "cadeira"
+    ],
+    "estimated_minutes_example": 16,
+    "items": [
+      {
+        "exercise_id": "mini_abducao_sentada",
+        "sets": 2,
+        "rest_seconds": 45,
+        "target_reps_example": 8
+      },
+      {
+        "exercise_id": "mini_caminhada_lateral",
+        "sets": 2,
+        "rest_seconds": 45,
+        "target_reps_example": 8
+      },
+      {
+        "exercise_id": "mini_clamshell",
+        "sets": 2,
+        "rest_seconds": 45,
+        "target_reps_example": 8
+      }
+    ],
+    "review_status": "pendente_revisao_profissional",
+    "publishable": false,
+    "source": "modelo_original_demonstrativo",
+    "version": "0.1.0",
+    "note": "Revisar adequação para joelhos/quadril."
+  },
+  {
+    "id": "tpl_caminhada_leve",
+    "name_pt": "Rua: caminhada livre",
+    "environment": "rua",
+    "modality": "caminhada",
+    "required_equipment": [
+      "nenhum"
+    ],
+    "estimated_minutes_example": 12,
+    "items": [
+      {
+        "exercise_id": "rua_caminhada_livre",
+        "sets": 1,
+        "rest_seconds": 0,
+        "target_duration_seconds_example": 720
+      }
+    ],
+    "review_status": "pendente_revisao_profissional",
+    "publishable": false,
+    "source": "modelo_original_demonstrativo",
+    "version": "0.1.0",
+    "note": "Duração de exemplo; não é meta universal."
+  },
+  {
+    "id": "tpl_caminhada_ambiente",
+    "name_pt": "Rua: passeio em parque",
+    "environment": "rua",
+    "modality": "caminhada",
+    "required_equipment": [
+      "nenhum"
+    ],
+    "estimated_minutes_example": 18,
+    "items": [
+      {
+        "exercise_id": "rua_passeio_parque",
+        "sets": 1,
+        "rest_seconds": 0,
+        "target_duration_seconds_example": 1080
+      }
+    ],
+    "review_status": "pendente_revisao_profissional",
+    "publishable": false,
+    "source": "modelo_original_demonstrativo",
+    "version": "0.1.0",
+    "note": "Atividade de exemplo; usuário pode ajustar o tempo."
+  },
+  {
+    "id": "tpl_mobilidade_leve",
+    "name_pt": "Casa: mobilidade leve",
+    "environment": "casa",
+    "modality": "mobilidade",
+    "required_equipment": [
+      "nenhum",
+      "cadeira",
+      "apoio_estavel",
+      "parede"
+    ],
+    "estimated_minutes_example": 10,
+    "items": [
+      {
+        "exercise_id": "mob_circulos_ombros",
+        "sets": 1,
+        "rest_seconds": 45,
+        "target_reps_example": 8
+      },
+      {
+        "exercise_id": "mob_tornozelo",
+        "sets": 1,
+        "rest_seconds": 45,
+        "target_reps_example": 8
+      },
+      {
+        "exercise_id": "mob_rotacao_tronco_sentado",
+        "sets": 1,
+        "rest_seconds": 45,
+        "target_reps_example": 6
+      },
+      {
+        "exercise_id": "mob_along_panturrilha",
+        "sets": 1,
+        "rest_seconds": 0,
+        "target_duration_seconds_example": 20
+      }
+    ],
+    "review_status": "pendente_revisao_profissional",
+    "publishable": false,
+    "source": "modelo_original_demonstrativo",
+    "version": "0.1.0",
+    "note": "Não ofertar como obrigatório em dia de descanso."
+  },
+  {
+    "id": "tpl_descanso",
+    "name_pt": "Descanso completo (sem sessão)",
+    "environment": "qualquer",
+    "modality": "recuperacao",
+    "required_equipment": [],
+    "estimated_minutes_example": 0,
+    "items": [],
+    "review_status": "pendente_revisao_profissional",
+    "publishable": false,
+    "source": "modelo_original_demonstrativo",
+    "version": "0.1.0",
+    "note": "Descanso é válido, sem exercício obrigatório ou punição."
+  }
+]

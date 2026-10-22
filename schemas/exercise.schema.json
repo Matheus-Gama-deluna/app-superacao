@@ -1,0 +1,78 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "ExerciseSeed",
+  "type": "object",
+  "required": [
+    "id",
+    "name_pt",
+    "modality",
+    "movement_pattern",
+    "equipment",
+    "environment",
+    "tracking",
+    "review_status",
+    "version"
+  ],
+  "properties": {
+    "id": {
+      "type": "string"
+    },
+    "name_pt": {
+      "type": "string"
+    },
+    "modality": {
+      "type": "string"
+    },
+    "movement_pattern": {
+      "type": "string"
+    },
+    "equipment": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "environment": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "tracking": {
+      "enum": [
+        "reps",
+        "tempo_seg",
+        "tempo_min",
+        "distancia_km"
+      ]
+    },
+    "requires_anchor": {
+      "type": "boolean"
+    },
+    "instructions_pt": {
+      "type": "string"
+    },
+    "caution_pt": {
+      "type": "string"
+    },
+    "review_status": {
+      "type": "string"
+    },
+    "media_url": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "source_url": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "version": {
+      "type": "string"
+    }
+  },
+  "additionalProperties": true
+}

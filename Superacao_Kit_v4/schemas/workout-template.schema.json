@@ -1,0 +1,78 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "WorkoutTemplate",
+  "type": "object",
+  "required": [
+    "id",
+    "name_pt",
+    "items",
+    "review_status",
+    "publishable"
+  ],
+  "properties": {
+    "id": {
+      "type": "string"
+    },
+    "name_pt": {
+      "type": "string"
+    },
+    "environment": {
+      "type": "string"
+    },
+    "modality": {
+      "type": "string"
+    },
+    "required_equipment": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "estimated_minutes_example": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "items": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "exercise_id",
+          "sets",
+          "rest_seconds"
+        ],
+        "properties": {
+          "exercise_id": {
+            "type": "string"
+          },
+          "sets": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "target_reps_example": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "target_duration_seconds_example": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "rest_seconds": {
+            "type": "integer",
+            "minimum": 0
+          }
+        }
+      }
+    },
+    "review_status": {
+      "type": "string"
+    },
+    "publishable": {
+      "type": "boolean"
+    },
+    "version": {
+      "type": "string"
+    }
+  },
+  "additionalProperties": true
+}

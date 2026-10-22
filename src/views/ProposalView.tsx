@@ -1,0 +1,292 @@
+import React, { useState } from 'react';
+import { useAuth } from '../context/AuthContext';
+import { useWorkout } from '../context/WorkoutContext';
+import {
+  Sparkles,
+  CheckCircle2,
+  Clock,
+  Dumbbell,
+  ShieldCheck,
+  ArrowRight,
+  ArrowLeft,
+  ChevronDown,
+  ChevronUp,
+  FileCheck2,
+  Calendar,
+  Layers,
+  Heart,
+  AlertCircle,
+} from 'lucide-react';
+import { ExplainableProposal, WorkoutPlan } from '../types';
+import { EQUIPMENT_LABELS, AVOIDANCE_LABELS } from '../lib/storage';
+
+interface ProposalViewProps {
+  proposal: ExplainableProposal;
+  onConfirm: () => void;
+  onAdjustAnswers: () => void;
+  onChooseOtherOption: (option: 'builder_manual' | 'builder_pro') => void;
+}
+
+export const ProposalView: React.FC<ProposalViewProps> = ({
+  proposal,
+  onConfirm,
+  onAdjustAnswers,
+  onChooseOtherOption,
+}) => {
+  const { profile } = useAuth();
+  const { confirmProposal } = useWorkout();
+  const [isConfirming, setIsConfirming] = useState<boolean>(false);
+  const [showExercisesDetail, setShowExercisesDetail] = useState<boolean>(true);
+  const [showOtherOptionsModal, setShowOtherOptionsModal] = useState<boolean>(false);
+
+  const daysLabels = ['Domingo', 'Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado'];
+  const scheduledDaysIndices = Object.keys(proposal.weeklySchedule).map(Number);
+
+  const handleConfirmRoutine = async () => {
+    setIsConfirming(true);
+    try {
+      await confirmProposal(proposal);
+      onConfirm();
+    } catch (err) {
+      console.error('Erro ao confirmar proposta:', err);
+    } finally {
+      setIsConfirming(false);
+    }
+  };
+
+  const primaryPlan = proposal.routines[0];
+
+  return (
+    <div className="min-h-screen bg-[#F5F8F5] text-[#152A29] flex flex-col justify-between font-sans">
+      {/* Top Header */}
+      <header className="sticky top-0 z-20 bg-white/95 backdrop-blur-md border-b border-[#C9DBD3] px-4 py-3">
+        <div className="max-w-xl mx-auto flex items-center justify-between">
+          <button
+            onClick={onAdjustAnswers}
+            className="flex items-center gap-1.5 text-xs font-semibold text-[#5B7170] hover:text-[#152A29] p-1.5 rounded-lg cursor-pointer"
+          >
+            <ArrowLeft className="w-4 h-4" />
+            <span>Ajustar respostas</span>
+          </button>
+          <span className="text-xs font-bold text-[#125F55] uppercase tracking-wider">
+            Proposta de Rotina
+          </span>
+          <div className="w-16" />
+        </div>
+      </header>
+
+      {/* Main Content */}
+      <main className="flex-1 max-w-xl mx-auto w-full px-4 py-6 space-y-6">
+        {/* Banner de Apresentação Explicável (Seção 6, C10, C11) */}
+        <section className="bg-white rounded-3xl p-6 border border-[#C9DBD3] shadow-xs space-y-4">
+          <div className="flex items-start gap-3">
+            <div className="w-12 h-12 rounded-2xl bg-[#EAF3EF] flex items-center justify-center text-[#125F55] shrink-0 mt-0.5">
+              <Sparkles className="w-6 h-6 text-[#125F55]" />
+            </div>
+            <div>
+              <span className="text-[11px] font-bold text-[#125F55] uppercase tracking-wider">
+                Proposta Personalizada
+              </span>
+              <h1 className="text-xl font-extrabold text-[#152A29] mt-0.5 leading-tight">
+                {proposal.title}
+              </h1>
+            </div>
+          </div>
+
+          {/* Justificativa Clara e Verificável (Critério C11) */}
+          <div className="p-4 rounded-2xl bg-[#F5F8F5] border border-[#C9DBD3]/70 space-y-2">
+            <div className="flex items-center gap-2 text-xs font-bold text-[#125F55]">
+              <ShieldCheck className="w-4 h-4" />
+              <span>Por que esta rotina foi pensada para você?</span>
+            </div>
+            <p className="text-xs text-[#152A29] leading-relaxed">
+              {proposal.justificationText}
+            </p>
+          </div>
+
+          {/* Discriminação de Tempo e Sessões (Critério C10) */}
+          <div className="grid grid-cols-2 gap-2.5 pt-1">
+            <div className="p-3 rounded-2xl bg-[#EAF3EF] border border-[#125F55]/20 flex items-center gap-2.5">
+              <Calendar className="w-4 h-4 text-[#125F55] shrink-0" />
+              <div className="text-xs">
+                <span className="text-[10px] text-[#5B7170] block font-medium">Frequência</span>
+                <span className="font-bold text-[#125F55]">
+                  {proposal.targetDaysCount} {proposal.targetDaysCount === 1 ? 'dia por semana' : 'dias por semana'}
+                </span>
+              </div>
+            </div>
+
+            <div className="p-3 rounded-2xl bg-[#EAF3EF] border border-[#125F55]/20 flex items-center gap-2.5">
+              <Clock className="w-4 h-4 text-[#125F55] shrink-0" />
+              <div className="text-xs">
+                <span className="text-[10px] text-[#5B7170] block font-medium">Duração real</span>
+                <span className="font-bold text-[#125F55]">
+                  ~{proposal.sessionDurationMinutes} min / treino
+                </span>
+              </div>
+            </div>
+          </div>
+
+          {/* Explicação da Duração com Séries e Descansos Somados (Seção 6) */}
+          <p className="text-[11px] text-[#5B7170] leading-snug px-1">
+            {proposal.timeBreakdownText}
+          </p>
+        </section>
+
+        {/* Ficha de Exercícios Detalhada */}
+        {primaryPlan && (
+          <section className="bg-white rounded-3xl p-6 border border-[#C9DBD3] shadow-xs space-y-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <h2 className="text-base font-bold text-[#152A29]">
+                  {primaryPlan.title}
+                </h2>
+                <p className="text-xs text-[#5B7170] mt-0.5">
+                  {primaryPlan.exercises.length} movimentos compatíveis com seus apoios
+                </p>
+              </div>
+              <button
+                onClick={() => setShowExercisesDetail(!showExercisesDetail)}
+                className="p-2 text-[#5B7170] hover:text-[#152A29] rounded-xl hover:bg-slate-50 cursor-pointer"
+                aria-label={showExercisesDetail ? 'Ocultar detalhes' : 'Exibir detalhes'}
+              >
+                {showExercisesDetail ? <ChevronUp className="w-5 h-5" /> : <ChevronDown className="w-5 h-5" />}
+              </button>
+            </div>
+
+            {showExercisesDetail && (
+              <div className="space-y-2.5 pt-1">
+                {primaryPlan.exercises.map((ex, idx) => (
+                  <div
+                    key={ex.exerciseId || idx}
+                    className="p-3 rounded-2xl bg-[#F5F8F5] border border-[#C9DBD3]/60 flex items-center justify-between gap-3 text-xs"
+                  >
+                    <div className="flex items-center gap-3 min-w-0">
+                      <span className="w-6 h-6 rounded-full bg-white border border-[#C9DBD3] text-[#125F55] font-black flex items-center justify-center text-[11px] shrink-0">
+                        {idx + 1}
+                      </span>
+                      <div className="min-w-0">
+                        <span className="font-bold text-[#152A29] block truncate">
+                          {ex.exerciseName}
+                        </span>
+                        <span className="text-[11px] text-[#5B7170]">
+                          {ex.targetSets} séries · {ex.targetReps > 0 ? `${ex.targetReps} reps` : `${ex.targetDurationSeconds}s`} · {ex.restSeconds}s descanso
+                        </span>
+                      </div>
+                    </div>
+                    {ex.notes && (
+                      <span className="text-[10px] text-[#91610D] font-medium shrink-0 bg-amber-50 px-2 py-0.5 rounded-md border border-amber-200">
+                        Atenção
+                      </span>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {/* Dias agendados */}
+            <div className="pt-2 border-t border-[#C9DBD3]/40 space-y-1.5">
+              <span className="text-xs font-semibold text-[#5B7170] block">
+                Dias de treino sugeridos na sua semana:
+              </span>
+              <div className="flex flex-wrap gap-1.5">
+                {scheduledDaysIndices.map((d) => (
+                  <span
+                    key={d}
+                    className="px-2.5 py-1 rounded-xl bg-[#EAF3EF] border border-[#125F55]/30 text-[#125F55] text-xs font-bold"
+                  >
+                    {daysLabels[d]}
+                  </span>
+                ))}
+              </div>
+            </div>
+          </section>
+        )}
+
+        {/* 3 Botões de Ação Explícitos (Seção 6, Critérios C09, C15) */}
+        <section className="space-y-3 pt-2">
+          {/* Botão 1: Confirmar Minha Rotina (C09, C15) */}
+          <button
+            onClick={handleConfirmRoutine}
+            disabled={isConfirming}
+            className="w-full min-h-[56px] p-4 bg-[#125F55] text-white rounded-2xl font-bold text-sm flex items-center justify-center gap-2 hover:bg-[#0C5148] active:scale-[0.99] transition-all cursor-pointer shadow-md"
+          >
+            <CheckCircle2 className="w-5 h-5 text-[#D9F277]" />
+            <span>Confirmar minha rotina</span>
+          </button>
+
+          {/* Botão 2: Ajustar Respostas */}
+          <button
+            onClick={onAdjustAnswers}
+            className="w-full min-h-[48px] p-3 bg-white border border-[#C9DBD3] text-[#152A29] rounded-2xl font-semibold text-xs flex items-center justify-center gap-2 hover:bg-slate-50 transition-all cursor-pointer"
+          >
+            <span>Ajustar proposta ou respostas</span>
+          </button>
+
+          {/* Botão 3: Ver Outras Opções */}
+          <button
+            onClick={() => setShowOtherOptionsModal(true)}
+            className="w-full min-h-[44px] p-2.5 text-[#5B7170] text-xs font-medium hover:text-[#152A29] flex items-center justify-center gap-1.5 cursor-pointer"
+          >
+            <span>Ver outras opções (manual ou plano de profissional)</span>
+          </button>
+        </section>
+      </main>
+
+      {/* Modal de Outras Opções */}
+      {showOtherOptionsModal && (
+        <div
+          role="dialog"
+          aria-modal="true"
+          className="fixed inset-0 z-50 bg-black/50 backdrop-blur-xs flex items-center justify-center p-4"
+        >
+          <div className="bg-white rounded-3xl p-6 max-w-sm w-full space-y-4 border border-[#C9DBD3] shadow-xl">
+            <h3 className="text-base font-bold text-[#152A29]">
+              Outras formas de começar
+            </h3>
+            <p className="text-xs text-[#5B7170]">
+              Você tem total autonomia. Se preferir não seguir a proposta sugerida, escolha uma alternativa:
+            </p>
+
+            <div className="space-y-2 pt-1">
+              <button
+                onClick={() => {
+                  setShowOtherOptionsModal(false);
+                  onChooseOtherOption('builder_pro');
+                }}
+                className="w-full p-3.5 rounded-2xl border border-[#C9DBD3] text-left hover:border-[#125F55] hover:bg-[#EAF3EF] transition-all cursor-pointer min-h-[52px]"
+              >
+                <div className="text-xs font-bold text-[#152A29]">Cadastrar Plano de Profissional</div>
+                <div className="text-[11px] text-[#5B7170] mt-0.5">
+                  Adicione a prescrição do seu personal trainer ou fisioterapeuta.
+                </div>
+              </button>
+
+              <button
+                onClick={() => {
+                  setShowOtherOptionsModal(false);
+                  onChooseOtherOption('builder_manual');
+                }}
+                className="w-full p-3.5 rounded-2xl border border-[#C9DBD3] text-left hover:border-[#125F55] hover:bg-[#EAF3EF] transition-all cursor-pointer min-h-[52px]"
+              >
+                <div className="text-xs font-bold text-[#152A29]">Montar Minha Rotina Manualmente</div>
+                <div className="text-[11px] text-[#5B7170] mt-0.5">
+                  Selecione livremente do catálogo oficial e defina suas séries.
+                </div>
+              </button>
+            </div>
+
+            <div className="pt-2">
+              <button
+                onClick={() => setShowOtherOptionsModal(false)}
+                className="w-full py-2.5 text-xs font-semibold text-[#5B7170] hover:text-[#152A29] cursor-pointer"
+              >
+                Cancelar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};

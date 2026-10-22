@@ -1,0 +1,90 @@
+{
+  "meta": {
+    "project": "Superação",
+    "version": "v4.0",
+    "status": "direção visual proposta, sujeita à validação",
+    "visualIdentity": "Clareza + progresso sustentável"
+  },
+  "colors": {
+    "light": {
+      "background": "#F5F8F5",
+      "surface": "#FFFFFF",
+      "surface_alt": "#EAF3EF",
+      "primary": "#125F55",
+      "primary_hover": "#0C5148",
+      "on_primary": "#FFFFFF",
+      "ink": "#152A29",
+      "secondary": "#5B7170",
+      "outline": "#C9DBD3",
+      "accent": "#D9F277",
+      "accent_ink": "#203826",
+      "success": "#246747",
+      "warning": "#91610D",
+      "danger": "#B13D39",
+      "pending": "#8B6019"
+    },
+    "dark": {
+      "background": "#101A1A",
+      "surface": "#192927",
+      "surface_alt": "#233734",
+      "primary": "#98DCC4",
+      "primary_hover": "#B9E7D5",
+      "on_primary": "#133A32",
+      "ink": "#EBF7F1",
+      "secondary": "#B2C8C0",
+      "outline": "#35544B",
+      "accent": "#D9F277",
+      "accent_ink": "#203826",
+      "success": "#8DD3A4",
+      "warning": "#F3C56D",
+      "danger": "#FFA6A1",
+      "pending": "#F3C56D"
+    }
+  },
+  "typography": {
+    "family": "system-ui, -apple-system, BlinkMacSystemFont, \"Segoe UI\", sans-serif",
+    "fontScalePx": {
+      "xs": 12,
+      "sm": 14,
+      "body": 16,
+      "label": 16,
+      "subtitle": 20,
+      "heading": 26,
+      "hero": 32
+    },
+    "lineHeight": 1.4
+  },
+  "spacingPx": [
+    4,
+    8,
+    12,
+    16,
+    20,
+    24,
+    32,
+    40,
+    48
+  ],
+  "radiiPx": {
+    "sm": 10,
+    "control": 14,
+    "card": 20,
+    "hero": 26,
+    "pill": 999
+  },
+  "touch": {
+    "minimumRecommendedPx": 48,
+    "primaryHeightPx": 56
+  },
+  "motion": {
+    "fastMs": 120,
+    "mediumMs": 200,
+    "respectReducedMotion": true
+  },
+  "breakpoints": {
+    "mobileMaxPx": 600,
+    "tabletMinPx": 768,
+    "desktopMinPx": 1024
+  },
+  "iconography": "SVG monocromático, tamanho 20–24px, labels textuais quando relevantes"
+}

@@ -1,0 +1,18 @@
+﻿id,feature,phase,priority,status,done_when,tests
+MVP-01,Catálogo de exercícios e filtros,P0,Crítico,Não iniciado,"Importar seed, busca, modalidade, equipamento, ambiente",T01 T02 T03
+MVP-02,Firestore cache persistente + sincronização nativa,P0,Crítico,Não iniciado,Tudo salvo após reload; backup JSON,T04 T07 T18
+MVP-03,Editor de treino completo,P0,Crítico,Não iniciado,Criar/editar/ordenar/duplicar/salvar,T04 T05
+MVP-04,Executor de séries pós-confirmação,P0,Crítico,Não iniciado,Série concluída após registro real; descanso e pausa,T06 T08 T10
+MVP-05,Retomada de sessão Android/offline,P0,Crítico,Não iniciado,Salvar estado e sobreviver reload,T07 T09 T20
+MVP-06,Histórico e progresso simples,P0,Alto,Não iniciado,"Resumo semanal, XP único, histórico fiel",T08
+MVP-07,Home híbrida e navegação,P1,Alto,Não iniciado,Treino de hoje ou retomar; status sem plano,T14 T15
+MVP-08,Onboarding com objetivos e equipamentos,P1,Alto,Não iniciado,"Objetivos ordenáveis, equipamento exato, dias",
+MVP-09,Agenda e descanso/retomada,P1,Crítico,Não iniciado,Calendário com descanso e reagendar,T12 T13
+MVP-10,Caminhada e atividades temporizadas,P1,Alto,Não iniciado,Salvar tempo/distância sem GPS,T11
+MVP-11,Três origens de plano,P1,Crítico,Não iniciado,"Manual, modelos revisados, profissional cadastrado",T16 T17
+MVP-12,Revisão profissional de templates,P1,Bloqueante público,Não iniciado,Aprovar ou bloquear proposta de modelos,T17
+MVP-13,"Privacidade, exportação e exclusão",P1,Crítico,Não iniciado,"Backup versionado, excluir, minimização",T18 T19
+MVP-14,Teste responsivo Android PWA,P1,Crítico,Não iniciado,"Offline após carregamento, alternar app",T09 T20
+LLM-01,Assistente opcional no servidor,P2,Médio,Não iniciado,"Node endpoint secret, JSON schema, rate limits",T21 T22 T23 T24
+P3-01,Capítulos RPG e narrativa,P3,Baixo,Backlog,"Mundo de aventura customizável, sem bloquear treino",
+P4-01,Portal profissional / social,P4,Baixo,Backlog,"Coordenação, sync e convites",
