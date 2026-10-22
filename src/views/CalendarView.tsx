@@ -24,6 +24,24 @@ export const CalendarView: React.FC<CalendarViewProps> = ({ onStartPlanById }) =
   const [editingDay, setEditingDay] = useState<CalendarDay | null>(null);
 
   const daysLabels = ['Domingo', 'Segunda-feira', 'Terça-feira', 'Quarta-feira', 'Quinta-feira', 'Sexta-feira', 'Sábado'];
+  const today = new Date();
+  const todayYear = today.getFullYear();
+  const todayMonth = String(today.getMonth() + 1).padStart(2, '0');
+  const todayDate = String(today.getDate()).padStart(2, '0');
+  const todayStr = `${todayYear}-${todayMonth}-${todayDate}`;
+
+  const formatDateLabel = (dateStr?: string) => {
+    if (!dateStr) return '';
+    try {
+      const parts = dateStr.split('-');
+      if (parts.length === 3) {
+        return `${parts[2]}/${parts[1]}`;
+      }
+      return dateStr;
+    } catch {
+      return dateStr;
+    }
+  };
 
   const activityBadges: Record<ActivityType, { label: string; icon: React.ElementType; color: string; bg: string }> = {
     strength: { label: 'Treino de Força', icon: Dumbbell, color: '#125F55', bg: '#EAF3EF' },

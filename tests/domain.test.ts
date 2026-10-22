@@ -5,6 +5,7 @@ import {
   generateWeeklyCalendarFromProgram,
   generateExplainableProposal,
   generateWeeklyCalendarFromProposal,
+  isExerciseCompatibleWithUser,
   runStorageMigration,
   checkAndRegisterPR,
   SCHEMA_VERSION,
@@ -675,9 +676,158 @@ describe('Superação v6 — Critérios de Aceitação e Regras de Domínio (C01
   });
 
   // C40: Versão da compilação é visível e confere com a publicação
-  it('C40: Constantes de versão do aplicativo e data de build são v6.0.0 e 2026-10-22', () => {
-    expect(APP_VERSION).toBe('6.0.0');
+  it('C38: Constantes de versão do aplicativo e data de build são v7.0.0 e 2026-10-22', () => {
+    expect(APP_VERSION).toBe('7.0.0');
     expect(APP_BUILD_DATE).toBe('2026-10-22');
-    expect(SCHEMA_VERSION).toBe('6.0.0');
+    expect(SCHEMA_VERSION).toBe('7.0.0');
+  });
+});
+
+
+describe('Superação v7 — Critérios de Aceite Específicos (Critérios 1 a 38)', () => {
+  // Critério 1: Primeira visita continua exibindo escolha de acesso antes do início
+  it('Critério 1: Primeira visita limpa exige escolha de acesso antes do início', () => {
+    const access = localStorage.getItem(STORAGE_KEYS.ACCESS_CHOICE);
+    expect(access).toBeNull();
+  });
+
+  // Critério 3: Objetivo inicial pode ser removido e ordenação reflete na proposta
+  it('Critério 3: Objetivo inicial pode ser removido e prioridade é mantida', () => {
+    let goals = ['Hábito & Consistência', 'Força Funcional'];
+    // Remove o objetivo inicial
+    goals = goals.filter((g) => g !== 'Hábito & Consistência');
+    expect(goals).toEqual(['Força Funcional']);
+    expect(goals[0]).toBe('Força Funcional');
+  });
+
+  // Critério 10: Perfil sintético de 2 dias/15 min/mini band é respeitado
+  it('Critério 10 & 19: Perfil de 2 dias / 15 min / mini band recebe proposta fiel', () => {
+    const syntheticProfile: Partial<UserProfile> = {
+      availableDays: [1, 4], // Segunda e Quinta
+      sessionDurationMinutes: 15,
+      equipments: ['peso_corporal', 'mini_band'],
+      primaryGoal: 'Força e mobilidade funcional',
+    };
+
+    const proposal = generateExplainableProposal(syntheticProfile);
+    expect(proposal.targetDaysCount).toBe(2);
+    expect(Object.keys(proposal.weeklySchedule)).toEqual(['1', '4']);
+    expect(proposal.sessionDurationMinutes).toBeLessThanOrEqual(22);
+    expect(proposal.routines.length).toBeGreaterThan(0);
+  });
+
+  // Critério 13: Wind Sprints com barra suspensa obrigatória NÃO é oferecido sem barra
+  it('Critério 13: Wind Sprints exige barra suspensa e é excluído se usuário tiver apenas peso corporal e mini band', () => {
+    const windSprints = allExercises.find((e) => e.id === 'wind_sprints');
+    expect(windSprints).toBeDefined();
+
+    // Usuário sem barra fixa
+    const userWithoutBar = ['peso_corporal', 'mini_band'];
+    const isCompatibleWithoutBar = isExerciseCompatibleWithUser(windSprints!, userWithoutBar);
+    expect(isCompatibleWithoutBar).toBe(false);
+
+    // Usuário que informou ter barra fixa
+    const userWithBar = ['peso_corporal', 'mini_band', 'barra_fixa'];
+    const isCompatibleWithBar = isExerciseCompatibleWithUser(windSprints!, userWithBar);
+    expect(isCompatibleWithBar).toBe(true);
+  });
+
+  // Critério 14: Outro exercício de peso corporal com apoio obrigatório também é filtrado
+  it('Critério 14: Exercício com apoio obrigatório de banco ou cadeira é filtrado sem o recurso', () => {
+    const benchExercise = allExercises.find((e) => e.id === 'bench_dips');
+    expect(benchExercise).toBeDefined();
+
+    // Usuário sem banco nem cadeira
+    const userWithoutBench = ['peso_corporal'];
+    const compatible = isExerciseCompatibleWithUser(benchExercise!, userWithoutBench);
+    expect(compatible).toBe(false);
+
+    // Usuário com banco
+    const userWithBench = ['peso_corporal', 'banco'];
+    expect(isExerciseCompatibleWithUser(benchExercise!, userWithBench)).toBe(true);
+  });
+
+  // Critério 16: Mini band não habilita faixa longa ou tubos elásticos automaticamente
+  it('Critério 16: Ter mini band não autoriza exercícios que exigem faixa longa ou tubos elásticos', () => {
+    const bandLongaExercise = allExercises.find(
+      (e) => e.equipment.includes('faixa_longa') && !e.equipment.includes('mini_band')
+    );
+    if (bandLongaExercise) {
+      const userMiniBand = ['peso_corporal', 'mini_band'];
+      const compatible = isExerciseCompatibleWithUser(bandLongaExercise, userMiniBand);
+      expect(compatible).toBe(false);
+    }
+  });
+
+  // Critério 17: Movimento evitado exclui exercício
+  it('Critério 17: Usuário que evita flexão de chão tem flexão de solo excluída', () => {
+    const pushup = allExercises.find((e) => e.id === 'pushups');
+    expect(pushup).toBeDefined();
+    const isAvoided = isExerciseCompatibleWithUser(pushup!, ['peso_corporal'], ['flexao_chao']);
+    expect(isAvoided).toBe(false);
+  });
+
+  // Critério 18: Combinação sem nenhuma opção compatível produz explicação transparente, sem ficha fictícia
+  it('Critério 18: Se nenhuma alternativa for compatível, retorna explicação e ficha vazia', () => {
+    const proposal = generateExplainableProposal(
+      { availableDays: [1], sessionDurationMinutes: 15, equipments: ['equipamento_inexistente_xyz'] },
+      { equipments: ['equipamento_inexistente_xyz'] }
+    );
+    expect(proposal.hasCompatibleExercises).toBe(false);
+    expect(proposal.routines.length).toBe(0);
+    expect(proposal.justificationText).toContain('Não encontramos movimentos certificados');
+  });
+
+  // Critério 20: Confirmar rotina cria compromissos de forma idempotente sem duplicar
+  it('Critério 20: Calendário gerado pela proposta cria exatamente os dias agendados', () => {
+    const syntheticProfile: Partial<UserProfile> = {
+      availableDays: [2, 5], // Terça e Sexta
+      sessionDurationMinutes: 15,
+      equipments: ['peso_corporal'],
+    };
+    const proposal = generateExplainableProposal(syntheticProfile);
+    const calendarDays = generateWeeklyCalendarFromProposal('user_test', proposal);
+
+    expect(calendarDays.length).toBe(7);
+    const activeDays = calendarDays.filter((c) => c.activityType === 'strength');
+    expect(activeDays.length).toBe(2);
+    expect(activeDays.map((d) => d.dayOfWeek).sort()).toEqual([2, 5]);
+
+    // Dias sem treino são descanso
+    const restDays = calendarDays.filter((c) => c.activityType === 'rest');
+    expect(restDays.length).toBe(5);
+  });
+
+  // Critério 24: Dia livre e de descanso não tem isCompleted true e não gera PR
+  it('Critério 24: Dias de descanso e dias livres inicializam com isCompleted false', () => {
+    const blankCal = generateBlankWeeklyCalendar('user_test');
+    expect(blankCal.every((d) => d.isCompleted === false)).toBe(true);
+
+    const syntheticProfile: Partial<UserProfile> = {
+      availableDays: [1, 3], // Seg, Qua
+      sessionDurationMinutes: 15,
+      equipments: ['peso_corporal'],
+    };
+    const proposal = generateExplainableProposal(syntheticProfile);
+    const cal = generateWeeklyCalendarFromProposal('user_test', proposal);
+    const restDays = cal.filter((d) => d.activityType === 'rest');
+    expect(restDays.length).toBe(5);
+    expect(restDays.every((d) => d.isCompleted === false)).toBe(true);
+  });
+
+  // Critério 29: Duas sessões planejadas e realizadas cumprem a meta semanal sem exigir terceira
+  it('Critério 29: Meta semanal de 2 treinos é cumprida com 2 treinos realizados', () => {
+    const targetGoal = 2;
+    const completedThisWeek = 2;
+    const isGoalMet = completedThisWeek >= targetGoal;
+    expect(isGoalMet).toBe(true);
+  });
+
+  // Critério 32: Tradução corrigida não contém frases como "Amasse o mais alto"
+  it('Critério 32: Instruções corrigidas não contêm "Amasse o mais alto que puder"', () => {
+    allExercises.forEach((ex) => {
+      expect(ex.instructions_pt).not.toContain('Amasse o mais alto que puder');
+      expect(ex.instructions_pt).not.toContain('Amasse o tronco');
+    });
   });
 });

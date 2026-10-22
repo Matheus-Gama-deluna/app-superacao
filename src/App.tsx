@@ -27,6 +27,8 @@ const MainAppContent: React.FC = () => {
   const { user, profile, isGuest, isLoading: authLoading } = useAuth();
   const {
     activeSession,
+    isFocusMode,
+    setIsFocusMode,
     plans,
     startWorkout,
     activeProgram,
@@ -36,6 +38,8 @@ const MainAppContent: React.FC = () => {
   const [accessChoice, setAccessChoice] = useState<'guest' | 'login' | 'signup' | null>(() => {
     return getLocal<'guest' | 'login' | 'signup' | null>(STORAGE_KEYS.ACCESS_CHOICE, null);
   });
+
+  const [isViewingProposal, setIsViewingProposal] = useState<boolean>(false);
 
   const [currentProposal, setCurrentProposal] = useState<ExplainableProposal | null>(() => {
     return getLocal<ExplainableProposal | null>(STORAGE_KEYS.PROPOSAL, null);
@@ -182,7 +186,7 @@ const MainAppContent: React.FC = () => {
             {currentTab === 'home' && (
               <HomeView
                 onStartWorkout={handleStartPlan}
-                onResumeWorkout={() => {}}
+                onResumeWorkout={() => setIsFocusMode(true)}
                 onNavigateTab={setCurrentTab}
                 onOpenBuilder={(id) => handleOpenBuilder(id, false)}
                 onReviewProposal={

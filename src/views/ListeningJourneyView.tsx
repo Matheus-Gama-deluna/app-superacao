@@ -89,7 +89,7 @@ export const ListeningJourneyView: React.FC<ListeningJourneyViewProps> = ({
     savedDraft?.experienceLevel || (profile.experienceLevel as any) || 'iniciante'
   );
   const [exerciseReason, setExerciseReason] = useState<string>(
-    savedDraft?.exerciseReason || profile.exerciseReason || 'Mais disposição e qualidade de vida'
+    savedDraft?.exerciseReason || profile.exerciseReason || ''
   );
 
   // B. Objetivos e prioridades

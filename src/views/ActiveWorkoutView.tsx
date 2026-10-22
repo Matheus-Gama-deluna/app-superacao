@@ -24,7 +24,13 @@ import {
 } from 'lucide-react';
 import { soundManager } from '../lib/audio';
 
-export const ActiveWorkoutView: React.FC = () => {
+interface ActiveWorkoutViewProps {
+  onPauseAndReturnHome?: () => void;
+}
+
+export const ActiveWorkoutView: React.FC<ActiveWorkoutViewProps> = ({
+  onPauseAndReturnHome,
+}) => {
   const { profile, updateUserProfile } = useAuth();
   const {
     activeSession,
@@ -34,6 +40,7 @@ export const ActiveWorkoutView: React.FC = () => {
     completeWorkout,
     savePartialWorkout,
     abandonWorkout,
+    pauseAndReturnHome,
     isResting,
     restSecondsRemaining,
     restDurationTotal,

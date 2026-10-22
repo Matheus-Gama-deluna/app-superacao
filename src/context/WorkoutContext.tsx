@@ -52,6 +52,10 @@ interface WorkoutContextType {
   calendar: CalendarDay[];
   personalRecords: PersonalRecord[];
   activeSession: WorkoutSession | null;
+  isFocusMode: boolean;
+  setIsFocusMode: (val: boolean) => void;
+  pauseAndReturnHome: () => void;
+  resumeWorkout: () => void;
   syncStatus: SyncStatusState;
   
   // Programas de Longo Prazo & Hábitos
@@ -129,6 +133,19 @@ export const WorkoutProvider: React.FC<{ children: React.ReactNode }> = ({ child
   const [activeSession, setActiveSession] = useState<WorkoutSession | null>(() => {
     return getLocal<WorkoutSession | null>('superacao_active_session', null);
   });
+
+  const [isFocusMode, setIsFocusMode] = useState<boolean>(() => {
+    const saved = getLocal<WorkoutSession | null>('superacao_active_session', null);
+    return Boolean(saved);
+  });
+
+  const pauseAndReturnHome = () => {
+    setIsFocusMode(false);
+  };
+
+  const resumeWorkout = () => {
+    setIsFocusMode(true);
+  };
 
   // Timer de descanso
   const [isResting, setIsResting] = useState<boolean>(false);
@@ -426,6 +443,7 @@ export const WorkoutProvider: React.FC<{ children: React.ReactNode }> = ({ child
   // AÇÕES DE EXECUÇÃO DO TREINO
   // ──────────────────────────────────────────────
   const startWorkout = (plan: WorkoutPlan) => {
+    setIsFocusMode(true);
     const totalSets = plan.exercises.reduce((acc, curr) => acc + curr.targetSets, 0);
     const session: WorkoutSession = {
       id: `session_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`,
@@ -967,6 +985,10 @@ export const WorkoutProvider: React.FC<{ children: React.ReactNode }> = ({ child
         calendar,
         personalRecords,
         activeSession,
+        isFocusMode,
+        setIsFocusMode,
+        pauseAndReturnHome,
+        resumeWorkout,
         syncStatus,
         programs,
         activeProgram,

@@ -141,9 +141,80 @@ const rawFullList: Exercise[] = (catalogFullJson as any[]).map((item) => {
     eq.push('tubos_elasticos');
   }
 
+  // 1. Identificação estrita de Barra Fixa / Barra Suspensa (Critérios 13, 14, 32)
+  const isPullUpBar =
+    item.id === 'wind_sprints' ||
+    nameLower.includes('barra suspensa') ||
+    nameLower.includes('barra fixa') ||
+    nameLower.includes('pull-up') ||
+    nameLower.includes('pullup') ||
+    nameLower.includes('chin-up') ||
+    nameLower.includes('chinup') ||
+    nameLower.includes('scapular pull') ||
+    nameLower.includes('hanging leg') ||
+    nameLower.includes('pendure-se');
+
+  const requiresSupports: string[] = [];
+  if (isPullUpBar) {
+    if (!eq.includes('barra_fixa')) eq.push('barra_fixa');
+    requiresSupports.push('barra_fixa');
+  }
+
+  // 2. Identificação de Barras Paralelas
+  const isParallelBars =
+    nameLower.includes('paralela') ||
+    nameLower.includes('parallel bar') ||
+    nameLower.includes('dip bar');
+  if (isParallelBars) {
+    if (!eq.includes('paralelas')) eq.push('paralelas');
+    requiresSupports.push('paralelas');
+  }
+
+  // 3. Identificação de Banco, Cadeira e Parede
+  if (nameLower.includes('banco') || nameLower.includes('bench')) {
+    if (!eq.includes('banco')) eq.push('banco');
+    requiresSupports.push('banco');
+  }
+  if (nameLower.includes('cadeira') || nameLower.includes('chair')) {
+    if (!eq.includes('cadeira')) eq.push('cadeira');
+    requiresSupports.push('cadeira');
+  }
+  if (nameLower.includes('parede') || nameLower.includes('wall')) {
+    if (!eq.includes('parede')) eq.push('parede');
+    requiresSupports.push('parede');
+  }
+
+  // Correção de nomes e traduções confusas (Critérios 13, 32)
+  let cleanNamePt = namePt;
+  if (item.id === 'wind_sprints') {
+    cleanNamePt = 'Elevação de Joelhos na Barra Suspensa (Wind Sprints)';
+  } else if (item.id === 'pullups') {
+    cleanNamePt = 'Barra Fixa Clássica';
+  } else if (item.id === 'chin-up') {
+    cleanNamePt = 'Barra Fixa com Pegada Supinada';
+  } else if (item.id === 'scapular_pull-up') {
+    cleanNamePt = 'Elevação Escapular na Barra Fixa';
+  }
+
+  // Correção de frases inadequadas como 'Amasse o mais alto que puder' (Critério 32)
+  let cleanInstructions = (item.instructions_pt || '')
+    .replace(/Amasse o mais alto que puder/gi, 'Eleve o tronco na amplitude máxima confortável')
+    .replace(/Amasse o tronco/gi, 'Eleve e flexione suavemente o tronco');
+
+  let cleanSteps = (item.steps_pt || [cleanInstructions || 'Movimento com controle e ritmo.']).map((s: string) =>
+    s.replace(/Amasse o mais alto que puder/gi, 'Eleve o tronco na amplitude máxima confortável')
+     .replace(/Amasse o tronco/gi, 'Eleve e flexione suavemente o tronco')
+  );
+
+  // Elegibilidade para proposta automática curada
+  const isCurated =
+    item.review_status === 'catalogo_publico_verificado' ||
+    item.review_status === 'revisado' ||
+    item.source_kind === 'free_exercise_db_public_domain';
+
   return {
     id: item.id,
-    name_pt: namePt,
+    name_pt: cleanNamePt,
     name_en: item.name_en,
     modality: item.modality || 'forca',
     movement_pattern: item.movement_pattern || 'funcional',
@@ -151,8 +222,10 @@ const rawFullList: Exercise[] = (catalogFullJson as any[]).map((item) => {
     environment: item.environment || ['casa'],
     difficulty_candidate: item.difficulty_candidate || 'iniciante',
     tracking: item.tracking || 'reps',
-    requires_anchor: Boolean(item.requires_anchor),
-    instructions_pt: item.instructions_pt || '',
+    requires_anchor: isPullUpBar || Boolean(item.requires_anchor),
+    requires_supports: requiresSupports,
+    is_curated_for_auto_proposal: isCurated,
+    instructions_pt: cleanInstructions,
     caution_pt: item.caution_pt || 'Execute com postura controlada e respiração fluida.',
     review_status: item.review_status || 'catalogo_publico_verificado',
     media_url: item.media_url,
@@ -160,7 +233,7 @@ const rawFullList: Exercise[] = (catalogFullJson as any[]).map((item) => {
     target_muscle: item.target_muscle || 'Corpo Todo',
     primary_muscles: item.primary_muscles || [item.target_muscle || 'Corpo Todo'],
     secondary_muscles: item.secondary_muscles || [],
-    steps_pt: item.steps_pt || [item.instructions_pt || 'Movimento com controle e ritmo.'],
+    steps_pt: cleanSteps,
     source_kind: item.source_kind || 'free_exercise_db_public_domain',
     version: item.version || '1.0.0',
   };

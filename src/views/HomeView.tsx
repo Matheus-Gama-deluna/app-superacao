@@ -125,6 +125,30 @@ export const HomeView: React.FC<HomeViewProps> = ({
         </section>
       )}
 
+            {/* Banner de Treino Pausado em Andamento (Critério 25) */}
+      {activeSession && (
+        <section className="bg-amber-50 rounded-2xl p-4 border border-amber-300 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shadow-xs animate-in fade-in">
+          <div>
+            <span className="text-[10px] font-bold text-amber-800 uppercase tracking-wide">
+              Treino em Andamento (Pausado)
+            </span>
+            <h3 className="text-sm font-bold text-[#152A29] mt-0.5">
+              {activeSession.planTitle}
+            </h3>
+            <p className="text-xs text-[#5B7170]">
+              {activeSession.totalSetsCompleted} de {activeSession.totalSetsPlanned} séries registradas
+            </p>
+          </div>
+          <button
+            onClick={onResumeWorkout}
+            className="w-full sm:w-auto px-4 py-2.5 bg-[#125F55] text-white text-xs font-bold rounded-xl hover:bg-[#0C5148] transition-all cursor-pointer flex items-center justify-center gap-1.5 shrink-0"
+          >
+            <Play className="w-4 h-4 fill-white" />
+            <span>Retomar Treino</span>
+          </button>
+        </section>
+      )}
+
       {/* 1. Header de Acolhimento & Âncora de Hábito */}
       <section className="bg-white rounded-3xl p-5 border border-[#C9DBD3] shadow-xs">
         <div className="flex items-start justify-between gap-3">

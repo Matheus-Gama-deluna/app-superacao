@@ -1,6 +1,8 @@
 import React, { useState } from 'react';
 import { Exercise, WorkoutPlan, ExercisePlanItem } from '../types';
 import { allExercises } from '../data/catalog';
+import { useAuth } from '../context/AuthContext';
+import { isExerciseCompatibleWithUser } from '../lib/storage';
 import { ExerciseIllustration } from './ExerciseIllustration';
 import {
   Sparkles,

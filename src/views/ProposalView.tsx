@@ -25,6 +25,7 @@ interface ProposalViewProps {
   onConfirm: () => void;
   onAdjustAnswers: () => void;
   onChooseOtherOption: (option: 'builder_manual' | 'builder_pro') => void;
+  onClose?: () => void;
 }
 
 export const ProposalView: React.FC<ProposalViewProps> = ({
@@ -32,6 +33,7 @@ export const ProposalView: React.FC<ProposalViewProps> = ({
   onConfirm,
   onAdjustAnswers,
   onChooseOtherOption,
+  onClose,
 }) => {
   const { profile } = useAuth();
   const { confirmProposal } = useWorkout();
@@ -71,12 +73,57 @@ export const ProposalView: React.FC<ProposalViewProps> = ({
           <span className="text-xs font-bold text-[#125F55] uppercase tracking-wider">
             Proposta de Rotina
           </span>
-          <div className="w-16" />
+          {onClose ? (
+            <button
+              onClick={onClose}
+              className="text-xs font-semibold text-[#5B7170] hover:text-[#152A29] p-1.5 rounded-lg cursor-pointer"
+            >
+              Voltar ao Início
+            </button>
+          ) : (
+            <div className="w-16" />
+          )}
         </div>
       </header>
 
       {/* Main Content */}
       <main className="flex-1 max-w-xl mx-auto w-full px-4 py-6 space-y-6">
+        {proposal.hasCompatibleExercises === false && (
+          <section className="bg-white rounded-3xl p-6 border border-amber-300 shadow-xs space-y-4">
+            <div className="flex items-start gap-3">
+              <div className="w-12 h-12 rounded-2xl bg-amber-50 flex items-center justify-center text-amber-700 shrink-0">
+                <AlertCircle className="w-6 h-6" />
+              </div>
+              <div className="space-y-1">
+                <span className="text-xs font-bold text-amber-800 uppercase tracking-wider">
+                  Combinação sem cobertura direta
+                </span>
+                <h2 className="text-lg font-bold text-[#152A29]">
+                  Não encontramos movimentos curados para estes critérios
+                </h2>
+                <p className="text-xs text-[#5B7170] leading-relaxed">
+                  {proposal.reasonIfUnavailable || 'A combinação atual de equipamentos e restrições não possui exercícios certificados no momento. Não geramos rotinas fictícias.'}
+                </p>
+              </div>
+            </div>
+
+            <div className="flex flex-col gap-2 pt-2">
+              <button
+                onClick={onAdjustAnswers}
+                className="w-full py-3 bg-[#125F55] text-white rounded-xl text-xs font-bold hover:bg-[#0C5148] cursor-pointer"
+              >
+                Ajustar Equipamentos e Cuidados
+              </button>
+              <button
+                onClick={() => setShowOtherOptionsModal(true)}
+                className="w-full py-3 border border-[#C9DBD3] bg-[#F5F8F5] text-[#152A29] rounded-xl text-xs font-semibold hover:bg-white cursor-pointer"
+              >
+                Montar Ficha Manual ou Cadastrar Plano de Profissional
+              </button>
+            </div>
+          </section>
+        )}
+
         {/* Banner de Apresentação Explicável (Seção 6, C10, C11) */}
         <section className="bg-white rounded-3xl p-6 border border-[#C9DBD3] shadow-xs space-y-4">
           <div className="flex items-start gap-3">

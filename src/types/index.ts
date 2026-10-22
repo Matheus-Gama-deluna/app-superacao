@@ -15,6 +15,8 @@ export interface Exercise {
   difficulty_candidate: 'iniciante' | 'intermediario' | 'avancado';
   tracking: TrackingMode;
   requires_anchor: boolean;
+  requires_supports?: string[];
+  is_curated_for_auto_proposal?: boolean;
   instructions_pt: string;
   caution_pt: string;
   review_status: string;
@@ -193,6 +195,8 @@ export interface ExplainableProposal {
   weeklySchedule: { [dayOfWeek: number]: string };
   generatedAt: number;
   isConfirmed: boolean;
+  hasCompatibleExercises?: boolean;
+  reasonIfUnavailable?: string;
 }
 
 export interface SyncStatusState {

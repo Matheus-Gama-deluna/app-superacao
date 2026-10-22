@@ -12,9 +12,9 @@ import {
 } from '../types';
 import { allTemplates, allExercises } from '../data/catalog';
 
-export const APP_VERSION = '6.0.0';
+export const APP_VERSION = '7.0.0';
 export const APP_BUILD_DATE = '2026-10-22';
-export const SCHEMA_VERSION = '6.0.0';
+export const SCHEMA_VERSION = '7.0.0';
 
 export const STORAGE_KEYS = {
   SCHEMA_VERSION: 'superacao_schema_version',
@@ -87,7 +87,10 @@ export function generateBlankWeeklyCalendar(uid: string): CalendarDay[] {
   for (let i = 0; i < 7; i++) {
     const d = new Date(startOfWeek);
     d.setDate(startOfWeek.getDate() + i);
-    const dateStr = d.toISOString().split('T')[0];
+    const year = d.getFullYear();
+    const month = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    const dateStr = `${year}-${month}-${day}`;
 
     days.push({
       id: `${uid}_day_${dateStr}`,
@@ -189,6 +192,73 @@ export const AVOIDANCE_LABELS: Record<string, string> = {
 };
 
 // Gerador de proposta transparente e explicável com validação estrita de compatibilidade (Seção 6, C10, C11, C12, C13)
+
+// Função canônica única de compatibilidade estrita de equipamentos, apoios e restrições (Critérios 12 a 18)
+export function isExerciseCompatibleWithUser(
+  ex: any,
+  userEquipments: string[],
+  userAvoided: string[] = []
+): boolean {
+  // 1. Requisitos de apoios obrigatórios (Critérios 13, 14, 15)
+  // Se o exercício requer barra_fixa, banco, cadeira, parede ou paralelas, o usuário DEVE ter esse recurso
+  if (ex.requires_supports && Array.isArray(ex.requires_supports) && ex.requires_supports.length > 0) {
+    for (const sup of ex.requires_supports) {
+      if (!userEquipments.includes(sup)) {
+        return false;
+      }
+    }
+  }
+
+  // 2. Compatibilidade estrita de equipamentos (Critérios 12, 16)
+  // Mini band circular, faixa longa e tubos elásticos NÃO são intercambiáveis.
+  // Todos os equipamentos obrigatórios devem estar presentes no inventário do usuário.
+  const requiresOtherEquip = ex.equipment.some(
+    (eq: string) =>
+      eq !== 'nenhum' &&
+      eq !== 'colchonete' &&
+      !userEquipments.includes(eq)
+  );
+  if (requiresOtherEquip) return false;
+
+  // 3. Restrições e movimentos evitados (Critério 17)
+  const textCorpus = `${ex.name_pt || ''} ${ex.instructions_pt || ''} ${ex.caution_pt || ''}`.toLowerCase();
+  if (userAvoided.includes('impacto_saltos')) {
+    if (
+      textCorpus.includes('salto') ||
+      textCorpus.includes('jump') ||
+      textCorpus.includes('polichinelo') ||
+      textCorpus.includes('burpee')
+    ) {
+      return false;
+    }
+  }
+  if (userAvoided.includes('flexao_chao')) {
+    if (
+      (ex.name_pt || '').toLowerCase().includes('flexão de braço') &&
+      !(ex.name_pt || '').toLowerCase().includes('parede') &&
+      !(ex.name_pt || '').toLowerCase().includes('inclinada')
+    ) {
+      return false;
+    }
+  }
+  if (userAvoided.includes('agachamento_profundo')) {
+    if (textCorpus.includes('agachamento profundo') || textCorpus.includes('pistol squat')) {
+      return false;
+    }
+  }
+  if (userAvoided.includes('sobrecarga_lombar')) {
+    if (
+      textCorpus.includes('levantamento terra pesado') ||
+      textCorpus.includes('stiff com barra pesada') ||
+      textCorpus.includes('deadlift')
+    ) {
+      return false;
+    }
+  }
+
+  return true;
+}
+
 export function generateExplainableProposal(
   profile: Partial<UserProfile>,
   draft?: Partial<OnboardingDraft>
@@ -200,39 +270,35 @@ export function generateExplainableProposal(
   const primaryGoal = draft?.orderedGoals?.[0] || profile.primaryGoal || 'Construir o hábito e me sentir melhor';
   const environment = draft?.environmentPreference === 'academia' ? 'na academia' : 'em casa';
 
-  // Filtra candidatos do catálogo oficial com 100% de compatibilidade
+  // Filtra candidatos usando a regra canônica única de compatibilidade (Critérios 12 a 18)
   const eligibleExercises = allExercises.filter((ex) => {
-    // 1. Compatibilidade estrita de equipamentos (C12)
-    const requiresOtherEquip = ex.equipment.some(
-      (eq) => eq !== 'peso_corporal' && eq !== 'nenhum' && !userEquipments.includes(eq)
-    );
-    if (requiresOtherEquip) return false;
-
-    // 2. Restrições e movimentos evitados (C13)
-    const textCorpus = `${ex.name_pt} ${ex.instructions_pt || ''} ${ex.caution_pt || ''}`.toLowerCase();
-    if (userAvoided.includes('impacto_saltos')) {
-      if (textCorpus.includes('salto') || textCorpus.includes('jump') || textCorpus.includes('polichinelo') || textCorpus.includes('burpee')) {
-        return false;
-      }
-    }
-    if (userAvoided.includes('flexao_chao')) {
-      if (ex.name_pt.toLowerCase().includes('flexão de braço') && !ex.name_pt.toLowerCase().includes('parede') && !ex.name_pt.toLowerCase().includes('inclinada')) {
-        return false;
-      }
-    }
-    if (userAvoided.includes('agachamento_profundo')) {
-      if (textCorpus.includes('agachamento profundo')) {
-        return false;
-      }
-    }
-    if (userAvoided.includes('sobrecarga_lombar')) {
-      if (textCorpus.includes('levantamento terra pesado') || textCorpus.includes('stiff com barra pesada')) {
-        return false;
-      }
-    }
-
-    return true;
+    return isExerciseCompatibleWithUser(ex, userEquipments, userAvoided);
   });
+
+  // Se nenhuma alternativa for compatível, explica a indisponibilidade honestamente (Critério 18)
+  if (eligibleExercises.length === 0) {
+    const daysText = targetDays.length === 1 ? '1 dia' : `${targetDays.length} dias`;
+    const equipText = userEquipments.map((e) => EQUIPMENT_LABELS[e] || e).join(', ');
+    const noOptionText = `Não encontramos movimentos certificados no catálogo para a combinação informada (${equipText}) com suas restrições. Você pode ajustar seus apoios ou cadastrar sua rotina manualmente.`;
+    return {
+      id: `proposal_${Date.now()}`,
+      title: `Ajuste Necessário: ${primaryGoal}`,
+      description: noOptionText,
+      targetDaysCount: targetDays.length,
+      sessionDurationMinutes: targetDuration,
+      environment,
+      equipmentsUsed: userEquipments,
+      avoidedMovements: userAvoided,
+      justificationText: noOptionText,
+      timeBreakdownText: 'Nenhuma ficha automática gerada para critérios sem cobertura.',
+      routines: [],
+      weeklySchedule: {},
+      generatedAt: Date.now(),
+      isConfirmed: false,
+      hasCompatibleExercises: false,
+      reasonIfUnavailable: noOptionText,
+    };
+  }
 
   // Determina número de exercícios e séries pelo tempo
   let numExercises = 4;
