@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { useWorkout } from '../context/WorkoutContext';
+import { calculateCanonicalMetrics } from '../lib/storage';
 import {
   Trophy,
   Sparkles,
@@ -24,36 +25,46 @@ export const ProgressView: React.FC = () => {
 
   const [expandedSessionId, setExpandedSessionId] = useState<string | null>(null);
 
-  // Cálculos de métricas acumuladas
-  const completedWorkouts = sessions.filter((s) => s.status === 'completed');
+  // Métricas canônicas unificadas (E03 / Seção 5 / T18)
+  const metrics = calculateCanonicalMetrics(sessions, calendar, personalRecords);
   const totalReps = setEvents.reduce((acc, curr) => acc + (curr.actualReps || 0), 0);
-  const totalVolumeKg = sessions.reduce((acc, curr) => acc + (curr.totalVolumeKg || 0), 0);
-  const totalDurationMinutes = Math.round(
-    sessions.reduce((acc, curr) => acc + (curr.durationSeconds || 0), 0) / 60
-  );
+  const totalVolumeKg = metrics.totalVolumeKg;
   const recoveryDaysCompleted = calendar.filter((c) => c.activityType === 'active_recovery' && c.isCompleted).length;
-  const completedThisWeek = calendar.filter((c) => c.isCompleted).length;
+  const completedThisWeek = metrics.weeklyCompletedCount;
 
+  // Regras estritas e auditáveis de conquistas (E01, E02, Seção 5)
   const badges = [
     {
       id: 'primeiro_passo',
       title: 'Primeiro Passo',
       desc: 'Romper a inércia e concluir o 1º treino',
-      isUnlocked: completedWorkouts.length >= 1,
+      isUnlocked: metrics.completedWorkoutsCount >= 1,
       icon: '🌱',
     },
     {
       id: 'guardiao_habito',
       title: 'Constância Flexível',
       desc: 'Praticar uma versão rápida de 5 a 15 min em dias corridos',
-      isUnlocked: sessions.some((s) => s.durationSeconds <= 900 && (s.status === 'completed' || s.status === 'parcial')),
+      // E02: Apenas treinos planejados express/hábito concluídos (não sessões normais abortadas em 1 min)
+      isUnlocked: sessions.some(
+        (s) =>
+          s.status === 'completed' &&
+          (s.isExpress ||
+            s.wasPlannedHabit ||
+            s.planId.includes('habito') ||
+            s.planId.includes('express') ||
+            s.planId.includes('emergencia') ||
+            s.planId.includes('walk') ||
+            (s.durationSeconds <= 900 && s.totalSetsCompleted >= s.totalSetsPlanned))
+      ),
       icon: '⚡',
     },
     {
       id: 'superacao_limites',
       title: 'Superação de Limites',
-      desc: 'Bater o primeiro Recorde Pessoal (PR)',
-      isUnlocked: personalRecords.length >= 1,
+      desc: 'Bater o primeiro Recorde Pessoal (PR) real',
+      // E01: Primeira execução registra linha de base; só desbloqueia com evolução real
+      isUnlocked: personalRecords.some((p) => !p.isBaseline && (p.prCount || 0) > 0),
       icon: '🏆',
     },
     {
@@ -86,19 +97,30 @@ export const ProgressView: React.FC = () => {
         </p>
       </div>
 
-      {/* Cartões de Indicadores Gerais */}
+      {/* Cartões de Indicadores Gerais (E03 / Seção 5) */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
         <div className="bg-white p-3.5 rounded-2xl border border-[#C9DBD3] shadow-xs text-center">
           <span className="text-[10px] text-[#5B7170] font-medium block">Treinos Concluídos</span>
           <span className="text-xl font-black text-[#125F55] tabular-nums mt-0.5 block">
-            {completedWorkouts.length}
+            {metrics.completedWorkoutsCount}
           </span>
+          {metrics.partialWorkoutsCount > 0 && (
+            <span className="text-[9px] text-[#5B7170] block font-normal">
+              + {metrics.partialWorkoutsCount} {metrics.partialWorkoutsCount === 1 ? 'parcial' : 'parciais'}
+            </span>
+          )}
         </div>
         <div className="bg-white p-3.5 rounded-2xl border border-[#C9DBD3] shadow-xs text-center">
-          <span className="text-[10px] text-[#5B7170] font-medium block">Recordes (PRs)</span>
+          <span className="text-[10px] text-[#5B7170] font-medium block">Recordes Reais (PRs)</span>
           <span className="text-xl font-black text-[#246747] tabular-nums mt-0.5 block">
-            {personalRecords.length}
+            {metrics.realPRCount}
           </span>
+          {personalRecords.length > metrics.realPRCount && (
+            <span className="text-[9px] text-[#5B7170] block font-normal">
+              {personalRecords.length - metrics.realPRCount}{' '}
+              {personalRecords.length - metrics.realPRCount === 1 ? 'marca inicial' : 'marcas iniciais'}
+            </span>
+          )}
         </div>
         <div className="bg-white p-3.5 rounded-2xl border border-[#C9DBD3] shadow-xs text-center">
           <span className="text-[10px] text-[#5B7170] font-medium block">Repetições Totais</span>
@@ -162,35 +184,53 @@ export const ProgressView: React.FC = () => {
         <div className="flex items-center justify-between">
           <h3 className="text-sm font-bold text-[#152A29] flex items-center gap-1.5">
             <Trophy className="w-4 h-4 text-[#125F55]" />
-            Seus Recordes Pessoais Atuais ({personalRecords.length})
+            Seus Recordes & Marcas Pessoais ({personalRecords.length})
           </h3>
         </div>
 
         {personalRecords.length === 0 ? (
           <div className="bg-white p-6 rounded-2xl border border-[#C9DBD3] text-center text-xs text-[#5B7170]">
-            Nenhum recorde registrado ainda. Inicie seu primeiro treino para estabelecer sua marca inicial!
+            Nenhum registro ainda. Inicie seu primeiro treino para estabelecer sua marca inicial de referência!
           </div>
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
-            {personalRecords.map((pr) => (
-              <div
-                key={pr.exerciseId}
-                className="bg-white p-4 rounded-2xl border border-[#C9DBD3] shadow-xs flex items-center justify-between gap-3"
-              >
-                <div>
-                  <h4 className="text-xs font-bold text-[#152A29]">{pr.exerciseName}</h4>
-                  <p className="text-[10px] text-[#5B7170] mt-0.5">
-                    Registrado em {new Date(pr.recordedAt).toLocaleDateString('pt-BR')}
-                  </p>
+            {personalRecords.map((pr) => {
+              const isRealPR = !pr.isBaseline && (pr.prCount || 0) > 0;
+              return (
+                <div
+                  key={pr.exerciseId}
+                  className="bg-white p-4 rounded-2xl border border-[#C9DBD3] shadow-xs flex items-center justify-between gap-3"
+                >
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center gap-1.5">
+                      <h4 className="text-xs font-bold text-[#152A29] truncate">{pr.exerciseName}</h4>
+                      {isRealPR ? (
+                        <span className="text-[9px] font-black text-[#125F55] uppercase bg-[#D9F277] px-1.5 py-0.2 rounded-md">
+                          PR #{pr.prCount}
+                        </span>
+                      ) : (
+                        <span className="text-[9px] font-semibold text-[#5B7170] uppercase bg-[#F5F8F5] border border-[#C9DBD3] px-1.5 py-0.2 rounded-md">
+                          Base
+                        </span>
+                      )}
+                    </div>
+                    <p className="text-[10px] text-[#5B7170] mt-0.5">
+                      {isRealPR ? 'Superado' : 'Registrado'} em {new Date(pr.recordedAt).toLocaleDateString('pt-BR')}
+                    </p>
+                  </div>
+                  <div className="text-right shrink-0">
+                    <span
+                      className={`px-2.5 py-1 rounded-xl text-xs font-black tabular-nums shadow-2xs ${
+                        isRealPR ? 'bg-[#D9F277] text-[#203826]' : 'bg-[#EAF3EF] text-[#125F55]'
+                      }`}
+                    >
+                      {pr.bestReps > 0 ? `${pr.bestReps} reps` : `${pr.bestDurationSeconds}s`}
+                      {pr.bestWeightKg && pr.bestWeightKg > 0 ? ` · ${pr.bestWeightKg} kg` : ''}
+                    </span>
+                  </div>
                 </div>
-                <div className="text-right shrink-0">
-                  <span className="px-2.5 py-1 bg-[#D9F277] text-[#203826] rounded-xl text-xs font-black tabular-nums shadow-2xs">
-                    {pr.bestReps > 0 ? `${pr.bestReps} reps` : `${pr.bestDurationSeconds}s`}
-                    {pr.bestWeightKg && pr.bestWeightKg > 0 ? ` · ${pr.bestWeightKg} kg` : ''}
-                  </span>
-                </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         )}
       </section>

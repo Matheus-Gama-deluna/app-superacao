@@ -21,10 +21,17 @@ import {
   AlertCircle,
 } from 'lucide-react';
 import { WorkoutPlan } from '../types';
+import { calculateCanonicalMetrics } from '../lib/storage';
 import { OnboardingModal } from './OnboardingModal';
 
 interface HomeViewProps {
-  onStartWorkout: (plan: WorkoutPlan) => void;
+  onStartWorkout: (
+    plan: WorkoutPlan,
+    scheduledDayId?: string,
+    originType?: 'scheduled' | 'program_session' | 'ad_hoc' | 'express',
+    isExpress?: boolean,
+    wasPlannedHabit?: boolean
+  ) => void;
   onResumeWorkout: () => void;
   onNavigateTab: (tab: 'home' | 'workouts' | 'calendar' | 'progress') => void;
   onOpenBuilder?: (existingPlanId?: string) => void;
@@ -78,11 +85,16 @@ export const HomeView: React.FC<HomeViewProps> = ({
   // Plano de mobilidade suave para descanso ativo opcional
   const recoveryPlan = plans.find((p) => p.category === 'mobilidade') || null;
 
-  // Estatísticas de consistência derivadas dos eventos canônicos reais (A07)
-  const completedThisWeek = calendar.filter((c) => c.isCompleted).length;
-  const totalPlannedThisWeek = activeProgram
-    ? activeProgram.weeklyFrequency
-    : calendar.filter((c) => c.activityType === 'strength' || c.activityType === 'walk' || c.activityType === 'active_recovery').length;
+  // Estatísticas de consistência derivadas dos eventos canônicos reais (A07, R04, Seção 5)
+  const canonical = calculateCanonicalMetrics(sessions, calendar, personalRecords);
+  const completedThisWeek = canonical.weeklyCompletedCount;
+  const targetWeeklyGoal =
+    profile.availableDays && profile.availableDays.length > 0
+      ? profile.availableDays.length
+      : activeProgram
+      ? activeProgram.weeklyFrequency
+      : canonical.weeklyCommittedCount || 2;
+  const totalPlannedThisWeek = targetWeeklyGoal;
 
   const daysLabels = ['D', 'S', 'T', 'Q', 'Q', 'S', 'S'];
 
@@ -264,11 +276,11 @@ export const HomeView: React.FC<HomeViewProps> = ({
           </div>
         </div>
 
-        {/* Superações e Marcos Conquistados (Sem pressão ou meta fixa de 3 treinos - Critério C27) */}
+        {/* Superações e Marcos Conquistados (Sem pressão ou meta fixa de 3 treinos - Critério C27, E01, R04) */}
         {(() => {
-          const targetWeeklyGoal = activeProgram?.weeklyFrequency || (totalPlannedThisWeek > 0 ? totalPlannedThisWeek : 2);
           const isConsistencyMet = completedThisWeek >= targetWeeklyGoal;
-          const completedMilestones = [isConsistencyMet, completedThisWeek >= 1, personalRecords.length > 0].filter(Boolean).length;
+          const hasRealPR = personalRecords.some((p) => !p.isBaseline && (p.prCount || 0) > 0);
+          const completedMilestones = [isConsistencyMet, completedThisWeek >= 1, hasRealPR].filter(Boolean).length;
 
           return (
             <div className="mt-4 pt-3 border-t border-[#C9DBD3]/40 space-y-2">
@@ -300,10 +312,12 @@ export const HomeView: React.FC<HomeViewProps> = ({
                 </div>
 
                 <div className={`p-2.5 rounded-xl border flex items-center gap-2 text-xs transition-colors ${
-                  personalRecords.length > 0 ? 'bg-[#EAF3EF] border-[#125F55]/40 text-[#125F55]' : 'bg-[#F5F8F5] border-[#C9DBD3] text-[#5B7170]'
+                  hasRealPR ? 'bg-[#EAF3EF] border-[#125F55]/40 text-[#125F55]' : 'bg-[#F5F8F5] border-[#C9DBD3] text-[#5B7170]'
                 }`}>
-                  <CheckCircle2 className={`w-4 h-4 shrink-0 ${personalRecords.length > 0 ? 'text-[#125F55]' : 'text-[#C9DBD3]'}`} />
-                  <span className="text-[11px] font-medium leading-tight">Recorde Pessoal (PR registrado)</span>
+                  <CheckCircle2 className={`w-4 h-4 shrink-0 ${hasRealPR ? 'text-[#125F55]' : 'text-[#C9DBD3]'}`} />
+                  <span className="text-[11px] font-medium leading-tight">
+                    {hasRealPR ? 'Recorde Pessoal (PR superado)' : 'Primeira marca base registrada'}
+                  </span>
                 </div>
               </div>
             </div>
@@ -422,7 +436,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
           </div>
 
           <button
-            onClick={() => onStartWorkout(todayPlan)}
+            onClick={() => onStartWorkout(todayPlan, todaySchedule?.id, 'scheduled')}
             className="w-full h-14 bg-[#125F55] text-white font-bold text-sm rounded-2xl flex items-center justify-center gap-2 hover:bg-[#0C5148] active:scale-[0.98] transition-all cursor-pointer shadow-md"
           >
             <Play className="w-5 h-5 fill-current" />

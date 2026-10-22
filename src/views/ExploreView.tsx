@@ -1,5 +1,6 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { useWorkout } from '../context/WorkoutContext';
+import { useAuth } from '../context/AuthContext';
 import { Exercise, WorkoutPlan, WorkoutProgram } from '../types';
 import { allExercises, searchExercises } from '../data/catalog';
 import { ExerciseIllustration } from '../components/ExerciseIllustration';
@@ -32,6 +33,7 @@ export const ExploreView: React.FC<ExploreViewProps> = ({
   onStartWorkout,
   onOpenBuilder,
 }) => {
+  const { profile, updateUserProfile } = useAuth();
   const {
     plans,
     programs,
@@ -53,12 +55,24 @@ export const ExploreView: React.FC<ExploreViewProps> = ({
   const [visibleCount, setVisibleCount] = useState<number>(24);
   const [isGeneratorOpen, setIsGeneratorOpen] = useState<boolean>(false);
   const [generatorFocus, setGeneratorFocus] = useState<any>('habito');
+  const [pendingProgramToActivate, setPendingProgramToActivate] = useState<WorkoutProgram | null>(null);
+
+  // Solicitação de ativação transparente com validação de dias disponíveis (R01, R04)
+  const handleRequestActivateProgram = (prog: WorkoutProgram) => {
+    const userDays = profile.availableDays || [1, 3, 5];
+    if (prog.weeklyFrequency !== userDays.length) {
+      setPendingProgramToActivate(prog);
+    } else {
+      activateProgram(prog, userDays);
+    }
+  };
 
   // Fecha modal com a tecla Escape
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape' && inspectingExercise) {
-        setInspectingExercise(null);
+      if (e.key === 'Escape') {
+        if (inspectingExercise) setInspectingExercise(null);
+        else if (pendingProgramToActivate) setPendingProgramToActivate(null);
       }
     };
     window.addEventListener('keydown', handleKeyDown);
@@ -152,7 +166,7 @@ export const ExploreView: React.FC<ExploreViewProps> = ({
         <div className="space-y-1">
           <div className="flex items-center gap-2 text-[#D9F277] font-black text-xs uppercase tracking-wider">
             <Sparkles className="w-4 h-4" />
-            <span>Prescrição Inteligente & Base Científica</span>
+            <span>Seleção Personalizada & Progressão Guiada</span>
           </div>
           <h2 className="text-xl font-black text-white leading-snug">
             Monte Treinos Adaptáveis e Programas de Longo Prazo
@@ -355,7 +369,7 @@ export const ExploreView: React.FC<ExploreViewProps> = ({
                   <div className="flex flex-col sm:flex-row items-center gap-2 pt-2 border-t border-[#C9DBD3]/40">
                     <button
                       type="button"
-                      onClick={() => activateProgram(prog)}
+                      onClick={() => handleRequestActivateProgram(prog)}
                       className={`w-full sm:flex-1 py-3 px-4 rounded-xl text-xs font-black flex items-center justify-center gap-2 cursor-pointer transition-all ${
                         isActive
                           ? 'bg-[#EAF3EF] text-[#125F55] border border-[#125F55]'
@@ -843,6 +857,85 @@ export const ExploreView: React.FC<ExploreViewProps> = ({
           });
         }}
       />
+
+      {/* MODAL DE ADAPTAÇÃO TRANSPARENTE DE PROGRAMA (R01, R04) */}
+      {pendingProgramToActivate && (
+        <div
+          role="dialog"
+          aria-modal="true"
+          className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4 animate-in fade-in duration-200"
+        >
+          <div className="bg-white rounded-3xl p-6 max-w-sm w-full space-y-4 border border-[#C9DBD3] shadow-xl text-[#152A29]">
+            <div className="flex items-center justify-between pb-2 border-b border-[#C9DBD3]">
+              <div className="flex items-center gap-2 text-[#125F55]">
+                <Calendar className="w-5 h-5" />
+                <h3 className="text-base font-bold">Adaptação de Programa</h3>
+              </div>
+              <button
+                type="button"
+                onClick={() => setPendingProgramToActivate(null)}
+                className="p-1 rounded-full text-[#5B7170] hover:bg-slate-100 cursor-pointer"
+                aria-label="Fechar"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <p className="text-xs text-[#5B7170] leading-relaxed">
+              O programa <strong>{pendingProgramToActivate.title}</strong> sugere{' '}
+              <strong>{pendingProgramToActivate.weeklyFrequency} dias por semana</strong>, mas sua meta
+              atual definida no perfil é de <strong>{(profile.availableDays || []).length} dias</strong>.
+              Como prefere organizar sua rotina?
+            </p>
+
+            <div className="space-y-2 pt-1">
+              <button
+                type="button"
+                onClick={async () => {
+                  const userDays = profile.availableDays || [1, 3, 5];
+                  await activateProgram(pendingProgramToActivate, userDays);
+                  setPendingProgramToActivate(null);
+                }}
+                className="w-full p-3 rounded-2xl bg-[#125F55] text-white font-bold text-xs hover:bg-[#0C5148] transition-all cursor-pointer shadow-xs text-left flex flex-col gap-0.5"
+              >
+                <span>(Recomendado) Adaptar aos meus {(profile.availableDays || []).length} dias</span>
+                <span className="text-[10px] font-normal text-white/80">
+                  Mantém sua meta semanal intacta e distribui os treinos nos seus dias de preferência.
+                </span>
+              </button>
+
+              <button
+                type="button"
+                onClick={async () => {
+                  const newDays =
+                    pendingProgramToActivate.weeklyFrequency === 3
+                      ? [1, 3, 5]
+                      : pendingProgramToActivate.weeklyFrequency === 4
+                      ? [1, 2, 4, 5]
+                      : [1, 3, 5];
+                  await updateUserProfile({ availableDays: newDays });
+                  await activateProgram(pendingProgramToActivate, newDays);
+                  setPendingProgramToActivate(null);
+                }}
+                className="w-full p-3 rounded-2xl bg-[#EAF3EF] text-[#125F55] font-bold text-xs hover:bg-[#D9F277] hover:text-[#203826] transition-all cursor-pointer border border-[#C9DBD3] text-left flex flex-col gap-0.5"
+              >
+                <span>Atualizar minha meta para {pendingProgramToActivate.weeklyFrequency} dias</span>
+                <span className="text-[10px] font-normal text-[#5B7170]">
+                  Assume a frequência sugerida pelo programa na sua agenda semanal.
+                </span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setPendingProgramToActivate(null)}
+                className="w-full py-2.5 rounded-xl text-center text-xs font-semibold text-[#5B7170] hover:bg-slate-100 transition-colors cursor-pointer"
+              >
+                Manter programa atual
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

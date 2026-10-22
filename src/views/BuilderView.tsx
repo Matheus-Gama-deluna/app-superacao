@@ -21,18 +21,26 @@ import { SmartWorkoutGeneratorModal } from '../components/SmartWorkoutGeneratorM
 
 interface BuilderViewProps {
   existingPlanId?: string;
+  initialIsProfessional?: boolean;
   onClose: () => void;
   onStartWorkout?: (plan: WorkoutPlan) => void;
 }
 
-export const BuilderView: React.FC<BuilderViewProps> = ({ existingPlanId, onClose, onStartWorkout }) => {
+export const BuilderView: React.FC<BuilderViewProps> = ({
+  existingPlanId,
+  initialIsProfessional = false,
+  onClose,
+  onStartWorkout,
+}) => {
   const { plans, savePlan } = useWorkout();
   const existingPlan = plans.find((p) => p.id === existingPlanId);
 
   const [title, setTitle] = useState<string>(existingPlan?.title || 'Novo Treino');
   const [description, setDescription] = useState<string>(existingPlan?.description || '');
   const [category, setCategory] = useState<WorkoutPlan['category']>(existingPlan?.category || 'casa');
-  const [isProfessional, setIsProfessional] = useState<boolean>(existingPlan?.isProfessional || false);
+  const [isProfessional, setIsProfessional] = useState<boolean>(
+    existingPlan ? (existingPlan.isProfessional || false) : initialIsProfessional
+  );
   const [authorName, setAuthorName] = useState<string>(existingPlan?.authorName || '');
   const [items, setItems] = useState<ExercisePlanItem[]>(existingPlan?.exercises || []);
   const [showAddModal, setShowAddModal] = useState<boolean>(false);
@@ -41,6 +49,18 @@ export const BuilderView: React.FC<BuilderViewProps> = ({ existingPlanId, onClos
   const [selectedMuscle, setSelectedMuscle] = useState<string>('todos');
   const [isSaving, setIsSaving] = useState<boolean>(false);
   const [isGeneratorOpen, setIsGeneratorOpen] = useState<boolean>(false);
+
+  // Fecha modais com a tecla Escape (U03)
+  React.useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        if (showAddModal) setShowAddModal(false);
+        else if (isGeneratorOpen) setIsGeneratorOpen(false);
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [showAddModal, isGeneratorOpen]);
 
   // Filtros unificados idênticos ao catálogo (A10)
   const equipmentOptions = [
@@ -71,16 +91,19 @@ export const BuilderView: React.FC<BuilderViewProps> = ({ existingPlanId, onClos
   ];
 
 
-  // Calcula duração estimada baseada nas séries e descanso
-  const estimatedDuration = Math.max(
-    5,
-    Math.round(
-      items.reduce((acc, it) => {
-        const workSec = it.targetReps > 0 ? it.targetReps * 3.5 : (it.targetDurationSeconds || 30);
-        return acc + it.targetSets * (workSec + it.restSeconds);
-      }, 0) / 60
-    )
-  );
+  // Calcula duração estimada baseada nas séries e descanso (U02: treino vazio exibe 0 min)
+  const estimatedDuration =
+    items.length === 0
+      ? 0
+      : Math.max(
+          5,
+          Math.round(
+            items.reduce((acc, it) => {
+              const workSec = it.targetReps > 0 ? it.targetReps * 3.5 : it.targetDurationSeconds || 30;
+              return acc + it.targetSets * (workSec + it.restSeconds);
+            }, 0) / 60
+          )
+        );
 
   const handleAddExercise = (ex: Exercise) => {
     const newItem: ExercisePlanItem = {
@@ -303,7 +326,7 @@ export const BuilderView: React.FC<BuilderViewProps> = ({ existingPlanId, onClos
                 onClick={() => setShowAddModal(true)}
                 className="w-full sm:w-auto px-4 py-2.5 bg-[#EAF3EF] hover:bg-[#C9DBD3] text-[#125F55] text-xs font-bold rounded-xl cursor-pointer"
               >
-                Escolher da Biblioteca (+876)
+                Escolher da Biblioteca (+{allExercises.length})
               </button>
             </div>
           </div>
@@ -411,8 +434,10 @@ export const BuilderView: React.FC<BuilderViewProps> = ({ existingPlanId, onClos
             <div className="flex items-center justify-between pb-3 border-b border-[#C9DBD3]">
               <h3 className="text-sm font-bold text-[#152A29]">Escolha um Exercício</h3>
               <button
+                type="button"
                 onClick={() => setShowAddModal(false)}
-                className="p-1 rounded-full hover:bg-slate-100 text-[#5B7170]"
+                className="p-1 rounded-full hover:bg-slate-100 text-[#5B7170] cursor-pointer"
+                aria-label="Fechar seletor de exercícios"
               >
                 <X className="w-5 h-5" />
               </button>

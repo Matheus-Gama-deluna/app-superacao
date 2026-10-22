@@ -16,7 +16,7 @@ import {
 } from 'lucide-react';
 
 interface CalendarViewProps {
-  onStartPlanById: (planId: string) => void;
+  onStartPlanById: (planId: string, scheduledDayId?: string) => void;
 }
 
 export const CalendarView: React.FC<CalendarViewProps> = ({ onStartPlanById }) => {
@@ -157,8 +157,8 @@ export const CalendarView: React.FC<CalendarViewProps> = ({ onStartPlanById }) =
 
                 {day.activityType === 'strength' && day.planId && (
                   <button
-                    onClick={() => onStartPlanById(day.planId!)}
-                    className="text-[#125F55] font-bold hover:underline flex items-center gap-0.5"
+                    onClick={() => onStartPlanById(day.planId!, day.id)}
+                    className="text-[#125F55] font-bold hover:underline flex items-center gap-0.5 cursor-pointer"
                   >
                     <span>Iniciar treino</span>
                     <ChevronRight className="w-3.5 h-3.5" />

@@ -9,12 +9,13 @@ import {
   ExplainableProposal,
   OnboardingDraft,
   ExercisePlanItem,
+  CanonicalMetrics,
 } from '../types';
 import { allTemplates, allExercises } from '../data/catalog';
 
-export const APP_VERSION = '7.0.0';
+export const APP_VERSION = '8.0.0';
 export const APP_BUILD_DATE = '2026-10-22';
-export const SCHEMA_VERSION = '7.0.0';
+export const SCHEMA_VERSION = '8.0.0';
 
 export const STORAGE_KEYS = {
   SCHEMA_VERSION: 'superacao_schema_version',
@@ -129,6 +130,45 @@ export function runStorageMigration() {
     const sessions = getLocal<WorkoutSession[]>(STORAGE_KEYS.SESSIONS, []);
     const existingProfile = getLocal<UserProfile | null>(STORAGE_KEYS.USER_PROFILE, null);
     const activeProgram = getLocal<WorkoutProgram | null>(STORAGE_KEYS.ACTIVE_PROGRAM, null);
+    const calendar = getLocal<CalendarDay[]>(STORAGE_KEYS.CALENDAR, []);
+    const prs = getLocal<PersonalRecord[]>(STORAGE_KEYS.PERSONAL_RECORDS, []);
+
+    // Reparo de estado v7 -> v8: corrigir dias de descanso erroneamente marcados como completed
+    let calendarChanged = false;
+    const fixedCalendar = calendar.map((day) => {
+      if (day.isCompleted && (day.activityType === 'rest' || day.activityType === 'unassigned')) {
+        calendarChanged = true;
+        return {
+          ...day,
+          isCompleted: false,
+          completedAt: undefined,
+          planTitle: day.planTitle?.replace(' (Parcial)', ''),
+        };
+      }
+      return day;
+    });
+    if (calendarChanged) {
+      setLocal(STORAGE_KEYS.CALENDAR, fixedCalendar);
+    }
+
+    // Reparo de estado v7 -> v8: assegurar que primeira marca isolada seja isBaseline: true
+    let prsChanged = false;
+    const fixedPRs = prs.map((pr) => {
+      if (pr.isBaseline === undefined) {
+        prsChanged = true;
+        // Se sessions.length <= 1 ou prCount é undefined/0, marca como baseline
+        const count = pr.prCount ?? 0;
+        return {
+          ...pr,
+          isBaseline: count === 0,
+          prCount: count,
+        };
+      }
+      return pr;
+    });
+    if (prsChanged) {
+      setLocal(STORAGE_KEYS.PERSONAL_RECORDS, fixedPRs);
+    }
 
     if (existingProfile) {
       // Se já possui sessões de treinos registradas, preserva tudo
@@ -482,6 +522,8 @@ export function generateWeeklyCalendarFromProgram(uid: string, program: WorkoutP
 
 
 // Cálculo e verificação de novo Recorde Pessoal (PR)
+// Regra canônica (E01 / Seção 5): Primeira marca é apenas linha de base (isBaseline: true, isPR: false).
+// Novo PR só ocorre quando supera estritamente uma marca prévia do mesmo exercício.
 export function checkAndRegisterPR(
   exerciseId: string,
   exerciseName: string,
@@ -499,14 +541,9 @@ export function checkAndRegisterPR(
 
   if (!currentPR) {
     if (actualReps > 0 || (actualDurationSeconds && actualDurationSeconds > 0) || weight > 0) {
-      isPR = true;
-      if (weight > 0 && actualReps > 0) {
-        prText = `Primeiro recorde: ${actualReps} reps com ${weight} kg!`;
-      } else if (actualReps > 0) {
-        prText = `Primeiro recorde: ${actualReps} repetições!`;
-      } else {
-        prText = `Primeiro recorde: ${actualDurationSeconds}s!`;
-      }
+      // Primeira execução: registra linha de base inicial, NÃO é PR
+      isPR = false;
+      prText = 'Marca de referência inicial registrada.';
       const newPR: PersonalRecord = {
         exerciseId,
         exerciseName,
@@ -515,6 +552,8 @@ export function checkAndRegisterPR(
         bestWeightKg: weight,
         recordedAt: Date.now(),
         sessionId,
+        isBaseline: true,
+        prCount: 0,
       };
       return { isPR, updatedPRs: [...existingPRs, newPR], prText };
     }
@@ -548,6 +587,8 @@ export function checkAndRegisterPR(
               bestWeightKg: Math.max(p.bestWeightKg || 0, weight),
               recordedAt: Date.now(),
               sessionId,
+              isBaseline: false,
+              prCount: (p.prCount || 0) + 1,
             }
           : p
       );
@@ -556,6 +597,36 @@ export function checkAndRegisterPR(
   }
 
   return { isPR: false, updatedPRs: existingPRs };
+}
+
+// Cálculo unificado de métricas canônicas (E03 / Seção 5 / T18)
+// Garante consistência absoluta entre Home, Histórico e Evolução
+export function calculateCanonicalMetrics(
+  sessions: WorkoutSession[],
+  calendar: CalendarDay[],
+  prs: PersonalRecord[]
+): CanonicalMetrics {
+  const completedWorkoutsCount = sessions.filter((s) => s.status === 'completed').length;
+  const partialWorkoutsCount = sessions.filter((s) => s.status === 'parcial').length;
+  const totalWorkoutsCount = completedWorkoutsCount + partialWorkoutsCount;
+  const realPRCount = prs.filter((p) => !p.isBaseline && (p.prCount || 0) > 0).length;
+  const totalVolumeKg = sessions.reduce((acc, s) => acc + (s.totalVolumeKg || 0), 0);
+  const weeklyCommittedCount = calendar.filter(
+    (c) => c.activityType !== 'unassigned' && c.activityType !== 'rest'
+  ).length;
+  const weeklyCompletedCount = calendar.filter(
+    (c) => c.isCompleted && c.activityType !== 'unassigned' && c.activityType !== 'rest'
+  ).length;
+
+  return {
+    completedWorkoutsCount,
+    partialWorkoutsCount,
+    totalWorkoutsCount,
+    realPRCount,
+    totalVolumeKg,
+    weeklyCommittedCount,
+    weeklyCompletedCount,
+  };
 }
 
 // Exportar Backup JSON completo do praticante
@@ -569,7 +640,7 @@ export function exportUserDataAsJSON(data: {
 }) {
   const exportPayload = {
     app: 'Superação',
-    version: '4.0.0',
+    version: APP_VERSION,
     exportedAt: new Date().toISOString(),
     ...data,
   };

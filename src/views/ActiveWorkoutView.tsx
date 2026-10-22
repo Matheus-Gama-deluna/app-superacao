@@ -21,11 +21,24 @@ import {
   VolumeX,
   Info,
   ShieldAlert,
+  Pause,
 } from 'lucide-react';
 import { soundManager } from '../lib/audio';
 
 interface ActiveWorkoutViewProps {
   onPauseAndReturnHome?: () => void;
+}
+
+// Verifica se o exercício é compatível com sobrecarga em kg ou estritamente peso corporal / mobilidade (E06)
+function supportsExternalWeight(ex: any): boolean {
+  if (!ex) return false;
+  if (ex.modality === 'mobilidade' || ex.modality === 'alongamento' || ex.modality === 'recuperacao') {
+    return false;
+  }
+  const weightEquipments = ['halteres', 'kettlebell', 'barra', 'anilhas', 'maquina', 'cabo', 'polia', 'caneleira'];
+  const hasWeightEquipment = Array.isArray(ex.equipment) && ex.equipment.some((eq: string) => weightEquipments.includes(eq.toLowerCase()));
+  const isExcludedPattern = ['mobilidade', 'alongamento', 'postura'].includes(ex.movement_pattern);
+  return hasWeightEquipment || (!isExcludedPattern && (ex.modality === 'hipertrofia' || ex.modality === 'forca'));
 }
 
 export const ActiveWorkoutView: React.FC<ActiveWorkoutViewProps> = ({
@@ -84,12 +97,10 @@ export const ActiveWorkoutView: React.FC<ActiveWorkoutViewProps> = ({
   // Histórico anterior do exercício para desafio pessoal
   const previousPR = personalRecords.find((p) => p.exerciseId === currentExerciseItem?.exerciseId);
 
-  // Próximo exercício / série para preparação no descanso
-  const isLastSetOfCurrent = activeSession.currentSetIndex >= (currentExerciseItem?.targetSets || 1);
-  const nextExItem = isLastSetOfCurrent
-    ? activeSession.exercisesSnapshot[activeSession.currentExerciseIndex + 1]
-    : currentExerciseItem;
-  const nextSetNum = isLastSetOfCurrent ? 1 : activeSession.currentSetIndex + 1;
+  // Próximo exercício / série para preparação no descanso (E05)
+  // Durante o descanso (isResting), recordSet já avançou currentExerciseIndex e currentSetIndex para a série a ser executada
+  const nextExItem = activeSession.exercisesSnapshot[activeSession.currentExerciseIndex] || currentExerciseItem;
+  const nextSetNum = activeSession.currentSetIndex;
 
   const handleOpenConfirm = () => {
     if (isTimeTracking) {
@@ -289,13 +300,24 @@ export const ActiveWorkoutView: React.FC<ActiveWorkoutViewProps> = ({
     <div className="fixed inset-0 z-50 bg-[#F5F8F5] text-[#152A29] flex flex-col justify-between pt-safe pb-safe select-none">
       {/* Top Header do Modo Foco */}
       <header className="px-4 py-2.5 flex items-center justify-between border-b border-[#C9DBD3] bg-white">
-        <button
-          onClick={() => setShowAbandonConfirm(true)}
-          className="p-1.5 rounded-lg text-[#5B7170] hover:text-[#B13D39]"
-          title="Encerrar sessão"
-        >
-          <X className="w-5 h-5" />
-        </button>
+        <div className="flex items-center gap-1">
+          <button
+            onClick={() => setShowAbandonConfirm(true)}
+            className="p-1.5 rounded-lg text-[#5B7170] hover:text-[#B13D39] cursor-pointer"
+            title="Encerrar sessão"
+            aria-label="Encerrar sessão"
+          >
+            <X className="w-5 h-5" />
+          </button>
+          <button
+            onClick={onPauseAndReturnHome || pauseAndReturnHome}
+            className="p-1.5 rounded-lg text-[#5B7170] hover:text-[#125F55] cursor-pointer"
+            title="Pausar treino e voltar ao início"
+            aria-label="Pausar treino e voltar ao início"
+          >
+            <Pause className="w-4 h-4" />
+          </button>
+        </div>
 
         <div className="text-center">
           <span className="text-[10px] font-bold uppercase tracking-wider text-[#125F55]">
@@ -686,66 +708,77 @@ export const ActiveWorkoutView: React.FC<ActiveWorkoutViewProps> = ({
               </div>
             </div>
 
-            {/* Ajuste de Carga / Peso (kg) para Sobrecarga Progressiva */}
-            <div className="bg-[#F5F8F5] p-3.5 rounded-2xl text-center space-y-2">
-              <div className="flex items-center justify-between px-1">
-                <label className="text-xs font-bold text-[#5B7170] uppercase tracking-wider block">
-                  Carga Utilizada (kg)
-                </label>
-                {previousPR?.bestWeightKg ? (
-                  <span className="text-[10px] text-[#125F55] font-bold">
-                    Última marca: {previousPR.bestWeightKg} kg
-                  </span>
-                ) : (
-                  <span className="text-[10px] text-[#5B7170]">
-                    Peso corporal ou halteres
-                  </span>
-                )}
-              </div>
-
-              <div className="flex items-center justify-center gap-4">
-                <button
-                  type="button"
-                  onClick={() => setActualWeightInput((prev) => Math.max(0, prev - 2))}
-                  className="w-10 h-10 rounded-xl bg-white border border-[#C9DBD3] flex items-center justify-center font-bold text-xs text-[#125F55] active:scale-95 shadow-xs cursor-pointer"
-                >
-                  -2
-                </button>
-                <div className="w-24">
-                  <span className="text-3xl font-black text-[#125F55] tabular-nums">
-                    {actualWeightInput}
-                  </span>
-                  <span className="block text-[10px] text-[#5B7170] font-semibold mt-0.5">
-                    {actualWeightInput > 0 ? 'kg utilizados' : 'peso do corpo'}
-                  </span>
+            {/* Ajuste de Carga / Peso (kg) para Sobrecarga Progressiva (E06) */}
+            {supportsExternalWeight(exerciseDetails) ? (
+              <div className="bg-[#F5F8F5] p-3.5 rounded-2xl text-center space-y-2">
+                <div className="flex items-center justify-between px-1">
+                  <label className="text-xs font-bold text-[#5B7170] uppercase tracking-wider block">
+                    Carga Utilizada (kg)
+                  </label>
+                  {previousPR?.bestWeightKg ? (
+                    <span className="text-[10px] text-[#125F55] font-bold">
+                      Última marca: {previousPR.bestWeightKg} kg
+                    </span>
+                  ) : (
+                    <span className="text-[10px] text-[#5B7170]">
+                      Peso corporal ou halteres
+                    </span>
+                  )}
                 </div>
-                <button
-                  type="button"
-                  onClick={() => setActualWeightInput((prev) => prev + 2)}
-                  className="w-10 h-10 rounded-xl bg-white border border-[#C9DBD3] flex items-center justify-center font-bold text-xs text-[#125F55] active:scale-95 shadow-xs cursor-pointer"
-                >
-                  +2
-                </button>
-              </div>
 
-              {/* Atalhos rápidos de carga */}
-              <div className="flex items-center justify-center gap-1.5 pt-0.5 flex-wrap">
-                {[0, 4, 8, 12, 16, 20, 30].map((w) => (
+                <div className="flex items-center justify-center gap-4">
                   <button
-                    key={w}
                     type="button"
-                    onClick={() => setActualWeightInput(w)}
-                    className={`px-2 py-0.5 text-[11px] font-bold rounded-lg border cursor-pointer transition-colors ${
-                      actualWeightInput === w
-                        ? 'bg-[#125F55] text-white border-[#125F55]'
-                        : 'bg-white border-[#C9DBD3] text-[#5B7170] hover:border-[#125F55]'
-                    }`}
+                    onClick={() => setActualWeightInput((prev) => Math.max(0, prev - 2))}
+                    className="w-10 h-10 rounded-xl bg-white border border-[#C9DBD3] flex items-center justify-center font-bold text-xs text-[#125F55] active:scale-95 shadow-xs cursor-pointer"
                   >
-                    {w === 0 ? 'Livre' : `${w}k`}
+                    -2
                   </button>
-                ))}
+                  <div className="w-24">
+                    <span className="text-3xl font-black text-[#125F55] tabular-nums">
+                      {actualWeightInput}
+                    </span>
+                    <span className="block text-[10px] text-[#5B7170] font-semibold mt-0.5">
+                      {actualWeightInput > 0 ? 'kg utilizados' : 'peso do corpo'}
+                    </span>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setActualWeightInput((prev) => prev + 2)}
+                    className="w-10 h-10 rounded-xl bg-white border border-[#C9DBD3] flex items-center justify-center font-bold text-xs text-[#125F55] active:scale-95 shadow-xs cursor-pointer"
+                  >
+                    +2
+                  </button>
+                </div>
+
+                {/* Atalhos rápidos de carga */}
+                <div className="flex items-center justify-center gap-1.5 pt-0.5 flex-wrap">
+                  {[0, 4, 8, 12, 16, 20, 30].map((w) => (
+                    <button
+                      key={w}
+                      type="button"
+                      onClick={() => setActualWeightInput(w)}
+                      className={`px-2 py-0.5 text-[11px] font-bold rounded-lg border cursor-pointer transition-colors ${
+                        actualWeightInput === w
+                          ? 'bg-[#125F55] text-white border-[#125F55]'
+                          : 'bg-white border-[#C9DBD3] text-[#5B7170] hover:border-[#125F55]'
+                      }`}
+                    >
+                      {w === 0 ? 'Livre' : `${w}k`}
+                    </button>
+                  ))}
+                </div>
               </div>
-            </div>
+            ) : (
+              <div className="bg-[#F5F8F5] p-3 rounded-2xl text-center space-y-1">
+                <span className="text-xs font-bold text-[#125F55] uppercase tracking-wider block">
+                  Peso Corporal & Execução Técnica
+                </span>
+                <p className="text-[11px] text-[#5B7170]">
+                  Exercício executado com o peso do próprio corpo. Foco em controle articular e amplitude.
+                </p>
+              </div>
+            )}
 
             {/* Tempo de Descanso a Iniciar */}
             <div className="flex items-center justify-between text-xs text-[#5B7170] px-1">

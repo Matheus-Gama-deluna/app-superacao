@@ -111,9 +111,17 @@ export const SmartWorkoutGeneratorModal: React.FC<SmartWorkoutGeneratorModalProp
   };
 
   const handleGenerate = () => {
-    // 1. Filtra candidatos de acordo com os equipamentos selecionados
+    // 1. Filtra candidatos garantindo que TODOS os equipamentos obrigatórios e apoios estejam presentes (C01, C02)
     const available = allExercises.filter((ex) => {
-      return ex.equipment.some((eq) => selectedEquipments.includes(eq));
+      const hasAllRequired = ex.equipment.every(
+        (eq) => eq === 'nenhum' || eq === 'colchonete' || selectedEquipments.includes(eq)
+      );
+      if (!hasAllRequired) return false;
+      if (ex.requires_supports && Array.isArray(ex.requires_supports)) {
+        const hasSupports = ex.requires_supports.every((sup: string) => selectedEquipments.includes(sup));
+        if (!hasSupports) return false;
+      }
+      return true;
     });
 
     if (available.length === 0) {
@@ -125,15 +133,29 @@ export const SmartWorkoutGeneratorModal: React.FC<SmartWorkoutGeneratorModalProp
     const targetCount = currentDur.count;
     const defaultSets = currentDur.sets;
 
-    // 2. Filtra por objetivo prioritário
+    // 2. Filtra por objetivo prioritário com salvaguarda estrita para iniciantes em hábitos (C01)
     let candidates = available;
     if (goal === 'habito') {
       candidates = available.filter((e) => {
+        const isAdvanced = e.difficulty_candidate === 'avancado';
+        const textName = (e.name_pt || '').toLowerCase();
+        const isHighImpact =
+          e.movement_pattern === 'pliometria' ||
+          textName.includes('salto') ||
+          textName.includes('jump') ||
+          textName.includes('polichinelo') ||
+          textName.includes('burpee') ||
+          textName.includes('pliométr');
+
+        if (level === 'iniciante' && (isAdvanced || isHighImpact)) {
+          return false;
+        }
+
         return (
           e.difficulty_candidate === 'iniciante' ||
           e.modality === 'mobilidade' ||
           e.modality === 'alongamento' ||
-          e.equipment.includes('peso_corporal')
+          (e.equipment.includes('peso_corporal') && !isAdvanced && !isHighImpact)
         );
       });
     } else if (goal === 'postura') {
@@ -426,7 +448,7 @@ export const SmartWorkoutGeneratorModal: React.FC<SmartWorkoutGeneratorModalProp
                           {opt.label.split(' ')[0]}
                         </p>
                         <p className={`text-[10px] mt-0.5 ${isSelected ? 'text-[#FAF7F2]/80' : 'text-[#5B7170]'}`}>
-                          {opt.label.split(' ')[1]}
+                          {opt.label.slice(opt.label.indexOf(' ') + 1)}
                         </p>
                       </button>
                     );

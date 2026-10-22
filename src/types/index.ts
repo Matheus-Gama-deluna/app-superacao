@@ -98,6 +98,10 @@ export interface WorkoutSession {
   feedbackEffort?: number; // 1 to 5 scale
   notes?: string;
   exercisesSnapshot: ExercisePlanItem[];
+  scheduledDayId?: string;
+  originType?: 'scheduled' | 'program_session' | 'ad_hoc' | 'express';
+  isExpress?: boolean;
+  wasPlannedHabit?: boolean;
 }
 
 export interface CalendarDay {
@@ -121,6 +125,18 @@ export interface PersonalRecord {
   bestWeightKg?: number; // Maior carga registrada em kg
   recordedAt: number;
   sessionId: string;
+  isBaseline?: boolean; // Marca inicial de referência (não é PR de superação)
+  prCount?: number; // Número de vezes que superou a marca anterior
+}
+
+export interface CanonicalMetrics {
+  completedWorkoutsCount: number;
+  partialWorkoutsCount: number;
+  totalWorkoutsCount: number;
+  realPRCount: number;
+  totalVolumeKg: number;
+  weeklyCommittedCount: number;
+  weeklyCompletedCount: number;
 }
 
 export interface UserProfile {

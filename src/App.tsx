@@ -77,13 +77,19 @@ const MainAppContent: React.FC = () => {
     return 'main';
   })();
 
-  const handleStartPlan = (plan: WorkoutPlan) => {
-    startWorkout(plan);
+  const handleStartPlan = (
+    plan: WorkoutPlan,
+    scheduledDayId?: string,
+    originType: 'scheduled' | 'program_session' | 'ad_hoc' | 'express' = 'ad_hoc',
+    isExpress = false,
+    wasPlannedHabit = false
+  ) => {
+    startWorkout(plan, scheduledDayId, originType, isExpress, wasPlannedHabit);
   };
 
-  const handleStartPlanById = (planId: string) => {
+  const handleStartPlanById = (planId: string, scheduledDayId?: string) => {
     const p = plans.find((x) => x.id === planId) || plans[0];
-    if (p) startWorkout(p);
+    if (p) startWorkout(p, scheduledDayId, scheduledDayId ? 'scheduled' : 'ad_hoc');
   };
 
   const handleOpenBuilder = (existingId?: string, isPro: boolean = false) => {
@@ -169,6 +175,7 @@ const MainAppContent: React.FC = () => {
         ) : isBuilderOpen ? (
           <BuilderView
             existingPlanId={editingPlanId || undefined}
+            initialIsProfessional={isBuilderPro}
             onClose={() => {
               setIsBuilderOpen(false);
               setEditingPlanId(null);

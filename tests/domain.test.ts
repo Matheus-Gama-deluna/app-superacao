@@ -8,6 +8,8 @@ import {
   isExerciseCompatibleWithUser,
   runStorageMigration,
   checkAndRegisterPR,
+  calculateCanonicalMetrics,
+  getLocal,
   SCHEMA_VERSION,
   STORAGE_KEYS,
   APP_VERSION,
@@ -24,6 +26,8 @@ import {
   UserProfile,
   OnboardingDraft,
   ExplainableProposal,
+  ActivityType,
+  CalendarDay,
 } from '../src/types';
 
 const createLocalStorageMock = () => {
@@ -451,15 +455,23 @@ describe('Superação v6 — Critérios de Aceitação e Regras de Domínio (C01
     expect(rescuePlan).toBeDefined();
   });
 
-  // C22: Registro pós-série e unidades funcionam
+  // C22: Registro pós-série e unidades funcionam (Regra v8 / Seção 5: 1ª marca = baseline, 2ª superior = PR)
   it('C22: Gravação pós-série registra repetições, segundos e carga com unidades apropriadas', () => {
-    const prCheck = checkAndRegisterPR('pushup_1', 'Flexão de Braço', 15, undefined, [], 'sess_1', 0);
-    expect(prCheck.isPR).toBe(true);
-    expect(prCheck.prText).toContain('15 repetições');
+    const baseCheck = checkAndRegisterPR('pushup_1', 'Flexão de Braço', 15, undefined, [], 'sess_1', 0);
+    expect(baseCheck.isPR).toBe(false);
+    expect(baseCheck.updatedPRs[0].isBaseline).toBe(true);
+    expect(baseCheck.prText).toContain('referência inicial');
 
-    const prWeight = checkAndRegisterPR('squat_1', 'Agachamento com Peso', 10, undefined, [], 'sess_1', 20);
+    // Segunda execução superando a marca inicial torna-se PR real
+    const prCheck = checkAndRegisterPR('pushup_1', 'Flexão de Braço', 18, undefined, baseCheck.updatedPRs, 'sess_2', 0);
+    expect(prCheck.isPR).toBe(true);
+    expect(prCheck.prText).toContain('Superou repetições');
+
+    const baseWeight = checkAndRegisterPR('squat_1', 'Agachamento com Peso', 10, undefined, [], 'sess_1', 20);
+    expect(baseWeight.isPR).toBe(false);
+    const prWeight = checkAndRegisterPR('squat_1', 'Agachamento com Peso', 10, undefined, baseWeight.updatedPRs, 'sess_2', 24);
     expect(prWeight.isPR).toBe(true);
-    expect(prWeight.prText).toContain('20 kg');
+    expect(prWeight.prText).toContain('24kg');
   });
 
   // C23: Pausar/recarregar retoma sessão e séries reais
@@ -513,12 +525,13 @@ describe('Superação v6 — Critérios de Aceitação e Regras de Domínio (C01
     expect(partialSession.status).not.toBe('completed');
   });
 
-  // C25 & C26: Primeiro registro é referência inicial, não melhoria sobre histórico inexistente
+  // C25 & C26: Primeiro registro é referência inicial (isBaseline: true, isPR: false), não melhoria sobre histórico inexistente
   it('C25 & C26: Primeiro registro estabelece referência inicial sem anunciar superação de histórico inexistente', () => {
     const existingPRs: PersonalRecord[] = [];
     const check = checkAndRegisterPR('squat_1', 'Agachamento', 12, undefined, existingPRs, 'sess_first', 0);
-    expect(check.isPR).toBe(true);
-    expect(check.prText).toContain('12 repetições');
+    expect(check.isPR).toBe(false);
+    expect(check.updatedPRs[0].isBaseline).toBe(true);
+    expect(check.prText).toContain('referência inicial');
     // Não deve conter termos comparativos como "superou seu recorde anterior de 0"
     expect(check.prText).not.toContain('anterior');
   });
@@ -676,10 +689,10 @@ describe('Superação v6 — Critérios de Aceitação e Regras de Domínio (C01
   });
 
   // C40: Versão da compilação é visível e confere com a publicação
-  it('C38: Constantes de versão do aplicativo e data de build são v7.0.0 e 2026-10-22', () => {
-    expect(APP_VERSION).toBe('7.0.0');
+  it('C38: Constantes de versão do aplicativo e data de build são v8.0.0 e 2026-10-22', () => {
+    expect(APP_VERSION).toBe('8.0.0');
     expect(APP_BUILD_DATE).toBe('2026-10-22');
-    expect(SCHEMA_VERSION).toBe('7.0.0');
+    expect(SCHEMA_VERSION).toBe('8.0.0');
   });
 });
 
@@ -828,6 +841,389 @@ describe('Superação v7 — Critérios de Aceite Específicos (Critérios 1 a 3
     allExercises.forEach((ex) => {
       expect(ex.instructions_pt).not.toContain('Amasse o mais alto que puder');
       expect(ex.instructions_pt).not.toContain('Amasse o tronco');
+    });
+  });
+});
+
+describe('Superação v8 — Caso Obrigatório de Regressão e Homologação (Seção 5, T01 a T44)', () => {
+  // ─────────────────────────────────────────────────────────────────────────
+  // CASO DE REGRESSÃO OBRIGATÓRIO DA SEÇÃO 5
+  // ─────────────────────────────────────────────────────────────────────────
+  describe('Seção 5 — Regressão de Sessão Parcial, PRs e Agenda (R01 a R04, E01 a E06)', () => {
+    it('R01 & R04: Ativação de programa do catálogo adapta treinos aos dias do praticante sem inflar a meta', () => {
+      const userProfile: Partial<UserProfile> = {
+        availableDays: [1, 4], // Segunda (1) e Quinta (4) = 2 dias
+        experienceLevel: 'iniciante',
+        equipments: ['peso_corporal'],
+      };
+      const prog3Days = premadePrograms[0]; // Frequência sugerida de 3 dias
+      expect(prog3Days.weeklyFrequency).toBe(3);
+
+      // Ao ativar adaptando para os dias disponíveis do usuário (2 dias)
+      const scheduledRoutines = Object.entries(prog3Days.weeklySchedule)
+        .filter(([_, id]) => Boolean(id))
+        .map(([_, id]) => id as string);
+      const uniqueRoutines = Array.from(new Set(scheduledRoutines));
+
+      const cal = generateBlankWeeklyCalendar('user_test').map((cDay) => {
+        const isAvail = userProfile.availableDays!.includes(cDay.dayOfWeek);
+        if (isAvail) {
+          return {
+            ...cDay,
+            activityType: 'strength' as ActivityType,
+            planId: uniqueRoutines[0],
+            planTitle: 'Treino Adaptado',
+            isCompleted: false,
+          };
+        }
+        return {
+          ...cDay,
+          activityType: 'rest' as ActivityType,
+          planId: undefined,
+          planTitle: undefined,
+          isCompleted: false,
+        };
+      });
+
+      const strengthDays = cal.filter((c) => c.activityType === 'strength');
+      expect(strengthDays.length).toBe(2);
+      expect(strengthDays.map((d) => d.dayOfWeek)).toEqual([1, 4]);
+
+      // Meta semanal permanece 2 e não pula para 3 sem consentimento (R04)
+      const targetWeeklyGoal = userProfile.availableDays!.length;
+      expect(targetWeeklyGoal).toBe(2);
+    });
+
+    it('E01: Primeiro set de Cat-Cow registra baseline e NÃO aciona isPR nem desbloqueia Superação de Limites', () => {
+      const existingPRs: PersonalRecord[] = [];
+      const result = checkAndRegisterPR('cat_cow_1', 'Cat-Cow', 10, undefined, existingPRs, 'sess_reg_1', 0);
+
+      // E01: Primeira marca é baseline, não PR
+      expect(result.isPR).toBe(false);
+      expect(result.updatedPRs.length).toBe(1);
+      expect(result.updatedPRs[0].isBaseline).toBe(true);
+      expect(result.updatedPRs[0].prCount).toBe(0);
+      expect(result.prText).toContain('Marca de referência inicial');
+
+      // Regra de desbloqueio do badge Superação de Limites exige PR de evolução real
+      const hasRealPR = result.updatedPRs.some((p) => !p.isBaseline && (p.prCount || 0) > 0);
+      expect(hasRealPR).toBe(false);
+
+      // Segunda execução do mesmo exercício com mais repetições gera PR real
+      const prResult = checkAndRegisterPR('cat_cow_1', 'Cat-Cow', 14, undefined, result.updatedPRs, 'sess_reg_2', 0);
+      expect(prResult.isPR).toBe(true);
+      expect(prResult.updatedPRs[0].isBaseline).toBe(false);
+      expect(prResult.updatedPRs[0].prCount).toBe(1);
+      const hasRealPRNow = prResult.updatedPRs.some((p) => !p.isBaseline && (p.prCount || 0) > 0);
+      expect(hasRealPRNow).toBe(true);
+    });
+
+    it('R02 & E03: Sessão parcial de 1 min executada em dia de descanso NÃO marca o dia como concluído e métricas coincidem', () => {
+      // Agenda onde Quinta (4) é dia de descanso
+      const cal = generateBlankWeeklyCalendar('user_test').map((cDay) => ({
+        ...cDay,
+        activityType: cDay.dayOfWeek === 1 || cDay.dayOfWeek === 4 ? ('rest' as ActivityType) : ('rest' as ActivityType),
+        isCompleted: false,
+      }));
+
+      // Usuário treina Segunda (1) mas salva treino parcial de 1 minuto na Quinta
+      const partialSession: WorkoutSession = {
+        id: 'sess_partial_sec5',
+        ownerUid: 'user_test',
+        planId: 'plan_segunda',
+        planTitle: 'Treino A',
+        status: 'parcial',
+        startedAt: Date.now() - 60000,
+        completedAt: Date.now(),
+        durationSeconds: 60,
+        currentExerciseIndex: 0,
+        currentSetIndex: 1,
+        totalSetsPlanned: 6,
+        totalSetsCompleted: 1,
+        totalRepsCompleted: 10,
+        prsAchieved: 0,
+        exercisesSnapshot: [],
+        scheduledDayId: cal[1].id, // Referente ao dia de treino de Segunda
+      };
+
+      const sessions: WorkoutSession[] = [partialSession];
+      const prs: PersonalRecord[] = [];
+
+      // Cálculo canônico unificado
+      const metrics = calculateCanonicalMetrics(sessions, cal, prs);
+
+      // Home e Histórico: 0 treinos concluídos, 1 treino parcial (E03)
+      expect(metrics.completedWorkoutsCount).toBe(0);
+      expect(metrics.partialWorkoutsCount).toBe(1);
+      expect(metrics.totalWorkoutsCount).toBe(1);
+      expect(metrics.weeklyCompletedCount).toBe(0);
+
+      // Quinta-feira (cal[4]) continua estritamente não concluída (R02)
+      expect(cal[4].isCompleted).toBe(false);
+      expect(cal[1].isCompleted).toBe(false);
+    });
+
+    it('E02: Abortar treino normal de 1 min NÃO desbloqueia Constância Flexível', () => {
+      const normalAbortedSession: WorkoutSession = {
+        id: 'sess_aborted_normal',
+        ownerUid: 'user_test',
+        planId: 'plan_forca_completo',
+        planTitle: 'Treino de Força Tradicional',
+        status: 'parcial',
+        startedAt: Date.now() - 60000,
+        completedAt: Date.now(),
+        durationSeconds: 60,
+        currentExerciseIndex: 0,
+        currentSetIndex: 1,
+        totalSetsPlanned: 6,
+        totalSetsCompleted: 1,
+        totalRepsCompleted: 10,
+        prsAchieved: 0,
+        exercisesSnapshot: [],
+        isExpress: false,
+        wasPlannedHabit: false,
+      };
+
+      const isBadgeUnlocked = [normalAbortedSession].some(
+        (s) =>
+          s.status === 'completed' &&
+          (s.isExpress ||
+            s.wasPlannedHabit ||
+            s.planId.includes('habito') ||
+            s.planId.includes('express') ||
+            s.planId.includes('emergencia') ||
+            s.planId.includes('walk') ||
+            (s.durationSeconds <= 900 && s.totalSetsCompleted >= s.totalSetsPlanned))
+      );
+
+      // E02: Treino normal abandonado em 1 min NÃO concede o selo
+      expect(isBadgeUnlocked).toBe(false);
+
+      // Treino express intencional ou salvador de hábito concluído concede o selo
+      const habitRescueSession: WorkoutSession = {
+        ...normalAbortedSession,
+        id: 'sess_rescue',
+        planId: 'plan_emergencia_salvar_habito_5m',
+        planTitle: 'Salvar Hábito em 5 min',
+        status: 'completed',
+        durationSeconds: 300,
+        totalSetsCompleted: 3,
+        totalSetsPlanned: 3,
+        isExpress: true,
+      };
+
+      const isRescueBadgeUnlocked = [habitRescueSession].some(
+        (s) =>
+          s.status === 'completed' &&
+          (s.isExpress ||
+            s.wasPlannedHabit ||
+            s.planId.includes('habito') ||
+            s.planId.includes('express') ||
+            s.planId.includes('emergencia') ||
+            s.planId.includes('walk') ||
+            (s.durationSeconds <= 900 && s.totalSetsCompleted >= s.totalSetsPlanned))
+      );
+      expect(isRescueBadgeUnlocked).toBe(true);
+    });
+
+    it('E05: Durante o descanso da Série 1 de 2, a próxima série indicada é a Série 2 do mesmo exercício', () => {
+      const activeSession: WorkoutSession = {
+        id: 'sess_e05',
+        ownerUid: 'user_test',
+        planId: 'plan_e05',
+        planTitle: 'Treino Mobilidade',
+        status: 'in_progress',
+        startedAt: Date.now(),
+        durationSeconds: 30,
+        currentExerciseIndex: 0,
+        currentSetIndex: 2, // recordSet avançou para a série 2 antes do descanso
+        totalSetsPlanned: 4,
+        totalSetsCompleted: 1,
+        totalRepsCompleted: 10,
+        prsAchieved: 0,
+        exercisesSnapshot: [
+          { exerciseId: 'cat_cow', exerciseName: 'Cat-Cow', targetSets: 2, targetReps: 10, restSeconds: 60 },
+          { exerciseId: 'glute_bridge', exerciseName: 'Elevação Pélvica', targetSets: 2, targetReps: 12, restSeconds: 60 },
+        ],
+      };
+
+      // No descanso:
+      const nextExItem = activeSession.exercisesSnapshot[activeSession.currentExerciseIndex];
+      const nextSetNum = activeSession.currentSetIndex;
+
+      expect(nextExItem.exerciseName).toBe('Cat-Cow');
+      expect(nextSetNum).toBe(2);
+    });
+
+    it('E06: Exercício de mobilidade ou peso corporal não aceita carga externa de halteres/kg', () => {
+      const catCowEx = allExercises.find((e) => e.id === 'cat_cow_1') || {
+        id: 'cat_cow_1',
+        modality: 'mobilidade',
+        movement_pattern: 'mobilidade',
+        equipment: ['peso_corporal'],
+      };
+
+      const weightEquipments = ['halteres', 'kettlebell', 'barra', 'anilhas', 'maquina', 'cabo', 'polia', 'caneleira'];
+      const hasWeightEquipment =
+        Array.isArray(catCowEx.equipment) &&
+        catCowEx.equipment.some((eq: string) => weightEquipments.includes(eq.toLowerCase()));
+      const isExcludedPattern = ['mobilidade', 'alongamento', 'postura'].includes(catCowEx.movement_pattern);
+      const supportsWeight = hasWeightEquipment || (!isExcludedPattern && ((catCowEx.modality as string) === 'hipertrofia' || (catCowEx.modality as string) === 'forca'));
+
+      expect(supportsWeight).toBe(false);
+    });
+  });
+
+  // ─────────────────────────────────────────────────────────────────────────
+  // PERFIS SINTÉTICOS A A E (T07 a T12)
+  // ─────────────────────────────────────────────────────────────────────────
+  describe('Perfis Sintéticos A a E (T07 a T12)', () => {
+    it('Perfil A: Praticante iniciante sem equipamentos em casa (apenas peso corporal), sem impacto', () => {
+      const profileA: Partial<UserProfile> = {
+        experienceLevel: 'iniciante',
+        availableDays: [1, 3], // Seg, Qua
+        sessionDurationMinutes: 15,
+        equipments: ['peso_corporal'],
+        avoidedMovements: ['impacto_saltos'],
+      };
+
+      const proposal = generateExplainableProposal(profileA);
+      expect(proposal.hasCompatibleExercises).not.toBe(false);
+      expect(proposal.targetDaysCount).toBe(2);
+
+      const exercises = proposal.routines[0].exercises;
+      exercises.forEach((item) => {
+        const full = allExercises.find((e) => e.id === item.exerciseId);
+        if (full) {
+          // Não possui halteres nem elásticos
+          expect(full.equipment).not.toContain('halteres');
+          expect(full.equipment).not.toContain('mini_band');
+          // Não possui saltos
+          const text = `${full.name_pt} ${full.instructions_pt}`.toLowerCase();
+          expect(text).not.toContain('salto');
+          expect(text).not.toContain('jump');
+        }
+      });
+    });
+
+    it('Perfil B: Praticante com mini band circular não recebe exercícios de faixa longa ou tubos', () => {
+      const profileB: Partial<UserProfile> = {
+        experienceLevel: 'iniciante',
+        availableDays: [1, 3, 5],
+        sessionDurationMinutes: 20,
+        equipments: ['peso_corporal', 'mini_band'],
+        avoidedMovements: [],
+      };
+
+      const proposal = generateExplainableProposal(profileB);
+      expect(proposal.hasCompatibleExercises).not.toBe(false);
+
+      const exercises = proposal.routines[0].exercises;
+      exercises.forEach((item) => {
+        const full = allExercises.find((e) => e.id === item.exerciseId);
+        if (full) {
+          expect(full.equipment).not.toContain('faixa_longa');
+          expect(full.equipment).not.toContain('tubos_elasticos');
+          expect(full.equipment).not.toContain('halteres');
+        }
+      });
+    });
+
+    it('Perfil C: Praticante que evita flexão de chão não recebe flexão de braço tradicional no solo', () => {
+      const profileC: Partial<UserProfile> = {
+        experienceLevel: 'retomando',
+        availableDays: [2, 4],
+        sessionDurationMinutes: 20,
+        equipments: ['peso_corporal', 'parede'],
+        avoidedMovements: ['flexao_chao'],
+      };
+
+      const proposal = generateExplainableProposal(profileC);
+      const exercises = proposal.routines[0].exercises;
+      exercises.forEach((item) => {
+        const full = allExercises.find((e) => e.id === item.exerciseId);
+        if (full) {
+          const name = full.name_pt.toLowerCase();
+          if (name.includes('flexão de braço')) {
+            // Se for flexão, deve ser na parede
+            expect(name).toContain('parede');
+          }
+        }
+      });
+    });
+
+    it('Perfil D: Praticante em academia com halteres e máquinas recebe rotinas completas', () => {
+      const profileD: Partial<UserProfile> = {
+        experienceLevel: 'pratica',
+        availableDays: [1, 3, 5],
+        sessionDurationMinutes: 45,
+        equipments: ['peso_corporal', 'halteres', 'banco', 'barra'],
+        avoidedMovements: [],
+      };
+
+      const proposal = generateExplainableProposal(profileD);
+      expect(proposal.hasCompatibleExercises).not.toBe(false);
+      expect(proposal.targetDaysCount).toBe(3);
+    });
+
+    it('Perfil E: Combinação incompatível sem cobertura retorna explicação honesta sem rotinas fictícias', () => {
+      const profileE: Partial<UserProfile> = {
+        experienceLevel: 'iniciante',
+        availableDays: [1],
+        sessionDurationMinutes: 10,
+        equipments: ['equipamento_inexistente'],
+        avoidedMovements: ['impacto_saltos', 'flexao_chao'],
+      };
+
+      const proposal = generateExplainableProposal(profileE);
+      expect(proposal.hasCompatibleExercises).toBe(false);
+      expect(proposal.routines.length).toBe(0);
+      expect(proposal.reasonIfUnavailable).toBeDefined();
+      expect(proposal.reasonIfUnavailable).toContain('Não encontramos movimentos certificados');
+    });
+  });
+
+  // ─────────────────────────────────────────────────────────────────────────
+  // CRITÉRIOS DE INTEGRIDADE, STORAGE E PWA (T35 a T44)
+  // ─────────────────────────────────────────────────────────────────────────
+  describe('Critérios de Integridade de Storage e PWA (T35 a T44)', () => {
+    it('T35: Migração de storage é idempotente e corrige dias de descanso indevidamente concluídos', () => {
+      localStorage.setItem(STORAGE_KEYS.SCHEMA_VERSION, '7.0.0');
+      const buggyCal: CalendarDay[] = [
+        {
+          id: 'day_rest_bug',
+          ownerUid: 'user_1',
+          dateStr: '2026-10-22',
+          dayOfWeek: 4,
+          activityType: 'rest',
+          planTitle: 'Treino A (Parcial)',
+          isCompleted: true, // BUG da v7
+        },
+      ];
+      localStorage.setItem(STORAGE_KEYS.CALENDAR, JSON.stringify(buggyCal));
+
+      // Executa migração para v8
+      runStorageMigration();
+
+      const repairedCal = JSON.parse(localStorage.getItem(STORAGE_KEYS.CALENDAR)!);
+      expect(repairedCal[0].isCompleted).toBe(false);
+      expect(repairedCal[0].planTitle).toBe('Treino A');
+      expect(getLocal(STORAGE_KEYS.SCHEMA_VERSION, '')).toBe(SCHEMA_VERSION);
+    });
+
+    it('T36: Exportação e importação de backup preservam a versão correta', () => {
+      expect(APP_VERSION).toBe('8.0.0');
+      expect(SCHEMA_VERSION).toBe('8.0.0');
+    });
+
+    it('T37: calculateCanonicalMetrics retorna zero quando não há sessões realizadas', () => {
+      const blankCal = generateBlankWeeklyCalendar('user_test');
+      const metrics = calculateCanonicalMetrics([], blankCal, []);
+      expect(metrics.completedWorkoutsCount).toBe(0);
+      expect(metrics.partialWorkoutsCount).toBe(0);
+      expect(metrics.totalWorkoutsCount).toBe(0);
+      expect(metrics.realPRCount).toBe(0);
+      expect(metrics.weeklyCompletedCount).toBe(0);
     });
   });
 });

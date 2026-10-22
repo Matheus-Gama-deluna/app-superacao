@@ -61,7 +61,7 @@ interface WorkoutContextType {
   // Programas de Longo Prazo & Hábitos
   programs: WorkoutProgram[];
   activeProgram: WorkoutProgram | null;
-  activateProgram: (program: WorkoutProgram) => Promise<void>;
+  activateProgram: (program: WorkoutProgram, customDays?: number[]) => Promise<void>;
   advanceProgramWeek: () => void;
   startEmergencyWorkout: () => void;
 
@@ -78,7 +78,13 @@ interface WorkoutContextType {
   deletePlan: (planId: string) => Promise<void>;
 
   // Ações de Treino / Execução
-  startWorkout: (plan: WorkoutPlan) => void;
+  startWorkout: (
+    plan: WorkoutPlan,
+    scheduledDayId?: string,
+    originType?: 'scheduled' | 'program_session' | 'ad_hoc' | 'express',
+    isExpress?: boolean,
+    wasPlannedHabit?: boolean
+  ) => void;
   recordSet: (actualReps: number, actualDurationSeconds?: number, restSeconds?: number, actualWeightKg?: number) => Promise<{ isPR: boolean; prText?: string }>;
   previousExercise: () => void;
   nextExercise: () => void;
@@ -442,7 +448,13 @@ export const WorkoutProvider: React.FC<{ children: React.ReactNode }> = ({ child
   // ──────────────────────────────────────────────
   // AÇÕES DE EXECUÇÃO DO TREINO
   // ──────────────────────────────────────────────
-  const startWorkout = (plan: WorkoutPlan) => {
+  const startWorkout = (
+    plan: WorkoutPlan,
+    scheduledDayId?: string,
+    originType: 'scheduled' | 'program_session' | 'ad_hoc' | 'express' = 'ad_hoc',
+    isExpress = false,
+    wasPlannedHabit = false
+  ) => {
     setIsFocusMode(true);
     const totalSets = plan.exercises.reduce((acc, curr) => acc + curr.targetSets, 0);
     const session: WorkoutSession = {
@@ -460,6 +472,10 @@ export const WorkoutProvider: React.FC<{ children: React.ReactNode }> = ({ child
       totalRepsCompleted: 0,
       prsAchieved: 0,
       exercisesSnapshot: plan.exercises,
+      scheduledDayId,
+      originType,
+      isExpress,
+      wasPlannedHabit,
     };
 
     setActiveSession(session);
@@ -532,7 +548,8 @@ export const WorkoutProvider: React.FC<{ children: React.ReactNode }> = ({ child
     setSetEvents(updatedEvents);
     setLocal('superacao_set_events', updatedEvents);
 
-    if (prCheck.isPR) {
+    // Se houve nova marca registrada (seja baseline de referência ou PR de evolução), persiste no storage
+    if (prCheck.updatedPRs !== personalRecords) {
       setPersonalRecords(prCheck.updatedPRs);
       setLocal('superacao_personal_records', prCheck.updatedPRs);
     }
@@ -635,12 +652,20 @@ export const WorkoutProvider: React.FC<{ children: React.ReactNode }> = ({ child
     setActiveSession(null);
     localStorage.removeItem('superacao_active_session');
 
-    // Marca o dia correspondente no calendário como concluído
-    const todayStr = new Date().toISOString().split('T')[0];
-    const todayCal = calendar.find((c) => c.dateStr === todayStr);
-    if (todayCal) {
-      await updateCalendarDay(todayCal.id, todayCal.activityType, completedSession.planId, completedSession.planTitle);
-      await toggleCalendarDayCompleted(todayCal.id);
+    // Atualiza a agenda se vinculada a um dia ou ao dia atual
+    if (completedSession.scheduledDayId) {
+      const targetDay = calendar.find((c) => c.id === completedSession.scheduledDayId);
+      if (targetDay) {
+        await updateCalendarDay(targetDay.id, 'strength', completedSession.planId, completedSession.planTitle);
+        await toggleCalendarDayCompleted(targetDay.id);
+      }
+    } else {
+      const todayStr = new Date().toISOString().split('T')[0];
+      const todayCal = calendar.find((c) => c.dateStr === todayStr);
+      if (todayCal && todayCal.activityType !== 'rest' && todayCal.activityType !== 'unassigned') {
+        await updateCalendarDay(todayCal.id, todayCal.activityType, completedSession.planId, completedSession.planTitle);
+        await toggleCalendarDayCompleted(todayCal.id);
+      }
     }
 
     // Persiste no Firestore
@@ -662,7 +687,7 @@ export const WorkoutProvider: React.FC<{ children: React.ReactNode }> = ({ child
     });
   };
 
-  // A14: Sessão parcial confirmada é identificada como parcial e não gera falsos recordes
+  // A14 / R02 / Seção 5: Sessão parcial confirmada é identificada como parcial e NÃO marca dias de descanso como concluídos
   const savePartialWorkout = async (notes?: string) => {
     if (!activeSession) return;
     skipRest();
@@ -688,11 +713,18 @@ export const WorkoutProvider: React.FC<{ children: React.ReactNode }> = ({ child
     setActiveSession(null);
     localStorage.removeItem('superacao_active_session');
 
-    const todayStr = new Date().toISOString().split('T')[0];
-    const todayCal = calendar.find((c) => c.dateStr === todayStr);
-    if (todayCal) {
-      await updateCalendarDay(todayCal.id, todayCal.activityType, partialSession.planId, `${partialSession.planTitle} (Parcial)`);
-      await toggleCalendarDayCompleted(todayCal.id);
+    // Regra Canônica de Integridade da Agenda:
+    // Se o treino era de um dia agendado (scheduledDayId), anota a tentativa na observação, mas NUNCA marca isCompleted = true!
+    // Se foi executado em um dia de descanso/avulso, o dia de descanso NÃO é alterado.
+    if (partialSession.scheduledDayId) {
+      const targetDay = calendar.find((c) => c.id === partialSession.scheduledDayId);
+      if (targetDay && targetDay.activityType !== 'rest') {
+        const updated = calendar.map((d) =>
+          d.id === targetDay.id ? { ...d, notes: (d.notes ? `${d.notes} · ` : '') + 'Treino Parcial' } : d
+        );
+        setCalendar(updated);
+        setLocal('superacao_calendar', updated);
+      }
     }
   };
 
@@ -922,27 +954,45 @@ export const WorkoutProvider: React.FC<{ children: React.ReactNode }> = ({ child
   // ──────────────────────────────────────────────
   // AÇÕES DE PROGRAMAS DE LONGO PRAZO & HÁBITOS
   // ──────────────────────────────────────────────
-  const activateProgram = async (program: WorkoutProgram) => {
+  // Regra canônica (R01 / R04 / Seção 5): A ativação de programa não deve atropelar
+  // silenciosamente os dias disponíveis do usuário nem inflar a meta semanal de 2 para 3 sem consentimento.
+  const activateProgram = async (program: WorkoutProgram, customDays?: number[]) => {
     setActiveProgram(program);
     setLocal('superacao_active_program', program);
 
-    // Sincroniza os dias do calendário semanal com a escala de treinos do programa
+    const availableDays = customDays && customDays.length > 0
+      ? customDays
+      : (profile.availableDays && profile.availableDays.length > 0 ? profile.availableDays : [1, 3, 5]);
+
+    // Extrai rotinas do programa preservando a ordem dos treinos
+    const scheduledRoutines = Object.entries(program.weeklySchedule)
+      .filter(([_, id]) => Boolean(id))
+      .sort(([dayA], [dayB]) => Number(dayA) - Number(dayB))
+      .map(([_, id]) => id as string);
+
+    const uniqueRoutines = Array.from(new Set(scheduledRoutines.length > 0 ? scheduledRoutines : program.routines.map(r => r.id)));
+
+    let routineIdx = 0;
     const updatedCal = calendar.map((cDay) => {
-      const routineId = program.weeklySchedule[cDay.dayOfWeek];
-      if (routineId) {
+      const isAvailable = availableDays.includes(cDay.dayOfWeek);
+      if (isAvailable && uniqueRoutines.length > 0) {
+        const routineId = uniqueRoutines[routineIdx % uniqueRoutines.length];
+        routineIdx++;
         const foundRoutine = program.routines.find((r) => r.id === routineId) || plans.find((p) => p.id === routineId);
         return {
           ...cDay,
           activityType: 'strength' as ActivityType,
           planId: routineId,
           planTitle: foundRoutine?.title || 'Treino do Programa',
+          isCompleted: false,
         };
       } else {
         return {
           ...cDay,
-          activityType: (cDay.dayOfWeek === 0 || cDay.dayOfWeek === 6 ? 'active_recovery' : 'rest') as ActivityType,
+          activityType: 'rest' as ActivityType,
           planId: undefined,
           planTitle: undefined,
+          isCompleted: false,
         };
       }
     });

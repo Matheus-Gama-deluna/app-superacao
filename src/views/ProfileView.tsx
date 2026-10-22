@@ -330,7 +330,7 @@ export const ProfileView: React.FC<ProfileViewProps> = ({ onClose }) => {
           Superação · v{APP_VERSION} (Build {APP_BUILD_DATE})
         </p>
         <p className="text-[11px] max-w-xs mx-auto text-[#5B7170]">
-          Compilação verificada. Compare esta versão e build com a publicação para atestar integridade.
+          Versão local v{APP_VERSION} em execução. Dados e recordes preservados com segurança neste dispositivo.
         </p>
       </footer>
 
