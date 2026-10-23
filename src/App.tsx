@@ -94,8 +94,8 @@ const MainAppContent: React.FC = () => {
     setIsBuilderOpen(true);
   };
 
-  // Se houver uma sessão ativa de treino, entra no MODO FOCO (Seção 10)
-  if (activeSession) {
+  // Se houver uma sessão ativa de treino e o modo foco estiver ativo, entra no MODO FOCO (Seção 10 / V8-03)
+  if (activeSession && isFocusMode) {
     return <ActiveWorkoutView />;
   }
 

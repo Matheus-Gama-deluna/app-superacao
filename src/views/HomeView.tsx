@@ -19,9 +19,10 @@ import {
   FileCheck2,
   X,
   AlertCircle,
+  Target,
 } from 'lucide-react';
 import { WorkoutPlan } from '../types';
-import { calculateCanonicalMetrics } from '../lib/storage';
+import { calculateCanonicalMetrics, generateWellbeingInsight, generateDailyMicroChallenge } from '../lib/storage';
 import { OnboardingModal } from './OnboardingModal';
 
 interface HomeViewProps {
@@ -84,6 +85,10 @@ export const HomeView: React.FC<HomeViewProps> = ({
 
   // Plano de mobilidade suave para descanso ativo opcional
   const recoveryPlan = plans.find((p) => p.category === 'mobilidade') || null;
+
+  // Insights de Bem-Estar e Micro-Desafio do Dia (Estratégias C e D)
+  const wellbeingInsight = generateWellbeingInsight(sessions);
+  const dailyChallenge = todayPlan ? generateDailyMicroChallenge(todayPlan, personalRecords) : null;
 
   // Estatísticas de consistência derivadas dos eventos canônicos reais (A07, R04, Seção 5)
   const canonical = calculateCanonicalMetrics(sessions, calendar, personalRecords);
@@ -244,6 +249,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
               const isDone = cDay.isCompleted;
               const isRest = cDay.activityType === 'rest';
               const isUnassigned = cDay.activityType === 'unassigned';
+              const isVitalityBonus = Boolean(cDay.vitalityBonusCompleted || (isRest && (cDay.careMinutes || 0) > 0));
 
               return (
                 <div
@@ -260,6 +266,10 @@ export const HomeView: React.FC<HomeViewProps> = ({
                   <div className="mt-1 w-5 h-5 flex items-center justify-center">
                     {isDone ? (
                       <CheckCircle2 className="w-4 h-4 text-[#246747]" />
+                    ) : isVitalityBonus ? (
+                      <span title="Elo de Vitalidade conquistado!">
+                        <Sparkles className="w-3.5 h-3.5 text-[#125F55]" />
+                      </span>
                     ) : isRest ? (
                       <span title="Descanso planejado">
                         <Heart className="w-3.5 h-3.5 text-[#5B7170]" />
@@ -325,6 +335,23 @@ export const HomeView: React.FC<HomeViewProps> = ({
         })()}
       </section>
 
+      {/* Espelho de Bem-Estar (Estratégia D: Termômetro Antes vs Depois) */}
+      {wellbeingInsight && (
+        <section className="bg-gradient-to-r from-[#D9F277]/25 via-[#EAF3EF] to-white rounded-3xl p-4.5 border border-[#C9DBD3] flex items-start gap-3.5 shadow-xs animate-in fade-in">
+          <div className="w-9 h-9 rounded-2xl bg-[#125F55] text-white flex items-center justify-center shrink-0 text-base shadow-xs">
+            ✨
+          </div>
+          <div className="flex-1 min-w-0">
+            <span className="text-[10px] font-extrabold text-[#125F55] uppercase tracking-wider block">
+              Espelho de Bem-Estar & Sensação
+            </span>
+            <p className="text-xs text-[#152A29] mt-0.5 leading-relaxed font-medium">
+              {wellbeingInsight.message}
+            </p>
+          </div>
+        </section>
+      )}
+
       {/* 2. CARD CONTEXTUAL DE HOJE (A06: reflete estritamente a atividade agendada) */}
       {activeSession ? (
         <section className="bg-[#125F55] text-white rounded-3xl p-5 shadow-md relative overflow-hidden">
@@ -369,34 +396,44 @@ export const HomeView: React.FC<HomeViewProps> = ({
           </button>
         </section>
       ) : todaySchedule?.activityType === 'rest' ? (
-        /* CARD DE DESCANSO PLANEJADO (A05) */
-        <section className="bg-white rounded-3xl p-5 border border-[#C9DBD3] shadow-xs space-y-3">
-          <div className="flex items-center gap-2 text-xs font-bold text-[#246747] uppercase tracking-wider">
-            <Heart className="w-4 h-4" />
-            <span>Dia de Descanso & Recuperação</span>
+        /* CARD DE DESCANSO PLANEJADO & CUIDADO ATIVO (Estratégia A, E e Invariante de Descanso) */
+        <section className="bg-white rounded-3xl p-5 border border-[#C9DBD3] shadow-xs space-y-3.5">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2 text-xs font-bold text-[#246747] uppercase tracking-wider">
+              <Heart className="w-4 h-4" />
+              <span>Dia de Descanso & Regeneração</span>
+            </div>
+            {todaySchedule.vitalityBonusCompleted && (
+              <span className="px-2 py-0.5 rounded-full bg-[#EAF3EF] border border-[#125F55]/30 text-[10px] font-bold text-[#125F55] flex items-center gap-1">
+                <Sparkles className="w-3 h-3" /> Elo Conquistado
+              </span>
+            )}
           </div>
-          <h3 className="text-lg font-bold text-[#152A29]">
-            O descanso é parte essencial da sua evolução
-          </h3>
-          <p className="text-xs text-[#5B7170] leading-relaxed">
-            Seu corpo se regenera e constrói adaptação nos dias de repouso. Se desejar, faça apenas uma mobilidade suave para soltar as articulações.
-          </p>
+          <div>
+            <h3 className="text-lg font-bold text-[#152A29]">
+              O descanso é onde o corpo se regenera
+            </h3>
+            <p className="text-xs text-[#5B7170] mt-1 leading-relaxed">
+              Hoje não há cobrança de treino. Descansar é vencer! Se quiser se movimentar levemente sem cansar os músculos, você pode conquistar um <strong>Elo de Vitalidade</strong>:
+            </p>
+          </div>
 
-          <div className="pt-1 flex flex-col sm:flex-row gap-2">
+          <div className="pt-1 grid grid-cols-1 sm:grid-cols-2 gap-2">
             {recoveryPlan && (
               <button
-                onClick={() => onStartWorkout(recoveryPlan)}
-                className="flex-1 h-12 bg-[#EAF3EF] text-[#125F55] font-semibold text-xs rounded-xl flex items-center justify-center gap-2 hover:bg-[#D9F277] hover:text-[#203826] transition-all cursor-pointer"
+                onClick={() => onStartWorkout(recoveryPlan, todaySchedule?.id, 'ad_hoc')}
+                className="h-12 bg-[#EAF3EF] text-[#125F55] font-bold text-xs rounded-xl flex items-center justify-center gap-2 hover:bg-[#D9F277] hover:text-[#203826] transition-all cursor-pointer shadow-xs"
               >
                 <Sparkles className="w-4 h-4" />
-                <span>Mobilidade Opcional (8 min)</span>
+                <span>Alongamento / Mobilidade (8 min)</span>
               </button>
             )}
             <button
-              onClick={() => onNavigateTab('calendar')}
-              className="px-4 h-12 text-xs font-semibold text-[#5B7170] bg-[#F5F8F5] rounded-xl hover:bg-slate-100 cursor-pointer"
+              onClick={() => setShowWalkModal(true)}
+              className="h-12 bg-[#F5F8F5] text-[#152A29] font-semibold text-xs rounded-xl flex items-center justify-center gap-2 hover:bg-slate-100 transition-all border border-[#C9DBD3] cursor-pointer"
             >
-              Ver agenda
+              <Footprints className="w-4 h-4 text-[#125F55]" />
+              <span>Caminhada Regenerativa Livre</span>
             </button>
           </div>
         </section>
@@ -418,6 +455,24 @@ export const HomeView: React.FC<HomeViewProps> = ({
           <p className="text-xs text-[#5B7170] line-clamp-2">
             {todayPlan.description}
           </p>
+
+          {/* Micro-Desafio do Dia (Estratégia C: Foco e Curiosidade) */}
+          {dailyChallenge && (
+            <div className="bg-[#EAF3EF] border border-[#125F55]/30 rounded-2xl p-3.5 flex items-start gap-3">
+              <span className="text-xl shrink-0 mt-0.5">🎯</span>
+              <div className="flex-1 min-w-0">
+                <span className="text-[10px] font-extrabold uppercase tracking-wide px-2 py-0.5 rounded-full bg-[#125F55] text-white inline-block">
+                  {dailyChallenge.badgeText}
+                </span>
+                <h4 className="text-xs font-bold text-[#152A29] mt-1">
+                  {dailyChallenge.title}
+                </h4>
+                <p className="text-[11px] text-[#5B7170] mt-0.5 leading-relaxed">
+                  {dailyChallenge.description}
+                </p>
+              </div>
+            </div>
+          )}
 
           <div className="bg-[#F5F8F5] p-3 rounded-2xl space-y-1.5 text-xs text-[#152A29]">
             {todayPlan.exercises.slice(0, 3).map((ex, i) => (
@@ -580,9 +635,18 @@ export const HomeView: React.FC<HomeViewProps> = ({
                       : 'segundos'}
                   </span>
                 </div>
-                <div className="mt-1 flex items-center gap-1 text-[10px] text-[#246747] font-medium">
-                  <Sparkles className="w-3 h-3 text-[#125F55]" />
-                  <span>Recorde Pessoal</span>
+                <div className="mt-1 flex items-center gap-1 text-[10px] font-medium">
+                  {pr.isBaseline ? (
+                    <span className="text-[#5B7170] flex items-center gap-1">
+                      <Target className="w-3 h-3 text-[#5B7170]" />
+                      Marca Base (Referência)
+                    </span>
+                  ) : (
+                    <span className="text-[#125F55] flex items-center gap-1 font-bold">
+                      <Sparkles className="w-3 h-3 text-[#125F55]" />
+                      Recorde Pessoal (PR{pr.prCount && pr.prCount > 1 ? ` #${pr.prCount}` : ''})
+                    </span>
+                  )}
                 </div>
               </div>
             ))}

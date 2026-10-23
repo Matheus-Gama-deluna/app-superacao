@@ -10,6 +10,13 @@ import {
   OnboardingDraft,
   ExercisePlanItem,
   CanonicalMetrics,
+  PreWorkoutMood,
+  PostWorkoutMood,
+  AchievementCoinType,
+  SessionEfficiencyComparison,
+  DailyMicroChallenge,
+  TomorrowBridgeInfo,
+  WellbeingInsight,
 } from '../types';
 import { allTemplates, allExercises } from '../data/catalog';
 
@@ -555,7 +562,7 @@ export function checkAndRegisterPR(
         isBaseline: true,
         prCount: 0,
       };
-      return { isPR, updatedPRs: [...existingPRs, newPR], prText };
+      return { isPR: false, isNewBaseline: true, updatedPRs: [...existingPRs, newPR], prText };
     }
   } else {
     const prevWeight = currentPR.bestWeightKg || 0;
@@ -592,11 +599,11 @@ export function checkAndRegisterPR(
             }
           : p
       );
-      return { isPR, updatedPRs, prText };
+      return { isPR, isNewBaseline: false, updatedPRs, prText };
     }
   }
 
-  return { isPR: false, updatedPRs: existingPRs };
+  return { isPR: false, isNewBaseline: false, updatedPRs: existingPRs };
 }
 
 // Cálculo unificado de métricas canônicas (E03 / Seção 5 / T18)
@@ -610,12 +617,53 @@ export function calculateCanonicalMetrics(
   const partialWorkoutsCount = sessions.filter((s) => s.status === 'parcial').length;
   const totalWorkoutsCount = completedWorkoutsCount + partialWorkoutsCount;
   const realPRCount = prs.filter((p) => !p.isBaseline && (p.prCount || 0) > 0).length;
+  const baselineMarksCount = prs.filter((p) => p.isBaseline).length;
   const totalVolumeKg = sessions.reduce((acc, s) => acc + (s.totalVolumeKg || 0), 0);
   const weeklyCommittedCount = calendar.filter(
     (c) => c.activityType !== 'unassigned' && c.activityType !== 'rest'
   ).length;
   const weeklyCompletedCount = calendar.filter(
     (c) => c.isCompleted && c.activityType !== 'unassigned' && c.activityType !== 'rest'
+  ).length;
+
+  // Minutos e sessões de cuidado e regeneração (Estratégia A e E)
+  const careSessions = sessions.filter(
+    (s) =>
+      s.status === 'completed' &&
+      (s.planId.includes('mobilidade') ||
+        s.planId.includes('walk') ||
+        s.originType === 'active_recovery' ||
+        s.planTitle.toLowerCase().includes('mobilidade') ||
+        s.planTitle.toLowerCase().includes('caminhada') ||
+        s.planTitle.toLowerCase().includes('alongamento'))
+  );
+  const careSessionsCount = careSessions.length;
+  const careMinutesTotal = careSessions.reduce(
+    (acc, s) => acc + Math.max(1, Math.round(s.durationSeconds / 60)),
+    0
+  );
+
+  // Elos de vitalidade na semana atual (dias de descanso/livres com caminhada ou mobilidade)
+  const weeklyVitalityLinksCount = calendar.filter(
+    (c) =>
+      c.vitalityBonusCompleted ||
+      ((c.activityType === 'rest' || c.activityType === 'unassigned') &&
+        sessions.some(
+          (s) =>
+            s.status === 'completed' &&
+            (s.scheduledDayId === c.id ||
+              (s.completedAt && new Date(s.completedAt).toISOString().split('T')[0] === c.dateStr)) &&
+            (s.planId.includes('mobilidade') ||
+              s.planId.includes('walk') ||
+              s.originType === 'active_recovery' ||
+              s.planTitle.toLowerCase().includes('mobilidade') ||
+              s.planTitle.toLowerCase().includes('caminhada') ||
+              s.planTitle.toLowerCase().includes('alongamento'))
+        ))
+  ).length;
+
+  const savedHabitSessionsCount = sessions.filter(
+    (s) => s.status === 'completed' && (s.isExpress || s.wasPlannedHabit)
   ).length;
 
   return {
@@ -626,10 +674,287 @@ export function calculateCanonicalMetrics(
     totalVolumeKg,
     weeklyCommittedCount,
     weeklyCompletedCount,
+    baselineMarksCount,
+    careMinutesTotal,
+    careSessionsCount,
+    weeklyVitalityLinksCount,
+    savedHabitSessionsCount,
   };
 }
 
-// Exportar Backup JSON completo do praticante
+export const PRE_MOOD_LABELS: Record<PreWorkoutMood, { label: string; icon: string }> = {
+  cansado: { label: 'Sem energia / Cansado', icon: '🔋' },
+  tenso: { label: 'Corpo preso / Tenso', icon: '🧘' },
+  normal: { label: 'Normal / No ritmo', icon: '🙂' },
+  disposto: { label: 'Bem disposto', icon: '⚡' },
+};
+
+export const POST_MOOD_LABELS: Record<PostWorkoutMood, { label: string; icon: string }> = {
+  renovado: { label: 'Com mais energia', icon: '✨' },
+  leve: { label: 'Mais leve e solto', icon: '🌿' },
+  orgulhoso: { label: 'Dever cumprido', icon: '🏅' },
+  cansado_bem: { label: 'Cansado, mas feliz', icon: '💪' },
+};
+
+// Estratégia C: Micro-Desafio do Dia
+export function generateDailyMicroChallenge(
+  plan: WorkoutPlan | null,
+  personalRecords: PersonalRecord[]
+): DailyMicroChallenge | null {
+  if (!plan || !plan.exercises || plan.exercises.length === 0) return null;
+
+  const isMobility =
+    plan.category === 'mobilidade' ||
+    plan.title.toLowerCase().includes('mobilidade') ||
+    plan.title.toLowerCase().includes('alongamento');
+
+  if (isMobility) {
+    const ex = plan.exercises[0];
+    return {
+      type: 'mindful_mobility',
+      exerciseId: ex.exerciseId,
+      exerciseName: ex.exerciseName,
+      badgeText: 'Foco de Cuidado & Presença',
+      title: `Soltura Consciente em ${ex.exerciseName}`,
+      description: 'Concentre-se em soltar o ar lentamente a cada repetição ou segundo, soltando tensões com calma.',
+    };
+  }
+
+  // 1. Prioridade máxima: Exercício com Marca Base que está pronto para o 1º PR real
+  const exerciseWithBase = plan.exercises.find((ex) => {
+    const pr = personalRecords.find((p) => p.exerciseId === ex.exerciseId);
+    return pr && pr.isBaseline;
+  });
+
+  if (exerciseWithBase) {
+    const pr = personalRecords.find((p) => p.exerciseId === exerciseWithBase.exerciseId)!;
+    if (exerciseWithBase.targetDurationSeconds && exerciseWithBase.targetDurationSeconds > 0) {
+      return {
+        type: 'beat_pr_time',
+        exerciseId: exerciseWithBase.exerciseId,
+        exerciseName: exerciseWithBase.exerciseName,
+        badgeText: 'Oportunidade do 1º Recorde (PR)',
+        title: `Superar sua Marca Base em ${exerciseWithBase.exerciseName}`,
+        description: `Sua marca de referência é ${pr.bestDurationSeconds}s. Tente sustentar ${pr.bestDurationSeconds + 5} segundos com boa postura!`,
+        currentMark: pr.bestDurationSeconds,
+        targetMark: pr.bestDurationSeconds + 5,
+        unit: 'seconds',
+      };
+    }
+    const currentReps = pr.bestReps || exerciseWithBase.targetReps || 10;
+    return {
+      type: 'first_pr_from_base',
+      exerciseId: exerciseWithBase.exerciseId,
+      exerciseName: exerciseWithBase.exerciseName,
+      badgeText: 'Oportunidade do 1º Recorde (PR)',
+      title: `Superar sua Marca Base em ${exerciseWithBase.exerciseName}`,
+      description: `Sua marca de referência é ${currentReps} reps. Tente buscar ${currentReps + 1} repetições na última série para conquistar seu primeiro PR!`,
+      currentMark: currentReps,
+      targetMark: currentReps + 1,
+      unit: 'reps',
+    };
+  }
+
+  // 2. Exercício que já tem PR (busca o com recordedAt mais antigo para rotação saudável)
+  const exercisesWithPR = plan.exercises
+    .map((ex) => ({
+      ex,
+      pr: personalRecords.find((p) => p.exerciseId === ex.exerciseId && !p.isBaseline && (p.prCount || 0) > 0),
+    }))
+    .filter((item): item is { ex: ExercisePlanItem; pr: PersonalRecord } => item.pr !== undefined)
+    .sort((a, b) => a.pr.recordedAt - b.pr.recordedAt);
+
+  if (exercisesWithPR.length > 0) {
+    const { ex, pr } = exercisesWithPR[0];
+    if (ex.targetDurationSeconds && ex.targetDurationSeconds > 0) {
+      return {
+        type: 'beat_pr_time',
+        exerciseId: ex.exerciseId,
+        exerciseName: ex.exerciseName,
+        badgeText: 'Micro-Desafio de Superação',
+        title: `Superar Recorde em ${ex.exerciseName}`,
+        description: `Seu recorde atual é ${pr.bestDurationSeconds}s. Tente sustentar ${pr.bestDurationSeconds + 5}s hoje!`,
+        currentMark: pr.bestDurationSeconds,
+        targetMark: pr.bestDurationSeconds + 5,
+        unit: 'seconds',
+      };
+    }
+    const targetReps = (pr.bestReps || 10) + 1;
+    return {
+      type: 'beat_pr_reps',
+      exerciseId: ex.exerciseId,
+      exerciseName: ex.exerciseName,
+      badgeText: 'Micro-Desafio de Superação',
+      title: `Buscar +1 Repetição em ${ex.exerciseName}`,
+      description: `Seu recorde atual é ${pr.bestReps} reps. Que tal tentar alcançar ${targetReps} reps hoje na última série?`,
+      currentMark: pr.bestReps,
+      targetMark: targetReps,
+      unit: 'reps',
+    };
+  }
+
+  // 3. Ficha totalmente inédita: estabelecer a 1ª Marca Base
+  const firstEx = plan.exercises[0];
+  return {
+    type: 'establish_base',
+    exerciseId: firstEx.exerciseId,
+    exerciseName: firstEx.exerciseName,
+    badgeText: 'Missão de Estreia',
+    title: `Inaugurar sua Marca Base em ${firstEx.exerciseName}`,
+    description: 'Hoje o foco é controle articular e técnica confortável. Registre suas repetições reais para criar sua referência inicial.',
+  };
+}
+
+// Estratégia B: Ponte de Continuidade para Amanhã
+export function generateTomorrowBridge(
+  completedSession: WorkoutSession,
+  calendar: CalendarDay[],
+  plans: WorkoutPlan[],
+  personalRecords: PersonalRecord[],
+  referenceDate: Date = new Date()
+): TomorrowBridgeInfo {
+  const daysLabels = ['Domingo', 'Segunda-feira', 'Terça-feira', 'Quarta-feira', 'Quinta-feira', 'Sexta-feira', 'Sábado'];
+  const tomorrowDayOfWeek = (referenceDate.getDay() + 1) % 7;
+  const tomorrowDayLabel = daysLabels[tomorrowDayOfWeek];
+
+  const tomorrowSchedule = calendar.find((c) => c.dayOfWeek === tomorrowDayOfWeek);
+  const tomorrowPlan = tomorrowSchedule?.planId
+    ? plans.find((p) => p.id === tomorrowSchedule.planId)
+    : undefined;
+
+  const tomorrowActivityType: ActivityType = tomorrowSchedule?.activityType || 'rest';
+
+  // Cenário 1: Amanhã é dia de descanso / livre
+  if (tomorrowActivityType === 'rest' || tomorrowActivityType === 'unassigned') {
+    return {
+      tomorrowDayOfWeek,
+      tomorrowDayLabel,
+      tomorrowDateStr: tomorrowSchedule?.dateStr,
+      tomorrowActivityType,
+      headline: `Amanhã (${tomorrowDayLabel}): Dia de Regeneração & Cuidado Leve`,
+      bodyText: `Hoje você estimulou seus músculos em '${completedSession.planTitle}'. Amanhã é dia de descanso muscular, mas você pode fazer 6 a 8 minutos de mobilidade ou uma caminhada tranquila para soltar as articulações e manter seu ritmo diário aceso!`,
+      canScheduleOptionalMobility: true,
+    };
+  }
+
+  // Cenário 2: Amanhã é treino de força
+  if (tomorrowActivityType === 'strength' && tomorrowPlan) {
+    const nextChallenge = generateDailyMicroChallenge(tomorrowPlan, personalRecords);
+    const challengePreview = nextChallenge
+      ? {
+          exerciseName: nextChallenge.exerciseName,
+          currentMarkText: nextChallenge.currentMark ? `${nextChallenge.currentMark} ${nextChallenge.unit || 'reps'}` : 'Marca inicial',
+          targetMarkText: nextChallenge.targetMark ? `${nextChallenge.targetMark} ${nextChallenge.unit || 'reps'}` : 'Nova referência',
+        }
+      : undefined;
+
+    return {
+      tomorrowDayOfWeek,
+      tomorrowDayLabel,
+      tomorrowDateStr: tomorrowSchedule?.dateStr,
+      tomorrowActivityType,
+      tomorrowPlanId: tomorrowPlan.id,
+      tomorrowPlanTitle: tomorrowPlan.title,
+      headline: `Amanhã (${tomorrowDayLabel}): ${tomorrowPlan.title}`,
+      bodyText: `Corpo solto e preparado! Amanhã voltamos à ação com '${tomorrowPlan.title}'. Seu foco especial já está definido: ${nextChallenge?.description || 'Dê o seu melhor na execução!'}`,
+      nextChallengePreview: challengePreview,
+      canScheduleOptionalMobility: false,
+    };
+  }
+
+  // Cenário 3: Amanhã é caminhada ou mobilidade já agendada
+  return {
+    tomorrowDayOfWeek,
+    tomorrowDayLabel,
+    tomorrowDateStr: tomorrowSchedule?.dateStr,
+    tomorrowActivityType,
+    tomorrowPlanId: tomorrowPlan?.id,
+    tomorrowPlanTitle: tomorrowPlan?.title || (tomorrowActivityType === 'walk' ? 'Caminhada' : 'Mobilidade'),
+    headline: `Amanhã (${tomorrowDayLabel}): ${tomorrowSchedule?.planTitle || 'Atividade Regenerativa'}`,
+    bodyText: 'Tudo pronto na sua agenda! Amanhã temos um encontro leve de movimento para manter sua constância viva sem sobrecarregar o corpo.',
+    canScheduleOptionalMobility: false,
+  };
+}
+
+// Estratégia D: Espelho de Bem-Estar (Termômetro Antes vs Depois)
+export function generateWellbeingInsight(sessions: WorkoutSession[]): WellbeingInsight | null {
+  const tracked = sessions.filter((s) => s.preMood && s.postMood);
+  if (tracked.length === 0) return null;
+
+  const turnarounds = tracked.filter(
+    (s) =>
+      (s.preMood === 'cansado' || s.preMood === 'tenso') &&
+      (s.postMood === 'renovado' || s.postMood === 'leve' || s.postMood === 'orgulhoso' || s.postMood === 'cansado_bem')
+  );
+
+  if (turnarounds.length > 0) {
+    const latest = turnarounds[turnarounds.length - 1];
+    const mins = Math.max(1, Math.round(latest.durationSeconds / 60));
+    const preLabel = PRE_MOOD_LABELS[latest.preMood!].label;
+    const postLabel = POST_MOOD_LABELS[latest.postMood!].label;
+
+    return {
+      totalTrackedSessions: tracked.length,
+      positiveTurnaroundCount: turnarounds.length,
+      lastTurnaroundPreMood: latest.preMood,
+      lastTurnaroundPostMood: latest.postMood,
+      lastTurnaroundMinutes: mins,
+      message: `Em ${turnarounds.length} ${turnarounds.length === 1 ? 'ocasião' : 'ocasiões'} em que você começou '${preLabel}', apenas ${mins} min de prática fizeram você terminar '${postLabel}'. Comece no seu ritmo hoje!`,
+    };
+  }
+
+  const latest = tracked[tracked.length - 1];
+  const postLabel = POST_MOOD_LABELS[latest.postMood!].label;
+  return {
+    totalTrackedSessions: tracked.length,
+    positiveTurnaroundCount: 0,
+    message: `Nas suas práticas recentes, você terminou se sentindo '${postLabel}'. Reserve alguns minutos para cuidar de você hoje!`,
+  };
+}
+
+// Estratégia A: Avaliação de Superação de Fluidez (RPE)
+export function evaluateSessionEfficiency(
+  currentSession: WorkoutSession,
+  allSessions: WorkoutSession[]
+): SessionEfficiencyComparison | null {
+  if (
+    currentSession.status !== 'completed' ||
+    !currentSession.feedbackEffort ||
+    currentSession.totalSetsCompleted < currentSession.totalSetsPlanned
+  ) {
+    return null;
+  }
+
+  const previousEquivalent = allSessions
+    .filter(
+      (s) =>
+        s.id !== currentSession.id &&
+        s.planId === currentSession.planId &&
+        s.status === 'completed' &&
+        s.feedbackEffort !== undefined &&
+        s.totalSetsCompleted >= s.totalSetsPlanned
+    )
+    .sort((a, b) => (b.completedAt || b.startedAt) - (a.completedAt || a.startedAt))[0];
+
+  if (!previousEquivalent || !previousEquivalent.feedbackEffort) return null;
+
+  if (currentSession.feedbackEffort < previousEquivalent.feedbackEffort) {
+    return {
+      previousSessionId: previousEquivalent.id,
+      previousEffort: previousEquivalent.feedbackEffort,
+      currentEffort: currentSession.feedbackEffort,
+      improved: true,
+    };
+  }
+
+  return {
+    previousSessionId: previousEquivalent.id,
+    previousEffort: previousEquivalent.feedbackEffort,
+    currentEffort: currentSession.feedbackEffort,
+    improved: false,
+  };
+}
+
 export function exportUserDataAsJSON(data: {
   profile: UserProfile;
   plans: WorkoutPlan[];

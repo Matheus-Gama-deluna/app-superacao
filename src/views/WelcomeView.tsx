@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { Sparkles, Shield, User, LogIn, ArrowRight, AlertCircle, Smartphone } from 'lucide-react';
-import { setLocal, STORAGE_KEYS } from '../lib/storage';
+import { setLocal, STORAGE_KEYS, APP_VERSION } from '../lib/storage';
 
 interface WelcomeViewProps {
   onSelectAccess: (choice: 'guest' | 'login' | 'signup') => void;
@@ -137,7 +137,7 @@ export const WelcomeView: React.FC<WelcomeViewProps> = ({ onSelectAccess }) => {
 
       {/* Rodapé sutil */}
       <footer className="text-center py-4 text-[11px] text-[#5B7170]">
-        Superação · Versão 6.0.0 · Sem promessas milagrosas
+        Superação · Versão {APP_VERSION} · Sem promessas milagrosas
       </footer>
     </div>
   );

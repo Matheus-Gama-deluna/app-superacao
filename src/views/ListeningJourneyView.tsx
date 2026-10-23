@@ -97,7 +97,7 @@ export const ListeningJourneyView: React.FC<ListeningJourneyViewProps> = ({
   const [orderedGoals, setOrderedGoals] = useState<string[]>(() => {
     if (savedDraft?.orderedGoals && savedDraft.orderedGoals.length > 0) return savedDraft.orderedGoals;
     if (profile.goalPriorityOrder && profile.goalPriorityOrder.length > 0) return profile.goalPriorityOrder;
-    return [DEFAULT_GOALS[0], DEFAULT_GOALS[1]];
+    return [];
   });
   const [goalFocus, setGoalFocus] = useState<'foco_unico' | 'equilibrado'>(
     savedDraft?.goalFocus || profile.goalFocus || 'foco_unico'
@@ -107,7 +107,7 @@ export const ListeningJourneyView: React.FC<ListeningJourneyViewProps> = ({
   const [availableDays, setAvailableDays] = useState<number[]>(() => {
     if (savedDraft?.availableDays) return savedDraft.availableDays;
     if (profile.availableDays && profile.availableDays.length > 0) return profile.availableDays;
-    return [1, 3, 5]; // Seg, Qua, Sex
+    return [];
   });
   const [sessionDurationMinutes, setSessionDurationMinutes] = useState<number>(
     savedDraft?.sessionDurationMinutes || profile.sessionDurationMinutes || 20
@@ -206,7 +206,6 @@ export const ListeningJourneyView: React.FC<ListeningJourneyViewProps> = ({
   // Handlers de Ordenação de Objetivos Acessíveis (Critério C06)
   const handleToggleGoal = (label: string) => {
     if (orderedGoals.includes(label)) {
-      if (orderedGoals.length === 1) return; // Mantém pelo menos um
       setOrderedGoals(orderedGoals.filter((g) => g !== label));
     } else {
       setOrderedGoals([...orderedGoals, label]);
@@ -233,7 +232,6 @@ export const ListeningJourneyView: React.FC<ListeningJourneyViewProps> = ({
 
   const handleToggleDay = (dayIndex: number) => {
     if (availableDays.includes(dayIndex)) {
-      if (availableDays.length === 1) return;
       setAvailableDays(availableDays.filter((d) => d !== dayIndex));
     } else {
       setAvailableDays([...availableDays, dayIndex].sort());
@@ -962,9 +960,13 @@ export const ListeningJourneyView: React.FC<ListeningJourneyViewProps> = ({
                   <div className="font-semibold text-[#152A29] mt-0.5">
                     {equipments.map((e) => EQUIPMENT_LABELS[e] || e).join(', ')}
                   </div>
-                  {avoidedMovements.length > 0 && (
+                  {avoidedMovements.length > 0 ? (
                     <div className="text-[11px] text-[#91610D] mt-0.5">
                       Evitando: {avoidedMovements.map((a) => AVOIDANCE_LABELS[a] || a).join(', ')}
+                    </div>
+                  ) : (
+                    <div className="text-[11px] text-[#5B7170] mt-0.5">
+                      Cuidados / Restrições: Não informado
                     </div>
                   )}
                 </div>
@@ -972,6 +974,32 @@ export const ListeningJourneyView: React.FC<ListeningJourneyViewProps> = ({
                   onClick={() => setStep(4)}
                   className="p-1.5 text-[#125F55] hover:bg-white rounded-lg cursor-pointer"
                   title="Editar equipamentos"
+                >
+                  <Edit2 className="w-4 h-4" />
+                </button>
+              </div>
+
+              {/* Bloco 5: Obstáculos & Contexto (V8-08) */}
+              <div className="p-3.5 rounded-2xl bg-[#F5F8F5] border border-[#C9DBD3]/60 flex items-start justify-between gap-3 text-xs">
+                <div>
+                  <span className="font-bold text-[#125F55] uppercase text-[10px] block tracking-wide">
+                    Obstáculos & Contexto
+                  </span>
+                  <div className="font-semibold text-[#152A29] mt-0.5">
+                    {practiceObstacles.length > 0
+                      ? practiceObstacles.map((o) => OBSTACLES_OPTIONS.find((opt) => opt.id === o)?.label || o).join(' · ')
+                      : 'Não informado'}
+                  </div>
+                  {userContextNotes ? (
+                    <div className="text-[11px] text-[#5B7170] mt-0.5 italic">
+                      "{userContextNotes}"
+                    </div>
+                  ) : null}
+                </div>
+                <button
+                  onClick={() => setStep(6)}
+                  className="p-1.5 text-[#125F55] hover:bg-white rounded-lg cursor-pointer"
+                  title="Editar obstáculos"
                 >
                   <Edit2 className="w-4 h-4" />
                 </button>
@@ -1032,7 +1060,15 @@ export const ListeningJourneyView: React.FC<ListeningJourneyViewProps> = ({
               Passo {step} de 7 · Salvo automaticamente
             </span>
             <button
-              onClick={() => setStep(step + 1)}
+              onClick={() => {
+                if (step === 2 && orderedGoals.length === 0) {
+                  setOrderedGoals([DEFAULT_GOALS[0]]);
+                }
+                if (step === 3 && availableDays.length === 0) {
+                  setAvailableDays([1, 3, 5]);
+                }
+                setStep(step + 1);
+              }}
               className="px-6 h-12 bg-[#125F55] text-white font-bold text-xs sm:text-sm rounded-xl flex items-center gap-2 hover:bg-[#0C5148] transition-all cursor-pointer shadow-sm"
             >
               <span>Avançar</span>

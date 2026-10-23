@@ -4,6 +4,68 @@ export type ActivityType = 'strength' | 'active_recovery' | 'rest' | 'walk' | 'u
 export type SessionStatus = 'in_progress' | 'completed' | 'abandoned' | 'parcial';
 export type TrackingMode = 'reps' | 'time';
 
+export type PreWorkoutMood = 'cansado' | 'tenso' | 'normal' | 'disposto';
+export type PostWorkoutMood = 'renovado' | 'leve' | 'orgulhoso' | 'cansado_bem';
+
+export type AchievementCoinType =
+  | 'base_unlocked'
+  | 'performance_pr'
+  | 'efficiency_gain'
+  | 'care_vitality'
+  | 'habit_saved';
+
+export interface SessionEfficiencyComparison {
+  previousSessionId: string;
+  previousEffort: number; // 1 a 5
+  currentEffort: number;  // 1 a 5
+  improved: boolean;
+}
+
+export type MicroChallengeType =
+  | 'first_pr_from_base'
+  | 'beat_pr_reps'
+  | 'beat_pr_time'
+  | 'establish_base'
+  | 'mindful_mobility';
+
+export interface DailyMicroChallenge {
+  type: MicroChallengeType;
+  exerciseId: string;
+  exerciseName: string;
+  badgeText: string;
+  title: string;
+  description: string;
+  currentMark?: number;
+  targetMark?: number;
+  unit?: 'reps' | 'seconds';
+}
+
+export interface TomorrowBridgeInfo {
+  tomorrowDayOfWeek: number;
+  tomorrowDayLabel: string;
+  tomorrowDateStr?: string;
+  tomorrowActivityType: ActivityType;
+  tomorrowPlanId?: string;
+  tomorrowPlanTitle?: string;
+  headline: string;
+  bodyText: string;
+  nextChallengePreview?: {
+    exerciseName: string;
+    currentMarkText: string;
+    targetMarkText: string;
+  };
+  canScheduleOptionalMobility: boolean;
+}
+
+export interface WellbeingInsight {
+  totalTrackedSessions: number;
+  positiveTurnaroundCount: number;
+  lastTurnaroundPreMood?: PreWorkoutMood;
+  lastTurnaroundPostMood?: PostWorkoutMood;
+  lastTurnaroundMinutes?: number;
+  message: string;
+}
+
 export interface Exercise {
   id: string;
   name_pt: string;
@@ -102,6 +164,11 @@ export interface WorkoutSession {
   originType?: 'scheduled' | 'program_session' | 'ad_hoc' | 'express';
   isExpress?: boolean;
   wasPlannedHabit?: boolean;
+  preMood?: PreWorkoutMood;
+  postMood?: PostWorkoutMood;
+  newBaselinesCount?: number;
+  achievementCoins?: AchievementCoinType[];
+  efficiencyComparison?: SessionEfficiencyComparison;
 }
 
 export interface CalendarDay {
@@ -115,6 +182,8 @@ export interface CalendarDay {
   isCompleted: boolean;
   completedAt?: number;
   notes?: string;
+  vitalityBonusCompleted?: boolean;
+  vitalityActivityLabel?: string;
 }
 
 export interface PersonalRecord {
@@ -137,6 +206,11 @@ export interface CanonicalMetrics {
   totalVolumeKg: number;
   weeklyCommittedCount: number;
   weeklyCompletedCount: number;
+  baselineMarksCount: number;
+  careMinutesTotal: number;
+  careSessionsCount: number;
+  weeklyVitalityLinksCount: number;
+  savedHabitSessionsCount: number;
 }
 
 export interface UserProfile {

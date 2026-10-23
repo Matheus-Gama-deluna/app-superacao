@@ -16,7 +16,7 @@ import {
   Sparkles,
 } from 'lucide-react';
 import { soundManager } from '../lib/audio';
-import { APP_VERSION, APP_BUILD_DATE } from '../lib/storage';
+import { APP_VERSION, APP_BUILD_DATE, AVOIDANCE_LABELS } from '../lib/storage';
 
 interface ProfileViewProps {
   onClose: () => void;
@@ -28,6 +28,9 @@ export const ProfileView: React.FC<ProfileViewProps> = ({ onClose }) => {
 
   const [displayName, setDisplayName] = useState<string>(profile.displayName || '');
   const [habitAnchor, setHabitAnchor] = useState<string>(profile.habitAnchor || '');
+  const [availableDays, setAvailableDays] = useState<number[]>(profile.availableDays || [1, 3, 5]);
+  const [sessionDurationMinutes, setSessionDurationMinutes] = useState<number>(profile.sessionDurationMinutes || 20);
+  const [avoidedMovements, setAvoidedMovements] = useState<string[]>(profile.avoidedMovements || []);
   const [isSaved, setIsSaved] = useState<boolean>(false);
 
   // Fecha no Escape com retorno de foco (Critério C38)
@@ -58,10 +61,30 @@ export const ProfileView: React.FC<ProfileViewProps> = ({ onClose }) => {
     updateUserProfile({ equipments: next.length === 0 ? ['peso_corporal'] : next });
   };
 
+  const handleToggleDay = (dayIdx: number) => {
+    if (availableDays.includes(dayIdx)) {
+      if (availableDays.length === 1) return;
+      setAvailableDays(availableDays.filter((d) => d !== dayIdx));
+    } else {
+      setAvailableDays([...availableDays, dayIdx].sort());
+    }
+  };
+
+  const handleToggleAvoidMovement = (movId: string) => {
+    if (avoidedMovements.includes(movId)) {
+      setAvoidedMovements(avoidedMovements.filter((x) => x !== movId));
+    } else {
+      setAvoidedMovements([...avoidedMovements, movId]);
+    }
+  };
+
   const handleSaveProfile = async () => {
     await updateUserProfile({
       displayName: displayName.trim(),
       habitAnchor: habitAnchor.trim(),
+      availableDays,
+      sessionDurationMinutes,
+      avoidedMovements,
     });
     setIsSaved(true);
     setTimeout(() => setIsSaved(false), 2000);
@@ -215,6 +238,94 @@ export const ProfileView: React.FC<ProfileViewProps> = ({ onClose }) => {
           <p className="text-[10px] text-[#5B7170] mt-1">
             Vincular seu treino a uma rotina existente ajuda a manter a prática suave e consistente.
           </p>
+        </div>
+
+        {/* Dias Disponíveis para Treino */}
+        <div>
+          <label className="block text-xs font-bold text-[#152A29] mb-1.5">
+            Dias Disponíveis na Semana ({availableDays.length} selecionados)
+          </label>
+          <div className="grid grid-cols-7 gap-1.5">
+            {[
+              { idx: 0, label: 'D' },
+              { idx: 1, label: 'S' },
+              { idx: 2, label: 'T' },
+              { idx: 3, label: 'Q' },
+              { idx: 4, label: 'Q' },
+              { idx: 5, label: 'S' },
+              { idx: 6, label: 'S' },
+            ].map((d) => {
+              const isSelected = availableDays.includes(d.idx);
+              return (
+                <button
+                  key={d.idx}
+                  type="button"
+                  onClick={() => handleToggleDay(d.idx)}
+                  className={`h-10 rounded-xl font-bold text-xs transition-all cursor-pointer ${
+                    isSelected
+                      ? 'bg-[#125F55] text-white shadow-xs'
+                      : 'bg-[#F5F8F5] text-[#5B7170] border border-[#C9DBD3] hover:border-[#125F55]'
+                  }`}
+                >
+                  {d.label}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* Duração Desejada por Sessão */}
+        <div>
+          <label className="block text-xs font-bold text-[#152A29] mb-1.5">
+            Tempo Dedicado por Treino
+          </label>
+          <div className="grid grid-cols-4 gap-1.5">
+            {[15, 20, 30, 45].map((mins) => (
+              <button
+                key={mins}
+                type="button"
+                onClick={() => setSessionDurationMinutes(mins)}
+                className={`py-2 rounded-xl font-bold text-xs transition-all cursor-pointer ${
+                  sessionDurationMinutes === mins
+                    ? 'bg-[#125F55] text-white shadow-xs'
+                    : 'bg-[#F5F8F5] text-[#5B7170] border border-[#C9DBD3] hover:border-[#125F55]'
+                }`}
+              >
+                {mins} min
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* Cuidados e Movimentos Evitados */}
+        <div>
+          <label className="block text-xs font-bold text-[#152A29] mb-1.5">
+            Movimentos que você prefere evitar
+          </label>
+          <div className="space-y-1.5">
+            {Object.entries(AVOIDANCE_LABELS).map(([key, label]) => {
+              const isAvoided = avoidedMovements.includes(key);
+              return (
+                <button
+                  key={key}
+                  type="button"
+                  onClick={() => handleToggleAvoidMovement(key)}
+                  className={`w-full p-2.5 rounded-xl border text-left text-xs flex items-center justify-between gap-2 cursor-pointer ${
+                    isAvoided
+                      ? 'border-amber-400 bg-amber-50 text-amber-900 font-semibold'
+                      : 'border-[#C9DBD3] bg-[#F5F8F5] text-[#5B7170] hover:bg-slate-50'
+                  }`}
+                >
+                  <span>{label}</span>
+                  <div className={`w-4 h-4 rounded border flex items-center justify-center shrink-0 ${
+                    isAvoided ? 'border-amber-600 bg-amber-600 text-white' : 'border-[#C9DBD3]'
+                  }`}>
+                    {isAvoided && <Check className="w-3 h-3" />}
+                  </div>
+                </button>
+              );
+            })}
+          </div>
         </div>
 
         <button

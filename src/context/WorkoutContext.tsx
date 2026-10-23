@@ -11,6 +11,9 @@ import {
   ExplainableProposal,
   UserProfile,
   WorkoutProgram,
+  PreWorkoutMood,
+  PostWorkoutMood,
+  AchievementCoinType,
 } from '../types';
 import { useAuth } from './AuthContext';
 import {
@@ -37,6 +40,7 @@ import {
   generateWeeklyCalendarFromProposal,
   checkAndRegisterPR,
   exportUserDataAsJSON,
+  evaluateSessionEfficiency,
   STORAGE_KEYS,
 } from '../lib/storage';
 import { soundManager, triggerHaptic } from '../lib/audio';
@@ -85,13 +89,16 @@ interface WorkoutContextType {
     isExpress?: boolean,
     wasPlannedHabit?: boolean
   ) => void;
-  recordSet: (actualReps: number, actualDurationSeconds?: number, restSeconds?: number, actualWeightKg?: number) => Promise<{ isPR: boolean; prText?: string }>;
+  recordSet: (actualReps: number, actualDurationSeconds?: number, restSeconds?: number, actualWeightKg?: number) => Promise<{ isPR: boolean; isNewBaseline?: boolean; prText?: string }>;
   previousExercise: () => void;
   nextExercise: () => void;
-  completeWorkout: (feedbackEffort?: number, notes?: string) => Promise<void>;
+  completeWorkout: (feedbackEffort?: number, notes?: string, postMood?: PostWorkoutMood) => Promise<void>;
   savePartialWorkout: (notes?: string) => Promise<void>;
   abandonWorkout: () => void;
   recordWalkSession: (durationMinutes: number, distanceKm?: number, notes?: string) => Promise<void>;
+  recordCareSession: (durationMinutes: number, title: string, category?: 'mobility' | 'walk' | 'stretch', notes?: string) => Promise<void>;
+  setSessionPreMood: (mood: PreWorkoutMood) => void;
+  scheduleOptionalMobilityForTomorrow: (dateStr?: string, routineTitle?: string) => Promise<void>;
 
   // Ações de Calendário & Agenda
   updateCalendarDay: (dayId: string, activityType: ActivityType, planId?: string, planTitle?: string) => Promise<void>;
@@ -471,6 +478,7 @@ export const WorkoutProvider: React.FC<{ children: React.ReactNode }> = ({ child
       totalSetsCompleted: 0,
       totalRepsCompleted: 0,
       prsAchieved: 0,
+      newBaselinesCount: 0,
       exercisesSnapshot: plan.exercises,
       scheduledDayId,
       originType,
@@ -483,12 +491,22 @@ export const WorkoutProvider: React.FC<{ children: React.ReactNode }> = ({ child
     triggerHaptic(80, profile.hapticEnabled);
   };
 
+  const setSessionPreMood = (mood: PreWorkoutMood) => {
+    if (!activeSession) return;
+    const updated: WorkoutSession = {
+      ...activeSession,
+      preMood: mood,
+    };
+    setActiveSession(updated);
+    setLocal('superacao_active_session', updated);
+  };
+
   const recordSet = async (
     actualReps: number,
     actualDurationSeconds?: number,
     customRestSeconds?: number,
     actualWeightKg?: number
-  ): Promise<{ isPR: boolean; prText?: string }> => {
+  ): Promise<{ isPR: boolean; isNewBaseline?: boolean; prText?: string }> => {
     if (!activeSession) return { isPR: false };
 
     const currentExItem = activeSession.exercisesSnapshot[activeSession.currentExerciseIndex];
@@ -586,6 +604,7 @@ export const WorkoutProvider: React.FC<{ children: React.ReactNode }> = ({ child
       totalRepsCompleted: activeSession.totalRepsCompleted + actualReps,
       totalVolumeKg: (activeSession.totalVolumeKg || 0) + setVolume,
       prsAchieved: activeSession.prsAchieved + (prCheck.isPR ? 1 : 0),
+      newBaselinesCount: (activeSession.newBaselinesCount || 0) + (prCheck.isNewBaseline ? 1 : 0),
       durationSeconds: Math.floor((Date.now() - activeSession.startedAt) / 1000),
     };
 
@@ -622,7 +641,7 @@ export const WorkoutProvider: React.FC<{ children: React.ReactNode }> = ({ child
     setLocal('superacao_active_session', updated);
   };
 
-  const completeWorkout = async (feedbackEffort?: number, notes?: string) => {
+  const completeWorkout = async (feedbackEffort?: number, notes?: string, postMood?: PostWorkoutMood) => {
     if (!activeSession) return;
 
     skipRest();
@@ -634,14 +653,42 @@ export const WorkoutProvider: React.FC<{ children: React.ReactNode }> = ({ child
     }
 
     const finalDuration = Math.max(60, Math.floor((Date.now() - activeSession.startedAt) / 1000));
+    const finalEffort = feedbackEffort || 3;
 
-    const completedSession: WorkoutSession = {
+    const tempCompleted: WorkoutSession = {
       ...activeSession,
       status: 'completed',
       completedAt: Date.now(),
       durationSeconds: finalDuration,
-      feedbackEffort: feedbackEffort || 3,
+      feedbackEffort: finalEffort,
       notes: notes || '',
+    };
+
+    const efficiencyComp = evaluateSessionEfficiency(tempCompleted, sessions);
+
+    // Calcula Moedas de Superação (Estratégia A)
+    const coins: AchievementCoinType[] = [];
+    if ((activeSession.prsAchieved || 0) > 0) coins.push('pr');
+    if ((activeSession.newBaselinesCount || 0) > 0) coins.push('baseline');
+    if (efficiencyComp?.improved) coins.push('efficiency_rpe');
+    if (
+      activeSession.planId.includes('mobilidade') ||
+      activeSession.planTitle.toLowerCase().includes('mobilidade') ||
+      activeSession.planTitle.toLowerCase().includes('alongamento') ||
+      activeSession.planTitle.toLowerCase().includes('caminhada') ||
+      activeSession.originType === 'active_recovery'
+    ) {
+      coins.push('care_vitality');
+    }
+    if (coins.length === 0) {
+      coins.push('baseline');
+    }
+
+    const completedSession: WorkoutSession = {
+      ...tempCompleted,
+      postMood: postMood || activeSession.postMood,
+      efficiencyComparison: efficiencyComp || undefined,
+      achievementCoins: coins,
     };
 
     const newSessions = [completedSession, ...sessions];
@@ -776,6 +823,115 @@ export const WorkoutProvider: React.FC<{ children: React.ReactNode }> = ({ child
       origin: { y: 0.7 },
       colors: ['#125F55', '#D9F277', '#246747'],
     });
+  };
+
+  const recordCareSession = async (
+    durationMinutes: number,
+    title: string,
+    category: 'mobility' | 'walk' | 'stretch' = 'mobility',
+    notes?: string
+  ) => {
+    const durationSec = Math.max(60, durationMinutes * 60);
+    const careSession: WorkoutSession = {
+      id: `session_care_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`,
+      ownerUid: uid,
+      planId: `care_${category}`,
+      planTitle: title,
+      status: 'completed',
+      startedAt: Date.now() - durationSec * 1000,
+      completedAt: Date.now(),
+      durationSeconds: durationSec,
+      currentExerciseIndex: 0,
+      currentSetIndex: 1,
+      totalSetsPlanned: 1,
+      totalSetsCompleted: 1,
+      totalRepsCompleted: 0,
+      prsAchieved: 0,
+      originType: 'active_recovery',
+      achievementCoins: ['care_vitality'],
+      notes: notes || `Sessão de cuidado e mobilidade (${durationMinutes} min).`,
+      exercisesSnapshot: [],
+    };
+
+    const newSessions = [careSession, ...sessions];
+    setSessions(newSessions);
+    setLocal('superacao_sessions', newSessions);
+
+    const todayStr = new Date().toISOString().split('T')[0];
+    const todayCal = calendar.find((c) => c.dateStr === todayStr);
+    if (todayCal) {
+      if (todayCal.activityType === 'rest') {
+        const updated = calendar.map((d) =>
+          d.id === todayCal.id
+            ? {
+                ...d,
+                vitalityBonusCompleted: true,
+                hasCareRoutine: true,
+                careRoutineTitle: title,
+                careMinutes: (d.careMinutes || 0) + durationMinutes,
+                notes: (d.notes ? `${d.notes} · ` : '') + `${title} (${durationMinutes} min)`,
+              }
+            : d
+        );
+        setCalendar(updated);
+        setLocal('superacao_calendar', updated);
+      } else {
+        await updateCalendarDay(todayCal.id, 'mobility', `care_${category}`, title);
+        await toggleCalendarDayCompleted(todayCal.id);
+      }
+    }
+
+    confetti({
+      particleCount: 50,
+      spread: 60,
+      origin: { y: 0.7 },
+      colors: ['#D9F277', '#125F55', '#246747'],
+    });
+  };
+
+  const scheduleOptionalMobilityForTomorrow = async (dateStr?: string, routineTitle?: string) => {
+    let targetDate = dateStr;
+    if (!targetDate) {
+      const tomorrow = new Date();
+      tomorrow.setDate(tomorrow.getDate() + 1);
+      targetDate = tomorrow.toISOString().split('T')[0];
+    }
+
+    const updated = calendar.map((c) => {
+      if (c.dateStr === targetDate) {
+        if (c.activityType === 'rest') {
+          return {
+            ...c,
+            hasCareRoutine: true,
+            careRoutineTitle: routineTitle || 'Alongamento Suave (6 min)',
+          };
+        } else if (c.activityType === 'unassigned') {
+          return {
+            ...c,
+            activityType: 'mobility' as ActivityType,
+            planTitle: routineTitle || 'Alongamento Suave (6 min)',
+            hasCareRoutine: true,
+            careRoutineTitle: routineTitle || 'Alongamento Suave (6 min)',
+          };
+        }
+      }
+      return c;
+    });
+
+    setCalendar(updated);
+    setLocal('superacao_calendar', updated);
+
+    if (user && !isGuest) {
+      const dayDoc = updated.find((c) => c.dateStr === targetDate);
+      if (dayDoc) {
+        try {
+          const docRef = doc(db, 'users', user.uid, 'calendar', dayDoc.id);
+          await setDoc(docRef, dayDoc);
+        } catch (err) {
+          handleFirestoreError(err, OperationType.UPDATE, `users/${user.uid}/calendar/${dayDoc.id}`);
+        }
+      }
+    }
   };
 
   const confirmLegacyRoutine = async () => {
@@ -1061,6 +1217,9 @@ export const WorkoutProvider: React.FC<{ children: React.ReactNode }> = ({ child
         savePartialWorkout,
         abandonWorkout,
         recordWalkSession,
+        recordCareSession,
+        setSessionPreMood,
+        scheduleOptionalMobilityForTomorrow,
         updateCalendarDay,
         toggleCalendarDayCompleted,
         confirmLegacyRoutine,

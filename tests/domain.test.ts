@@ -9,6 +9,10 @@ import {
   runStorageMigration,
   checkAndRegisterPR,
   calculateCanonicalMetrics,
+  evaluateSessionEfficiency,
+  generateTomorrowBridge,
+  generateDailyMicroChallenge,
+  generateWellbeingInsight,
   getLocal,
   SCHEMA_VERSION,
   STORAGE_KEYS,
@@ -1226,4 +1230,421 @@ describe('Superação v8 — Caso Obrigatório de Regressão e Homologação (Se
       expect(metrics.weeklyCompletedCount).toBe(0);
     });
   });
+  // ─────────────────────────────────────────────────────────────────────────
+  // ESTRATÉGIAS DE MOTIVAÇÃO & CONTINUIDADE (M-A01 a M-E03)
+  // ─────────────────────────────────────────────────────────────────────────
+  describe('Estratégias de Motivação & Continuidade (M-A01 a M-E03)', () => {
+    // Estratégia A: Múltiplas Moedas de Superação
+    it('M-A01: Primeira execução registra Marca Base com isBaseline: true e isNewBaseline: true sem anunciar PR', () => {
+      const existingPRs: PersonalRecord[] = [];
+      const res = checkAndRegisterPR('ex_pushup', 'Flexão de Braço', 8, undefined, existingPRs, 'sess_1', 0);
+
+      expect(res.isPR).toBe(false);
+      expect(res.isNewBaseline).toBe(true);
+      expect(res.updatedPRs.length).toBe(1);
+      expect(res.updatedPRs[0].isBaseline).toBe(true);
+      expect(res.updatedPRs[0].prCount).toBe(0);
+      expect(res.prText).toContain('referência inicial');
+    });
+
+    it('M-A02: Execução posterior com repetições maiores gera PR real com isBaseline: false e prCount incrementado', () => {
+      const baselinePRs: PersonalRecord[] = [
+        {
+          exerciseId: 'ex_pushup',
+          exerciseName: 'Flexão de Braço',
+          bestReps: 8,
+          bestDurationSeconds: 0,
+          bestWeightKg: 0,
+          recordedAt: 1000,
+          sessionId: 'sess_1',
+          isBaseline: true,
+          prCount: 0,
+        },
+      ];
+
+      const res = checkAndRegisterPR('ex_pushup', 'Flexão de Braço', 9, undefined, baselinePRs, 'sess_2', 0);
+      expect(res.isPR).toBe(true);
+      expect(res.isNewBaseline).toBe(false);
+      expect(res.updatedPRs[0].isBaseline).toBe(false);
+      expect(res.updatedPRs[0].prCount).toBe(1);
+      expect(res.prText).toContain('(+1)');
+    });
+
+    it('M-A03: Superação de Eficiência / Fluidez (RPE) detectada quando esforço diminui para o mesmo plano', () => {
+      const pastSession: WorkoutSession = {
+        id: 'sess_past',
+        ownerUid: 'user_1',
+        planId: 'plan_fullbody',
+        planTitle: 'Full Body A',
+        status: 'completed',
+        startedAt: 1000,
+        completedAt: 2000,
+        durationSeconds: 1000,
+        currentExerciseIndex: 0,
+        currentSetIndex: 1,
+        totalSetsPlanned: 3,
+        totalSetsCompleted: 3,
+        totalRepsCompleted: 30,
+        prsAchieved: 0,
+        feedbackEffort: 4, // Intenso
+        exercisesSnapshot: [],
+      };
+
+      const currentSession: WorkoutSession = {
+        id: 'sess_today',
+        ownerUid: 'user_1',
+        planId: 'plan_fullbody',
+        planTitle: 'Full Body A',
+        status: 'completed',
+        startedAt: 3000,
+        completedAt: 4000,
+        durationSeconds: 1000,
+        currentExerciseIndex: 0,
+        currentSetIndex: 1,
+        totalSetsPlanned: 3,
+        totalSetsCompleted: 3,
+        totalRepsCompleted: 30,
+        prsAchieved: 0,
+        feedbackEffort: 3, // Mais fácil/fluido!
+        exercisesSnapshot: [],
+      };
+
+      const comparison = evaluateSessionEfficiency(currentSession, [pastSession]);
+      expect(comparison).not.toBeNull();
+      expect(comparison?.improved).toBe(true);
+      expect(comparison?.previousEffort).toBe(4);
+      expect(comparison?.currentEffort).toBe(3);
+    });
+
+    // Estratégia B: Ponte de Continuidade para Amanhã
+    it('M-B01: Ponte de continuidade gera gancho para descanso/alongamento quando amanhã é dia livre', () => {
+      const completedSession: WorkoutSession = {
+        id: 'sess_1',
+        ownerUid: 'user_1',
+        planId: 'plan_a',
+        planTitle: 'Treino A - Pernas e Glúteos',
+        status: 'completed',
+        startedAt: 1000,
+        completedAt: 2000,
+        durationSeconds: 1000,
+        currentExerciseIndex: 0,
+        currentSetIndex: 1,
+        totalSetsPlanned: 2,
+        totalSetsCompleted: 2,
+        totalRepsCompleted: 20,
+        prsAchieved: 0,
+        exercisesSnapshot: [],
+      };
+
+      const mockCalendar: CalendarDay[] = [
+        {
+          id: 'cal_tomorrow',
+          ownerUid: 'user_1',
+          dateStr: '2026-10-24',
+          dayOfWeek: 6, // Sábado
+          activityType: 'rest',
+          isCompleted: false,
+        },
+      ];
+
+      // Fixa data de referência como Sexta-feira (day 5)
+      const refDate = new Date('2026-10-23T12:00:00Z');
+      const bridge = generateTomorrowBridge(completedSession, mockCalendar, [], [], refDate);
+
+      expect(bridge.tomorrowActivityType).toBe('rest');
+      expect(bridge.canScheduleOptionalMobility).toBe(true);
+      expect(bridge.headline).toContain('Regeneração & Cuidado Leve');
+      expect(bridge.bodyText).toContain('6 a 8 minutos de mobilidade');
+    });
+
+    it('M-B02: Ponte de continuidade antecipa desafio de força com meta clara quando amanhã é treino planejado', () => {
+      const completedSession: WorkoutSession = {
+        id: 'sess_1',
+        ownerUid: 'user_1',
+        planId: 'care_mobility',
+        planTitle: 'Alongamento Confortável',
+        status: 'completed',
+        startedAt: 1000,
+        completedAt: 2000,
+        durationSeconds: 600,
+        currentExerciseIndex: 0,
+        currentSetIndex: 1,
+        totalSetsPlanned: 1,
+        totalSetsCompleted: 1,
+        totalRepsCompleted: 0,
+        prsAchieved: 0,
+        exercisesSnapshot: [],
+      };
+
+      const planStrength: WorkoutPlan = {
+        id: 'plan_b',
+        title: 'Treino B - Membros Superiores',
+        description: 'Foco em peito e costas',
+        exercises: [
+          {
+            exerciseId: 'pushup',
+            exerciseName: 'Flexão de Braço',
+            targetSets: 3,
+            targetReps: 10,
+            restSeconds: 60,
+          },
+        ],
+        targetRepsRange: [8, 12],
+        isTemplate: false,
+        category: 'forca',
+        version: 1,
+        createdAt: 1000,
+        updatedAt: 1000,
+        ownerUid: 'user_1',
+      };
+
+      const prs: PersonalRecord[] = [
+        {
+          exerciseId: 'pushup',
+          exerciseName: 'Flexão de Braço',
+          bestReps: 10,
+          bestDurationSeconds: 0,
+          recordedAt: 1000,
+          sessionId: 's0',
+          isBaseline: false,
+          prCount: 1,
+        },
+      ];
+
+      const mockCalendar: CalendarDay[] = [
+        {
+          id: 'cal_tomorrow',
+          ownerUid: 'user_1',
+          dateStr: '2026-10-24',
+          dayOfWeek: 6,
+          activityType: 'strength',
+          planId: 'plan_b',
+          planTitle: 'Treino B - Membros Superiores',
+          isCompleted: false,
+        },
+      ];
+
+      const refDate = new Date('2026-10-23T12:00:00Z');
+      const bridge = generateTomorrowBridge(completedSession, mockCalendar, [planStrength], prs, refDate);
+
+      expect(bridge.tomorrowActivityType).toBe('strength');
+      expect(bridge.canScheduleOptionalMobility).toBe(false);
+      expect(bridge.nextChallengePreview).toBeDefined();
+      expect(bridge.nextChallengePreview?.exerciseName).toBe('Flexão de Braço');
+      expect(bridge.nextChallengePreview?.targetMarkText).toContain('11');
+    });
+
+    // Estratégia C: Micro-Desafio do Dia
+    it('M-C01: Micro-desafio propõe primeiro PR (+1 rep) para exercício que possui marca base', () => {
+      const plan: WorkoutPlan = {
+        id: 'plan_squat',
+        title: 'Ficha Pernas',
+        description: 'Agachamento',
+        exercises: [
+          {
+            exerciseId: 'ex_squat',
+            exerciseName: 'Agachamento Livre',
+            targetSets: 3,
+            targetReps: 10,
+            restSeconds: 60,
+          },
+        ],
+        targetRepsRange: [8, 12],
+        isTemplate: false,
+        category: 'forca',
+        version: 1,
+        createdAt: 1000,
+        updatedAt: 1000,
+        ownerUid: 'user_1',
+      };
+
+      const baselinePRs: PersonalRecord[] = [
+        {
+          exerciseId: 'ex_squat',
+          exerciseName: 'Agachamento Livre',
+          bestReps: 10,
+          bestDurationSeconds: 0,
+          recordedAt: 1000,
+          sessionId: 's0',
+          isBaseline: true,
+          prCount: 0,
+        },
+      ];
+
+      const challenge = generateDailyMicroChallenge(plan, baselinePRs);
+      expect(challenge).not.toBeNull();
+      expect(challenge?.type).toBe('first_pr_from_base');
+      expect(challenge?.currentMark).toBe(10);
+      expect(challenge?.targetMark).toBe(11);
+      expect(challenge?.badgeText).toContain('1º Recorde (PR)');
+    });
+
+    it('M-C02: Micro-desafio para rotina de mobilidade enfatiza soltura consciente e presença', () => {
+      const mobilityPlan: WorkoutPlan = {
+        id: 'plan_mob',
+        title: 'Mobilidade da Coluna e Quadril',
+        description: 'Soltura',
+        exercises: [
+          {
+            exerciseId: 'ex_cat_cow',
+            exerciseName: 'Gato e Vaca',
+            targetSets: 2,
+            targetDurationSeconds: 45,
+            targetReps: 0,
+            restSeconds: 30,
+          },
+        ],
+        targetRepsRange: [1, 1],
+        isTemplate: false,
+        category: 'mobilidade',
+        version: 1,
+        createdAt: 1000,
+        updatedAt: 1000,
+        ownerUid: 'user_1',
+      };
+
+      const challenge = generateDailyMicroChallenge(mobilityPlan, []);
+      expect(challenge).not.toBeNull();
+      expect(challenge?.type).toBe('mindful_mobility');
+      expect(challenge?.badgeText).toContain('Cuidado & Presença');
+      expect(challenge?.description).toContain('soltar o ar lentamente');
+    });
+
+    // Estratégia D: Termômetro Antes vs Depois & Espelho de Bem-Estar
+    it('M-D01: Termômetro detecta virada positiva quando o praticante começa cansado/tenso e termina renovado/orgulhoso', () => {
+      const trackedSessions: WorkoutSession[] = [
+        {
+          id: 'sess_turnaround',
+          ownerUid: 'user_1',
+          planId: 'plan_quick',
+          planTitle: 'Pausa Ativa (8 min)',
+          status: 'completed',
+          startedAt: 1000,
+          completedAt: 1480,
+          durationSeconds: 480, // 8 min
+          currentExerciseIndex: 0,
+          currentSetIndex: 1,
+          totalSetsPlanned: 1,
+          totalSetsCompleted: 1,
+          totalRepsCompleted: 10,
+          prsAchieved: 0,
+          preMood: 'cansado',
+          postMood: 'renovado',
+          exercisesSnapshot: [],
+        },
+      ];
+
+      const insight = generateWellbeingInsight(trackedSessions);
+      expect(insight).not.toBeNull();
+      expect(insight?.positiveTurnaroundCount).toBe(1);
+      expect(insight?.lastTurnaroundMinutes).toBe(8);
+      expect(insight?.message).toContain('8 min de prática fizeram você terminar');
+    });
+
+    // Estratégia E: Semanas Vivas, Salva-Hábito & Invariante de Descanso
+    it('M-E01: Cuidado ativo no dia de descanso preserva o invariante canônico (isCompleted permanece false)', () => {
+      const restDay: CalendarDay = {
+        id: 'day_rest_1',
+        ownerUid: 'user_1',
+        dateStr: '2026-10-23',
+        dayOfWeek: 5,
+        activityType: 'rest',
+        isCompleted: false,
+        vitalityBonusCompleted: true,
+        careMinutes: 8,
+        hasCareRoutine: true,
+        careRoutineTitle: 'Alongamento Suave (8 min)',
+      };
+
+      expect(restDay.activityType).toBe('rest');
+      expect(restDay.isCompleted).toBe(false); // Invariante Canônico: Dia de descanso NUNCA é marcado como isCompleted=true!
+      expect(restDay.vitalityBonusCompleted).toBe(true);
+      expect(restDay.careMinutes).toBe(8);
+    });
+
+    it('M-E02: Métricas canônicas computam minutos de cuidado e elos de vitalidade com separação estrita de PRs reais e marcas base', () => {
+      const sessions: WorkoutSession[] = [
+        {
+          id: 'sess_care_1',
+          ownerUid: 'user_1',
+          planId: 'care_stretch',
+          planTitle: 'Alongamento Confortável',
+          status: 'completed',
+          startedAt: 1000,
+          completedAt: 1480,
+          durationSeconds: 480, // 8 min
+          currentExerciseIndex: 0,
+          currentSetIndex: 1,
+          totalSetsPlanned: 1,
+          totalSetsCompleted: 1,
+          totalRepsCompleted: 0,
+          prsAchieved: 0,
+          originType: 'active_recovery',
+          exercisesSnapshot: [],
+        },
+        {
+          id: 'sess_strength_1',
+          ownerUid: 'user_1',
+          planId: 'plan_strength',
+          planTitle: 'Treino A',
+          status: 'completed',
+          startedAt: 2000,
+          completedAt: 3200,
+          durationSeconds: 1200, // 20 min
+          currentExerciseIndex: 0,
+          currentSetIndex: 2,
+          totalSetsPlanned: 2,
+          totalSetsCompleted: 2,
+          totalRepsCompleted: 20,
+          prsAchieved: 1,
+          exercisesSnapshot: [],
+        },
+      ];
+
+      const calendar: CalendarDay[] = [
+        {
+          id: 'day_1',
+          ownerUid: 'user_1',
+          dateStr: '2026-10-23',
+          dayOfWeek: 5,
+          activityType: 'rest',
+          isCompleted: false,
+          vitalityBonusCompleted: true,
+        },
+      ];
+
+      const prs: PersonalRecord[] = [
+        {
+          exerciseId: 'squat',
+          exerciseName: 'Agachamento',
+          bestReps: 10,
+          bestDurationSeconds: 0,
+          recordedAt: 1000,
+          sessionId: 's0',
+          isBaseline: true, // Marca base
+          prCount: 0,
+        },
+        {
+          exerciseId: 'pushup',
+          exerciseName: 'Flexão',
+          bestReps: 12,
+          bestDurationSeconds: 0,
+          recordedAt: 2000,
+          sessionId: 's1',
+          isBaseline: false, // PR real
+          prCount: 1,
+        },
+      ];
+
+      const metrics = calculateCanonicalMetrics(sessions, calendar, prs);
+
+      expect(metrics.completedWorkoutsCount).toBe(2);
+      expect(metrics.realPRCount).toBe(1);
+      expect(metrics.baselineMarksCount).toBe(1);
+      expect(metrics.careSessionsCount).toBe(1);
+      expect(metrics.careMinutesTotal).toBe(8);
+      expect(metrics.weeklyVitalityLinksCount).toBe(1);
+    });
+  });
 });
+

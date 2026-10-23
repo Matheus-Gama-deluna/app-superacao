@@ -22,8 +22,11 @@ import {
   Info,
   ShieldAlert,
   Pause,
+  Target,
 } from 'lucide-react';
 import { soundManager } from '../lib/audio';
+import { PostWorkoutMood, PreWorkoutMood } from '../types';
+import { generateDailyMicroChallenge, generateTomorrowBridge } from '../lib/storage';
 
 interface ActiveWorkoutViewProps {
   onPauseAndReturnHome?: () => void;
@@ -60,6 +63,10 @@ export const ActiveWorkoutView: React.FC<ActiveWorkoutViewProps> = ({
     skipRest,
     addRestSeconds,
     personalRecords,
+    plans,
+    calendar,
+    setSessionPreMood,
+    scheduleOptionalMobilityForTomorrow,
   } = useWorkout();
 
   // Estados locais do modal de confirmação de série (S08)
@@ -74,6 +81,8 @@ export const ActiveWorkoutView: React.FC<ActiveWorkoutViewProps> = ({
   const [effortScore, setEffortScore] = useState<number>(3);
   const [workoutNotes, setWorkoutNotes] = useState<string>('');
   const [copiedShare, setCopiedShare] = useState<boolean>(false);
+  const [postMood, setPostMood] = useState<PostWorkoutMood | null>('orgulhoso');
+  const [isMobilityScheduled, setIsMobilityScheduled] = useState<boolean>(false);
 
   // Tecla Escape para fechar qualquer modal aberto
   useEffect(() => {
@@ -96,6 +105,12 @@ export const ActiveWorkoutView: React.FC<ActiveWorkoutViewProps> = ({
 
   // Histórico anterior do exercício para desafio pessoal
   const previousPR = personalRecords.find((p) => p.exerciseId === currentExerciseItem?.exerciseId);
+
+  // Micro-Desafio do Dia (Estratégia C) e Ponte para Amanhã (Estratégia B)
+  const currentPlan = plans.find((p) => p.id === activeSession.planId) || null;
+  const dailyChallenge = currentPlan ? generateDailyMicroChallenge(currentPlan, personalRecords) : null;
+  const isChallengeExercise = Boolean(dailyChallenge && dailyChallenge.exerciseId === currentExerciseItem?.exerciseId);
+  const tomorrowBridge = generateTomorrowBridge(activeSession, calendar, plans, personalRecords);
 
   // Próximo exercício / série para preparação no descanso (E05)
   // Durante o descanso (isResting), recordSet já avançou currentExerciseIndex e currentSetIndex para a série a ser executada
@@ -133,7 +148,7 @@ export const ActiveWorkoutView: React.FC<ActiveWorkoutViewProps> = ({
   };
 
   const handleFinishWorkout = async () => {
-    await completeWorkout(effortScore, workoutNotes);
+    await completeWorkout(effortScore, workoutNotes, postMood || undefined);
   };
 
   const handleShareWorkout = async () => {
@@ -218,6 +233,46 @@ export const ActiveWorkoutView: React.FC<ActiveWorkoutViewProps> = ({
             </div>
           ) : null}
 
+          {/* Moedas de Superação Conquistadas (Estratégia A) */}
+          <div className="space-y-2">
+            <span className="text-[10px] font-bold text-[#5B7170] uppercase tracking-wider block">
+              Vitórias Reconhecidas Desta Sessão
+            </span>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+              {activeSession.prsAchieved > 0 && (
+                <div className="bg-[#D9F277]/30 border border-[#125F55]/40 p-2.5 rounded-xl flex items-center gap-2">
+                  <Trophy className="w-4 h-4 text-[#125F55] shrink-0" />
+                  <span className="text-xs font-bold text-[#125F55]">
+                    {activeSession.prsAchieved} Recorde(s) Pessoal(is) superado(s)!
+                  </span>
+                </div>
+              )}
+              {(activeSession.newBaselinesCount || 0) > 0 && (
+                <div className="bg-[#EAF3EF] border border-[#C9DBD3] p-2.5 rounded-xl flex items-center gap-2">
+                  <Target className="w-4 h-4 text-[#125F55] shrink-0" />
+                  <span className="text-xs font-semibold text-[#152A29]">
+                    {activeSession.newBaselinesCount} Marca(s) Base estabelecida(s)
+                  </span>
+                </div>
+              )}
+              {(activeSession.planId.includes('mobilidade') || activeSession.planTitle.toLowerCase().includes('alongamento') || activeSession.planTitle.toLowerCase().includes('caminhada')) ? (
+                <div className="bg-[#EAF3EF] border border-[#C9DBD3] p-2.5 rounded-xl flex items-center gap-2">
+                  <Heart className="w-4 h-4 text-[#246747] shrink-0" />
+                  <span className="text-xs font-semibold text-[#246747]">
+                    Elo de Vitalidade & Regeneração
+                  </span>
+                </div>
+              ) : (
+                <div className="bg-[#F5F8F5] border border-[#C9DBD3] p-2.5 rounded-xl flex items-center gap-2">
+                  <Check className="w-4 h-4 text-[#125F55] shrink-0" />
+                  <span className="text-xs font-semibold text-[#152A29]">
+                    Vitória de Constância e Ritmo
+                  </span>
+                </div>
+              )}
+            </div>
+          </div>
+
           {/* Percepção de Esforço (RPE 1-5) */}
           <div className="bg-white p-4 rounded-2xl border border-[#C9DBD3] shadow-xs space-y-2">
             <label className="block text-xs font-bold text-[#152A29]">
@@ -247,6 +302,35 @@ export const ActiveWorkoutView: React.FC<ActiveWorkoutViewProps> = ({
             </div>
           </div>
 
+          {/* Termômetro de Bem-Estar Após a Prática (Estratégia D) */}
+          <div className="bg-white p-4 rounded-2xl border border-[#C9DBD3] shadow-xs space-y-2">
+            <label className="block text-xs font-bold text-[#152A29]">
+              Como você está se sentindo após essa prática?
+            </label>
+            <div className="grid grid-cols-4 gap-1.5 pt-1">
+              {[
+                { mood: 'renovado' as const, label: 'Com energia', icon: '✨' },
+                { mood: 'leve' as const, label: 'Mais leve', icon: '🌿' },
+                { mood: 'orgulhoso' as const, label: 'Dever cumprido', icon: '🏅' },
+                { mood: 'cansado_bem' as const, label: 'Cansado e feliz', icon: '💪' },
+              ].map((m) => (
+                <button
+                  key={m.mood}
+                  type="button"
+                  onClick={() => setPostMood(m.mood)}
+                  className={`py-2 px-1 rounded-xl text-center text-xs font-bold transition-all cursor-pointer flex flex-col items-center gap-0.5 ${
+                    postMood === m.mood
+                      ? 'bg-[#125F55] text-white shadow-xs'
+                      : 'bg-[#F5F8F5] text-[#5B7170] border border-[#C9DBD3] hover:border-[#125F55]'
+                  }`}
+                >
+                  <span className="text-sm">{m.icon}</span>
+                  <span className="text-[10px] truncate">{m.label}</span>
+                </button>
+              ))}
+            </div>
+          </div>
+
           {/* Card de Celebração de Conclusão / Compartilhar */}
           <div className="bg-white p-4 rounded-2xl border border-[#C9DBD3] shadow-xs space-y-2.5">
             <div className="flex items-center justify-between text-xs">
@@ -268,15 +352,46 @@ export const ActiveWorkoutView: React.FC<ActiveWorkoutViewProps> = ({
             </button>
           </div>
 
-          {/* A PONTE PARA O PRÓXIMO DIA (Psicologia Comportamental) */}
-          <div className="bg-[#EAF3EF] border border-[#C9DBD3] p-4 rounded-2xl space-y-2">
+          {/* A PONTE PARA O PRÓXIMO DIA (Estratégia B: Psicologia Comportamental) */}
+          <div className="bg-[#EAF3EF] border border-[#125F55]/30 p-4 rounded-2xl space-y-2.5">
             <div className="flex items-center gap-1.5 text-xs font-bold text-[#125F55]">
               <Sparkles className="w-4 h-4 text-[#125F55]" />
-              <span>Ponte para amanhã: Seu próximo passo</span>
+              <span>{tomorrowBridge.headline}</span>
             </div>
             <p className="text-xs text-[#152A29] leading-relaxed">
-              O hábito de quem se exercita se constrói no ritmo contínuo. Amanhã sua meta é <strong>Recuperação Ativa & Alongamento</strong> para soltar as articulações ou <strong>Descanso Total</strong>.
+              {tomorrowBridge.bodyText}
             </p>
+
+            {tomorrowBridge.nextChallengePreview && (
+              <div className="bg-white/80 p-2.5 rounded-xl border border-[#C9DBD3] text-xs">
+                <span className="font-bold text-[#125F55]">Desafio antecipado: </span>
+                <span className="text-[#5B7170]">
+                  {tomorrowBridge.nextChallengePreview.exerciseName} ({tomorrowBridge.nextChallengePreview.targetMarkText})
+                </span>
+              </div>
+            )}
+
+            {tomorrowBridge.canScheduleOptionalMobility && (
+              <button
+                type="button"
+                disabled={isMobilityScheduled}
+                onClick={async () => {
+                  await scheduleOptionalMobilityForTomorrow(tomorrowBridge.tomorrowDateStr);
+                  setIsMobilityScheduled(true);
+                }}
+                className={`w-full py-2.5 px-3 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
+                  isMobilityScheduled
+                    ? 'bg-[#125F55] text-white shadow-xs'
+                    : 'bg-white text-[#125F55] border border-[#125F55]/40 hover:bg-[#D9F277]/30'
+                }`}
+              >
+                {isMobilityScheduled ? (
+                  <span>✓ Alongamento leve separado na sua agenda!</span>
+                ) : (
+                  <span>Separar 6 min de alongamento leve para amanhã</span>
+                )}
+              </button>
+            )}
           </div>
         </div>
 
@@ -413,6 +528,47 @@ export const ActiveWorkoutView: React.FC<ActiveWorkoutViewProps> = ({
       ) : (
         /* ÁREA PRINCIPAL DO EXERCÍCIO (S07) */
         <main className="flex-1 flex flex-col justify-between p-4 max-w-md mx-auto w-full overflow-y-auto">
+          {/* Check-in Inicial de Sensação (Estratégia D: 1 toque opcional) */}
+          {!activeSession.preMood && activeSession.totalSetsCompleted === 0 && (
+            <div className="bg-[#FAF7F2] p-3 rounded-2xl border border-[#C9DBD3] space-y-1.5 mb-2 shadow-2xs">
+              <span className="text-[11px] font-bold text-[#152A29] block">
+                Como você está chegando hoje?
+              </span>
+              <div className="grid grid-cols-4 gap-1.5">
+                {[
+                  { mood: 'cansado' as const, label: 'Cansado', icon: '🔋' },
+                  { mood: 'tenso' as const, label: 'Tenso', icon: '🧘' },
+                  { mood: 'normal' as const, label: 'Normal', icon: '🙂' },
+                  { mood: 'disposto' as const, label: 'Disposto', icon: '⚡' },
+                ].map((m) => (
+                  <button
+                    key={m.mood}
+                    type="button"
+                    onClick={() => setSessionPreMood(m.mood)}
+                    className="py-1.5 px-1 rounded-xl bg-white border border-[#C9DBD3] hover:border-[#125F55] text-center text-[10px] font-semibold flex flex-col items-center gap-0.5 cursor-pointer shadow-2xs"
+                  >
+                    <span className="text-sm">{m.icon}</span>
+                    <span className="text-[#5B7170] truncate">{m.label}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Destaque do Micro-Desafio de Hoje se for neste exercício (Estratégia C) */}
+          {isChallengeExercise && dailyChallenge && (
+            <div className="bg-[#D9F277]/25 border-2 border-[#125F55] p-3 rounded-2xl space-y-1 mb-2 shadow-xs animate-in fade-in">
+              <div className="flex items-center gap-1.5">
+                <span className="text-sm">🎯</span>
+                <span className="text-[10px] font-extrabold uppercase px-2 py-0.5 rounded-full bg-[#125F55] text-white">
+                  {dailyChallenge.badgeText}
+                </span>
+              </div>
+              <h4 className="text-xs font-bold text-[#152A29] mt-0.5">{dailyChallenge.title}</h4>
+              <p className="text-[11px] text-[#203826] leading-relaxed">{dailyChallenge.description}</p>
+            </div>
+          )}
+
           {/* Ilustração e Nome */}
           <div className="space-y-3">
             <ExerciseIllustration

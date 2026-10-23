@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useWorkout } from '../context/WorkoutContext';
 import { useAuth } from '../context/AuthContext';
-import { calculateCanonicalMetrics } from '../lib/storage';
+import { calculateCanonicalMetrics, PRE_MOOD_LABELS, POST_MOOD_LABELS } from '../lib/storage';
 import {
   Trophy,
   Sparkles,
@@ -80,9 +80,34 @@ export const ProgressView: React.FC = () => {
     {
       id: 'coluna_postura',
       title: 'Cuidado & Postura',
-      desc: 'Cumprir uma sessão de mobilidade/alongamento',
-      isUnlocked: recoveryDaysCompleted >= 1,
+      desc: 'Cumprir uma sessão de mobilidade ou alongamento',
+      isUnlocked: recoveryDaysCompleted >= 1 || metrics.careSessionsCount >= 1,
       icon: '🧘',
+    },
+    {
+      id: 'elo_vitalidade',
+      title: 'Elo de Vitalidade',
+      desc: 'Cuidar do corpo em dia de descanso com caminhada ou alongamento',
+      isUnlocked: metrics.weeklyVitalityLinksCount >= 1 || metrics.careSessionsCount >= 1,
+      icon: '🌿',
+    },
+    {
+      id: 'marca_base',
+      title: 'Referência Inaugurada',
+      desc: 'Registrar a primeira marca base de um exercício',
+      isUnlocked: metrics.baselineMarksCount >= 1 || personalRecords.length >= 1,
+      icon: '🎯',
+    },
+    {
+      id: 'virada_bem_estar',
+      title: 'Transformação de Bem-Estar',
+      desc: 'Chegar cansado ou tenso e sair renovado ou com dever cumprido',
+      isUnlocked: sessions.some(
+        (s) =>
+          (s.preMood === 'cansado' || s.preMood === 'tenso') &&
+          (s.postMood === 'renovado' || s.postMood === 'leve' || s.postMood === 'orgulhoso' || s.postMood === 'cansado_bem')
+      ),
+      icon: '✨',
     },
   ];
 
@@ -140,6 +165,28 @@ export const ProgressView: React.FC = () => {
           </span>
         </div>
       </div>
+
+      {/* Cartão de Cuidado & Vitalidade Semanal (Estratégia A e E) */}
+      {(metrics.careMinutesTotal > 0 || metrics.weeklyVitalityLinksCount > 0) && (
+        <div className="bg-[#EAF3EF] border border-[#125F55]/30 rounded-2xl p-4 flex items-center justify-between shadow-xs">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-white border border-[#C9DBD3] flex items-center justify-center text-xl shrink-0">
+              🌿
+            </div>
+            <div>
+              <span className="text-[10px] font-bold text-[#125F55] uppercase tracking-wider block">
+                Cuidado & Regeneração
+              </span>
+              <p className="text-xs font-semibold text-[#152A29] mt-0.5">
+                {metrics.careMinutesTotal} minutos acumulados · {metrics.weeklyVitalityLinksCount} {metrics.weeklyVitalityLinksCount === 1 ? 'elo' : 'elos'} de vitalidade
+              </p>
+            </div>
+          </div>
+          <span className="text-[11px] font-bold text-[#125F55] bg-white px-2.5 py-1 rounded-full border border-[#C9DBD3]">
+            Ritmo Vivo
+          </span>
+        </div>
+      )}
 
       {/* Seção de Medalhas de Superação & Conquistas */}
       <section className="bg-white rounded-3xl p-5 border border-[#C9DBD3] shadow-xs space-y-3">
@@ -285,6 +332,24 @@ export const ProgressView: React.FC = () => {
                       {isExpanded ? <ChevronUp className="w-4 h-4 text-[#5B7170]" /> : <ChevronDown className="w-4 h-4 text-[#5B7170]" />}
                     </div>
                   </div>
+
+                  {/* Termômetro de Sensação: Antes ➔ Depois (Estratégia D) */}
+                  {(sess.preMood || sess.postMood) && (
+                    <div className="flex items-center gap-2 pt-1 text-[11px] text-[#5B7170]">
+                      <span className="font-semibold text-[#152A29]">Sensação:</span>
+                      {sess.preMood && (
+                        <span className="px-2 py-0.5 rounded-lg bg-[#F5F8F5] border border-[#C9DBD3]">
+                          {PRE_MOOD_LABELS[sess.preMood]?.icon} {PRE_MOOD_LABELS[sess.preMood]?.label}
+                        </span>
+                      )}
+                      {sess.preMood && sess.postMood && <span>➔</span>}
+                      {sess.postMood && (
+                        <span className="px-2 py-0.5 rounded-lg bg-[#EAF3EF] text-[#125F55] font-semibold border border-[#125F55]/30">
+                          {POST_MOOD_LABELS[sess.postMood]?.icon} {POST_MOOD_LABELS[sess.postMood]?.label}
+                        </span>
+                      )}
+                    </div>
+                  )}
 
                   {/* Séries detalhadas expandidas */}
                   {isExpanded && (
