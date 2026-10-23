@@ -31,8 +31,8 @@ export const specializedHomeExercises: Exercise[] = [
     review_status: 'curado_especializado',
     media_url: null,
     images: [
-      '/exercises/Bodyweight_Mid_Row/0.jpg',
-      '/exercises/Bodyweight_Mid_Row/1.jpg',
+      '/exercises/Door_Towel_Row/0.jpg',
+      '/exercises/Door_Towel_Row/1.jpg',
     ],
     steps_pt: [
       'Passe uma toalha de banho firme ao redor das maçanetas de uma porta fechada.',
@@ -103,8 +103,8 @@ export const specializedHomeExercises: Exercise[] = [
     review_status: 'curado_especializado',
     media_url: null,
     images: [
-      '/exercises/Dumbbell_Prone_Incline_Curl/0.jpg',
-      '/exercises/Dumbbell_Prone_Incline_Curl/1.jpg',
+      '/exercises/Floor_Towel_Lat_Pulldown/0.jpg',
+      '/exercises/Floor_Towel_Lat_Pulldown/1.jpg',
     ],
     steps_pt: [
       'Deite de bruços no solo segurando uma toalha esticada à frente da cabeça.',
@@ -572,6 +572,10 @@ export const specializedHomeExercises: Exercise[] = [
     caution_pt: 'Mantenha a postura ereta e olhe para frente sem curvar os ombros.',
     review_status: 'curado_especializado',
     media_url: null,
+    images: [
+      '/exercises/Step-up_with_Knee_Raise/0.jpg',
+      '/exercises/Step-up_with_Knee_Raise/1.jpg',
+    ],
     steps_pt: [
       'Fique em pé atrás da cadeira com as mãos apoiadas no encosto.',
       'Eleve o joelho direito até a altura do quadril.',
@@ -676,6 +680,10 @@ export const specializedHomeExercises: Exercise[] = [
     caution_pt: 'Mantenha a coluna longa; nunca force a rotação.',
     review_status: 'curado_especializado',
     media_url: null,
+    images: [
+      '/exercises/Chair_Lower_Back_Stretch/0.jpg',
+      '/exercises/Chair_Lower_Back_Stretch/1.jpg',
+    ],
     steps_pt: [
       'Sente com os pés apoiados no chão e coluna ereta.',
       'Inspire crescendo o topo da cabeça para o teto.',
@@ -814,6 +822,10 @@ export const specializedHomeExercises: Exercise[] = [
     caution_pt: 'Não encolha os ombros em direção às orelhas; mantenha o pescoço longo.',
     review_status: 'curado_especializado',
     media_url: null,
+    images: [
+      '/exercises/Lateral_Raise_-_With_Bands/0.jpg',
+      '/exercises/Lateral_Raise_-_With_Bands/1.jpg',
+    ],
     steps_pt: [
       'Segure a faixa elástica com as palmas voltadas para baixo na altura dos ombros.',
       'Puxe as mãos para os lados abrindo os braços.',
@@ -880,6 +892,10 @@ export const specializedHomeExercises: Exercise[] = [
     caution_pt: 'Não coloque todo o peso nos punhos de início; mantenha o movimento suave e sem dor.',
     review_status: 'curado_especializado',
     media_url: null,
+    images: [
+      '/exercises/Wrist_Mobility_Quadruped/0.jpg',
+      '/exercises/Wrist_Mobility_Quadruped/1.jpg',
+    ],
     steps_pt: [
       'Posicione-se em quatro apoios no colchonete com os punhos abaixo dos ombros.',
       'Gire os dedos das mãos apontando para os lados e depois em direção aos joelhos.',
@@ -911,6 +927,10 @@ export const specializedHomeExercises: Exercise[] = [
     caution_pt: 'Mantenha a coluna longa e não compense com hiperextensão da lombar.',
     review_status: 'curado_especializado',
     media_url: null,
+    images: [
+      '/exercises/Couch_Stretch/0.jpg',
+      '/exercises/Couch_Stretch/1.jpg',
+    ],
     steps_pt: [
       'Ajoelhe com um joelho apoiado no colchonete e o outro pé à frente a 90 graus.',
       'Aperte o glúteo da perna que está com o joelho no chão.',
@@ -1008,6 +1028,10 @@ export const specializedHomeExercises: Exercise[] = [
     caution_pt: 'A carga frontal auxilia no contrapeso, facilitando uma coluna neutra e segura.',
     review_status: 'curado_especializado',
     media_url: null,
+    images: [
+      '/exercises/Goblet_Squat/0.jpg',
+      '/exercises/Goblet_Squat/1.jpg',
+    ],
     steps_pt: [
       'Fique em pé com os pés na largura dos ombros.',
       'Segure o halter na altura do osso esterno como uma taça (goblet).',
@@ -1037,6 +1061,10 @@ export const specializedHomeExercises: Exercise[] = [
     caution_pt: 'O solo bloqueia a hiperextensão dos ombros, tornando este movimento extremamente seguro para manguito rotador.',
     review_status: 'curado_especializado',
     media_url: null,
+    images: [
+      '/exercises/Dumbbell_Floor_Press/0.jpg',
+      '/exercises/Dumbbell_Floor_Press/1.jpg',
+    ],
     steps_pt: [
       'Deite no solo segurando os halteres ao lado do peito.',
       'Posicione os cotovelos a 45 graus em relação ao tronco.',
@@ -1066,6 +1094,10 @@ export const specializedHomeExercises: Exercise[] = [
     caution_pt: 'Mantenha o abdômen contraído para proteger a região lombar.',
     review_status: 'curado_especializado',
     media_url: null,
+    images: [
+      '/exercises/Bent_Over_Two-Dumbbell_Row/0.jpg',
+      '/exercises/Bent_Over_Two-Dumbbell_Row/1.jpg',
+    ],
     steps_pt: [
       'Em pé, incline o tronco 45 graus dobrando o quadril.',
       'Segure os halteres com os braços estendidos abaixo dos ombros.',
@@ -1128,6 +1160,10 @@ export const specializedHomeExercises: Exercise[] = [
     caution_pt: 'Não deixe os halteres balançarem nas pernas; mantenha o core firme.',
     review_status: 'curado_especializado',
     media_url: null,
+    images: [
+      '/exercises/Farmers_Walk/0.jpg',
+      '/exercises/Farmers_Walk/1.jpg',
+    ],
     steps_pt: [
       'Segure um halter em cada mão com pegada firme.',
       'Abra o peito e olhe para a frente.',
@@ -1157,6 +1193,10 @@ export const specializedHomeExercises: Exercise[] = [
     caution_pt: 'O movimento é uma dobradiça de quadril, não um agachamento nem flexão de coluna.',
     review_status: 'curado_especializado',
     media_url: null,
+    images: [
+      '/exercises/Romanian_Deadlift/0.jpg',
+      '/exercises/Romanian_Deadlift/1.jpg',
+    ],
     steps_pt: [
       'Em pé com pés na largura do quadril, segure os halteres à frente das coxas.',
       'Empurre o quadril para trás como se fosse fechar uma porta com os glúteos.',
@@ -1186,6 +1226,10 @@ export const specializedHomeExercises: Exercise[] = [
     caution_pt: 'Mantenha os glúteos e abdômen contraídos para não forçar a lombar.',
     review_status: 'curado_especializado',
     media_url: null,
+    images: [
+      '/exercises/Standing_Dumbbell_Press/0.jpg',
+      '/exercises/Standing_Dumbbell_Press/1.jpg',
+    ],
     steps_pt: [
       'Em pé com postura firme, posicione os halteres na linha dos ombros.',
       'Inspire e empurre os halteres para cima em linha reta.',
@@ -1215,6 +1259,10 @@ export const specializedHomeExercises: Exercise[] = [
     caution_pt: 'Segure o peso com as mãos para evitar que escorregue.',
     review_status: 'curado_especializado',
     media_url: null,
+    images: [
+      '/exercises/Butt_Lift_Bridge/0.jpg',
+      '/exercises/Butt_Lift_Bridge/1.jpg',
+    ],
     steps_pt: [
       'Deite de costas e apoie o halter com as duas mãos sobre o quadril.',
       'Empurre o chão com os calcanhares erguendo a bacia.',
@@ -1244,6 +1292,10 @@ export const specializedHomeExercises: Exercise[] = [
     caution_pt: 'Não erga os pesos acima da linha dos ombros para poupar a bursa subacromial.',
     review_status: 'curado_especializado',
     media_url: null,
+    images: [
+      '/exercises/Side_Lateral_Raise/0.jpg',
+      '/exercises/Side_Lateral_Raise/1.jpg',
+    ],
     steps_pt: [
       'Segure os halteres ao lado do corpo com pés firmes.',
       'Eleve os braços para os lados até a linha do ombro.',
@@ -1273,6 +1325,10 @@ export const specializedHomeExercises: Exercise[] = [
     caution_pt: 'Excelente para estabilidade da coluna e prevenção de hérnias lombares.',
     review_status: 'curado_especializado',
     media_url: null,
+    images: [
+      '/exercises/Farmers_Walk/0.jpg',
+      '/exercises/Farmers_Walk/1.jpg',
+    ],
     steps_pt: [
       'Segure um halter apenas na mão direita.',
       'Mantenha os dois ombros perfeitamente alinhados na horizontal.',
@@ -1338,6 +1394,10 @@ export const specializedHomeExercises: Exercise[] = [
     caution_pt: 'Não corra rápido; o trote deve permitir que você converse sem perder o fôlego.',
     review_status: 'curado_especializado',
     media_url: null,
+    images: [
+      '/exercises/Jogging_Treadmill/0.jpg',
+      '/exercises/Jogging_Treadmill/1.jpg',
+    ],
     steps_pt: [
       'Aqueça com 3 minutos de caminhada solta.',
       'Inicie 1 minuto de trote leve com cadência tranquila.',
@@ -1370,6 +1430,10 @@ export const specializedHomeExercises: Exercise[] = [
     caution_pt: 'Não incline o tronco para o lado oposto; o movimento deve vir apenas do quadril.',
     review_status: 'curado_especializado',
     media_url: null,
+    images: [
+      '/exercises/Standing_Hip_Flexors/0.jpg',
+      '/exercises/Standing_Hip_Flexors/1.jpg',
+    ],
     steps_pt: [
       'Fique de pé com as mãos apoiadas na parede.',
       'Mantenha o corpo reto e erga a perna direita para a lateral.',
@@ -1468,6 +1532,10 @@ export const specializedHomeExercises: Exercise[] = [
     caution_pt: 'Promove drenagem venosa nas pernas e desacelera o sistema nervoso simpático antes do sono.',
     review_status: 'curado_especializado',
     media_url: null,
+    images: [
+      '/exercises/Legs_Up_The_Wall/0.jpg',
+      '/exercises/Legs_Up_The_Wall/1.jpg',
+    ],
     steps_pt: [
       'Sente de lado junto à parede.',
       'Gire o tronco deitando de costas e erguendo as pernas estendidas na parede.',
@@ -1566,6 +1634,10 @@ export const specializedHomeExercises: Exercise[] = [
     caution_pt: 'Excelente para treino neurológico de equilíbrio dinâmico e marcha.',
     review_status: 'curado_especializado',
     media_url: null,
+    images: [
+      '/exercises/Tandem_Walk/0.jpg',
+      '/exercises/Tandem_Walk/1.jpg',
+    ],
     steps_pt: [
       'Fique em pé em um corredor ou espaço livre.',
       'Dê um passo posicionando o calcanhar direito colado na ponta do pé esquerdo.',
