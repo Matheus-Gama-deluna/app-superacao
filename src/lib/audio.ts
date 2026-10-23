@@ -12,12 +12,87 @@ class SoundManager {
     return this.ctx;
   }
 
+  private scheduledNodes: OscillatorNode[] = [];
+
   public setMuted(muted: boolean) {
     this.isMuted = muted;
+    if (muted) this.cancelScheduledRest();
   }
 
   public getMuted(): boolean {
     return this.isMuted;
+  }
+
+  // Agendamento com precisão de hardware de áudio (AudioContext clock)
+  // Permite que os bips toquem mesmo com tela apagada ou aba em segundo plano
+  public scheduleRestCountdown(seconds: number) {
+    if (this.isMuted || seconds <= 0) return;
+    this.cancelScheduledRest();
+
+    try {
+      const ctx = this.getContext();
+      if (!ctx) return;
+      if (ctx.state === 'suspended') ctx.resume();
+
+      const startTime = ctx.currentTime;
+
+      // Agenda ticks nos últimos 3 segundos
+      const tickOffsets = [seconds - 3, seconds - 2, seconds - 1];
+      tickOffsets.forEach((offset) => {
+        if (offset >= 0) {
+          const osc = ctx.createOscillator();
+          const gain = ctx.createGain();
+          const fireTime = startTime + offset;
+
+          osc.type = 'sine';
+          osc.frequency.setValueAtTime(587.33, fireTime); // D5
+          gain.gain.setValueAtTime(0.12, fireTime);
+          gain.gain.exponentialRampToValueAtTime(0.001, fireTime + 0.08);
+
+          osc.connect(gain);
+          gain.connect(ctx.destination);
+
+          osc.start(fireTime);
+          osc.stop(fireTime + 0.09);
+          this.scheduledNodes.push(osc);
+        }
+      });
+
+      // Agenda acorde de conclusão no tempo final
+      const finishTime = startTime + seconds;
+      const notes = [523.25, 659.25, 783.99]; // C5, E5, G5
+      notes.forEach((freq, idx) => {
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        const noteStart = finishTime + idx * 0.1;
+
+        osc.type = 'triangle';
+        osc.frequency.setValueAtTime(freq, noteStart);
+        gain.gain.setValueAtTime(0.18, noteStart);
+        gain.gain.exponentialRampToValueAtTime(0.001, noteStart + 0.25);
+
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+
+        osc.start(noteStart);
+        osc.stop(noteStart + 0.26);
+        this.scheduledNodes.push(osc);
+      });
+    } catch {
+      // Ignora erro
+    }
+  }
+
+  public cancelScheduledRest() {
+    this.scheduledNodes.forEach((node) => {
+      try {
+        node.stop();
+        node.disconnect();
+      } catch {
+        // Já finalizado
+      }
+    });
+    this.scheduledNodes = [];
   }
 
   // Toque suave para contagem regressiva de descanso (últimos 3 segundos)

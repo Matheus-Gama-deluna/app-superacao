@@ -584,4 +584,106 @@ test.describe('Superação - Validação End-to-End Headless (Em Segundo Plano)'
     // Valida feedback de sucesso
     await expect(page.getByText('Preferências Salvas!')).toBeVisible();
   });
+
+  test('10. Biblioteca de Programas e Planos Curados: Navegação e Inspeção no Explore', async ({ page }) => {
+    await page.goto('/');
+    await page.evaluate(() => {
+      localStorage.setItem('superacao_access_choice', JSON.stringify('guest'));
+      localStorage.setItem(
+        'superacao_user_profile',
+        JSON.stringify({
+          uid: 'guest_user',
+          displayName: 'Camila',
+          onboardingCompleted: true,
+          routineConfirmed: true,
+          availableDays: [1, 3, 5],
+          sessionDurationMinutes: 20,
+          equipments: ['peso_corporal'],
+        })
+      );
+    });
+    await page.reload();
+
+    // Navega para o Explore
+    const exploreNavBtn = page.getByRole('button', { name: 'Treinos' });
+    await expect(exploreNavBtn).toBeVisible();
+    await exploreNavBtn.click();
+
+    // Valida que os novos programas por mesociclos estão presentes na tela
+    await expect(page.getByText(/Todos os Programas/i).first()).toBeVisible();
+    await expect(page.getByText(/Anti-Sedentarismo/i).first()).toBeVisible();
+    await expect(page.getByText(/Coluna Blindada McGill/i).first()).toBeVisible();
+    await expect(page.getByText(/Calistenia de Base Progressiva/i).first()).toBeVisible();
+
+    // Valida detalhes do programa McGill exibindo suas fases estruturadas
+    await expect(page.getByText(/Fase 1: Ativação dos Estabilizadores/i)).toBeVisible();
+  });
+
+  test('11. Treino Ativo: Execução de Série e Timer de Descanso com Suporte a Segundo Plano', async ({ page }) => {
+    await page.goto('/');
+    const today = new Date();
+    const todayStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+    const dayOfWeek = today.getDay();
+
+    await page.evaluate(({ todayStr, dayOfWeek }) => {
+      localStorage.setItem('superacao_access_choice', JSON.stringify('guest'));
+      localStorage.setItem(
+        'superacao_user_profile',
+        JSON.stringify({
+          uid: 'guest_user',
+          displayName: 'Renato',
+          onboardingCompleted: true,
+          routineConfirmed: true,
+          availableDays: [dayOfWeek],
+          sessionDurationMinutes: 15,
+          equipments: ['peso_corporal'],
+        })
+      );
+      localStorage.setItem(
+        'superacao_calendar',
+        JSON.stringify([
+          {
+            id: `guest_day_${todayStr}`,
+            ownerUid: 'guest_user',
+            dateStr: todayStr,
+            dayOfWeek: dayOfWeek,
+            activityType: 'strength',
+            planId: 'plan_anti_sedentarismo_cadeira_a',
+            planTitle: 'Cadeira & Parede • Dia A (Postura & Pernas)',
+            isCompleted: false,
+          },
+        ])
+      );
+    }, { todayStr, dayOfWeek });
+    await page.reload();
+
+    // Inicia o treino do dia
+    const startWorkoutBtn = page.getByRole('button', { name: /Iniciar Treino/i }).first();
+    await expect(startWorkoutBtn).toBeVisible();
+    await startWorkoutBtn.click();
+
+    // Valida que a tela de treino ativo foi aberta
+    await expect(page.getByText(/Série 1 de 2/i)).toBeVisible();
+
+    // Clica em Concluir Série (abre o modal de confirmação)
+    const completeSetBtn = page.getByRole('button', { name: /Concluir Série/i });
+    await expect(completeSetBtn).toBeVisible();
+    await completeSetBtn.click();
+
+    // Confirma a série no sheet
+    const confirmSaveBtn = page.getByRole('button', { name: /Salvar Registro & Iniciar Descanso/i });
+    await expect(confirmSaveBtn).toBeVisible();
+    await confirmSaveBtn.click();
+
+    // Valida que o timer de descanso iniciou
+    await expect(page.getByText(/Descanso/i)).toBeVisible();
+    const skipRestBtn = page.getByRole('button', { name: /Iniciar Série Já/i });
+    await expect(skipRestBtn).toBeVisible();
+
+    // Pula o descanso para voltar ao modo ativo
+    await skipRestBtn.click();
+
+    // Deve avançar para a Série 2
+    await expect(page.getByText(/Série 2 de 2/i)).toBeVisible();
+  });
 });

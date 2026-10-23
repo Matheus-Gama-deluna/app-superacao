@@ -701,7 +701,7 @@ export const premadeWorkouts: WorkoutPlan[] = [
         reason: 'Fortalece coxas e glúteos sem sobrecarregar a patela.',
       },
       {
-        exerciseId: 'flexao_parede',
+        exerciseId: 'wall_pushup_controlled',
         exerciseName: 'Flexão de Braços na Parede',
         targetSets: 2,
         targetReps: 10,
@@ -1162,7 +1162,7 @@ export const premadeWorkouts: WorkoutPlan[] = [
         reason: 'Cadeia posterior com estímulo de abdução.',
       },
       {
-        exerciseId: 'flexao_parede',
+        exerciseId: 'wall_pushup_controlled',
         exerciseName: 'Flexão de Braços na Parede',
         targetSets: 3,
         targetReps: 12,

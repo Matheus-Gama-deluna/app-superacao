@@ -45,6 +45,12 @@ import {
   STORAGE_KEYS,
 } from '../lib/storage';
 import { soundManager, triggerHaptic } from '../lib/audio';
+import {
+  wakeLockManager,
+  mediaSessionManager,
+  backgroundTimer,
+  workoutNotifications,
+} from '../lib/backgroundWorkout';
 import { allTemplates, getExerciseById } from '../data/catalog';
 import { premadePrograms } from '../data/premadePrograms';
 import confetti from 'canvas-confetti';
@@ -159,7 +165,20 @@ export const WorkoutProvider: React.FC<{ children: React.ReactNode }> = ({ child
 
   const resumeWorkout = () => {
     setIsFocusMode(true);
+    workoutNotifications.requestPermission();
   };
+
+  // Gerenciador de tela acesa (Wake Lock) e background audio/mídia durante a sessão ativa
+  useEffect(() => {
+    if (activeSession) {
+      wakeLockManager.requestLock();
+    } else {
+      wakeLockManager.releaseLock();
+      mediaSessionManager.clearSession();
+      soundManager.cancelScheduledRest();
+      backgroundTimer.stop();
+    }
+  }, [Boolean(activeSession)]);
 
   // Timer de descanso
   const [isResting, setIsResting] = useState<boolean>(false);
@@ -358,34 +377,74 @@ export const WorkoutProvider: React.FC<{ children: React.ReactNode }> = ({ child
         setIsResting(false);
         restTargetTimestampRef.current = null;
         soundManager.playRestFinished();
+        backgroundTimer.stop();
         triggerHaptic([80, 50, 80], profile.hapticEnabled);
+
+        // Notificação de segundo plano se o praticante estiver com tela bloqueada
+        if (activeSession) {
+          const currentItem = activeSession.exercisesSnapshot[activeSession.currentExerciseIndex];
+          workoutNotifications.notifyRestFinished(
+            currentItem?.exerciseName || 'Próximo exercício',
+            activeSession.currentSetIndex
+          );
+        }
       }
     }, 250);
 
     return () => clearInterval(interval);
-  }, [isResting, profile.hapticEnabled]);
+  }, [isResting, profile.hapticEnabled, activeSession]);
 
-  // Funções de descanso
+  // Funções de descanso com suporte a áudio no clock nativo e Media Session na lockscreen
   const startRestTimer = (seconds: number) => {
     if (seconds <= 0) return;
     setRestDurationTotal(seconds);
     setRestSecondsRemaining(seconds);
     restTargetTimestampRef.current = Date.now() + seconds * 1000;
     setIsResting(true);
+
+    // 1. Agendamento com precisão de hardware de áudio (AudioContext clock)
+    soundManager.scheduleRestCountdown(seconds);
+
+    // 2. Timer de segundo plano imune ao throttling de abas mobile
+    backgroundTimer.start(() => {
+      const now = Date.now();
+      const target = restTargetTimestampRef.current || now;
+      const remaining = Math.max(0, Math.ceil((target - now) / 1000));
+      setRestSecondsRemaining(remaining);
+    });
+
+    // 3. Atualiza controles na tela de bloqueio do celular (Media Session API)
+    if (activeSession) {
+      const currentItem = activeSession.exercisesSnapshot[activeSession.currentExerciseIndex];
+      const nextName = currentItem?.exerciseName || 'Próxima Série';
+      mediaSessionManager.updateSession(
+        `Descanso (${seconds}s)`,
+        `A seguir: ${nextName}`,
+        activeSession.planTitle,
+        {
+          onSkipRest: skipRest,
+        }
+      );
+    }
   };
 
   const skipRest = () => {
     setIsResting(false);
     restTargetTimestampRef.current = null;
     setRestSecondsRemaining(0);
+    soundManager.cancelScheduledRest();
+    backgroundTimer.stop();
     triggerHaptic(40, profile.hapticEnabled);
   };
 
   const addRestSeconds = (extra: number) => {
     if (!restTargetTimestampRef.current) return;
     restTargetTimestampRef.current += extra * 1000;
-    setRestSecondsRemaining((prev) => prev + extra);
+    const now = Date.now();
+    const newRemaining = Math.max(0, Math.ceil((restTargetTimestampRef.current - now) / 1000));
+    setRestSecondsRemaining(newRemaining);
     setRestDurationTotal((prev) => prev + extra);
+    soundManager.scheduleRestCountdown(newRemaining);
   };
 
   // ──────────────────────────────────────────────

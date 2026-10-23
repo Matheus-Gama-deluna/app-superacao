@@ -25,6 +25,7 @@ import {
   Target,
 } from 'lucide-react';
 import { soundManager } from '../lib/audio';
+import { mediaSessionManager } from '../lib/backgroundWorkout';
 import { PostWorkoutMood, PreWorkoutMood } from '../types';
 import { generateDailyMicroChallenge, generateTomorrowBridge } from '../lib/storage';
 
@@ -127,6 +128,27 @@ export const ActiveWorkoutView: React.FC<ActiveWorkoutViewProps> = ({
     setConfirmRestSeconds(currentExerciseItem?.restSeconds || 60);
     setShowConfirmSheet(true);
   };
+
+  // Atualiza controles e informações na tela de bloqueio do celular (Media Session)
+  useEffect(() => {
+    if (!isResting && activeSession && currentExerciseItem) {
+      mediaSessionManager.updateSession(
+        currentExerciseItem.exerciseName,
+        `Série ${activeSession.currentSetIndex} de ${currentExerciseItem.targetSets}`,
+        activeSession.planTitle,
+        {
+          onNextSet: handleOpenConfirm,
+        }
+      );
+    }
+  }, [
+    isResting,
+    activeSession?.currentExerciseIndex,
+    activeSession?.currentSetIndex,
+    currentExerciseItem?.exerciseName,
+    currentExerciseItem?.targetSets,
+    activeSession?.planTitle,
+  ]);
 
   const handleSaveSet = async () => {
     setShowConfirmSheet(false);
