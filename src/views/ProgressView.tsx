@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { useWorkout } from '../context/WorkoutContext';
 import { useAuth } from '../context/AuthContext';
 import { calculateCanonicalMetrics, PRE_MOOD_LABELS, POST_MOOD_LABELS } from '../lib/storage';
+import { calculateMovementLaddersProgress } from '../lib/workoutEngine';
 import {
   Trophy,
   Sparkles,
@@ -27,7 +28,9 @@ export const ProgressView: React.FC = () => {
   const [expandedSessionId, setExpandedSessionId] = useState<string | null>(null);
 
   // Métricas canônicas unificadas (E03 / Seção 5 / T18)
-  const metrics = calculateCanonicalMetrics(sessions, calendar, personalRecords);
+  // Fase 4: Trilhas de Evolução Biomecânica (Escadas de 4 degraus)
+  const movementLadders = calculateMovementLaddersProgress(sessions, personalRecords);
+    const metrics = calculateCanonicalMetrics(sessions, calendar, personalRecords);
   const totalReps = setEvents.reduce((acc, curr) => acc + (curr.actualReps || 0), 0);
   const totalVolumeKg = metrics.totalVolumeKg;
   const recoveryDaysCompleted = calendar.filter((c) => c.activityType === 'active_recovery' && c.isCompleted).length;
@@ -283,6 +286,76 @@ export const ProgressView: React.FC = () => {
             })}
           </div>
         )}
+      </section>
+
+      {/* Trilhas de Evolução Biomecânica (Fase 4 - Escadas de 4 degraus) */}
+      <section className="space-y-3">
+        <div className="flex items-center justify-between">
+          <h3 className="text-sm font-bold text-[#152A29] flex items-center gap-1.5">
+            <span className="text-base">🪜</span>
+            Trilhas de Evolução Biomecânica
+          </h3>
+          <span className="text-[10px] text-[#125F55] font-bold bg-[#EAF3EF] px-2 py-0.5 rounded-full">
+            5 Padrões Fundamentais
+          </span>
+        </div>
+
+        <div className="space-y-3">
+          {movementLadders.map((ladder) => (
+            <div
+              key={ladder.ladderId}
+              className="bg-white p-4 rounded-2xl border border-[#C9DBD3] shadow-xs space-y-3"
+            >
+              <div className="flex items-center justify-between">
+                <div>
+                  <h4 className="text-xs font-black uppercase tracking-wider text-[#125F55]">
+                    {ladder.title}
+                  </h4>
+                  <p className="text-[11px] text-[#5B7170] mt-0.5">
+                    Degrau Atual: <strong className="text-[#152A29]">{ladder.currentStepName}</strong>
+                  </p>
+                </div>
+                <div className="text-right">
+                  <span className="text-[10px] font-bold text-[#125F55] bg-[#D9F277]/40 border border-[#125F55]/20 px-2 py-0.5 rounded-md">
+                    {ladder.bestMarkText}
+                  </span>
+                </div>
+              </div>
+
+              {/* Grid dos 4 degraus */}
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 pt-1">
+                {ladder.steps.map((st) => {
+                  const isCompleted = st.status === 'completed';
+                  const isCurrent = st.status === 'current';
+                  const isLocked = st.status === 'locked';
+
+                  return (
+                    <div
+                      key={st.stepIndex}
+                      className={`p-2.5 rounded-xl border text-left transition-all ${
+                        isCompleted
+                          ? 'bg-emerald-50/70 border-emerald-300 text-emerald-950'
+                          : isCurrent
+                          ? 'bg-[#125F55] border-[#125F55] text-white shadow-xs'
+                          : 'bg-slate-50 border-slate-200 text-slate-400'
+                      }`}
+                    >
+                      <div className="flex items-center justify-between text-[10px] font-bold">
+                        <span>Degrau {st.stepIndex}</span>
+                        <span>{isCompleted ? '✓ Feito' : isCurrent ? '🎯 Atual' : '🔒 Trava'}</span>
+                      </div>
+                      <p className={`text-xs font-bold mt-1 leading-snug truncate ${
+                        isCurrent ? 'text-white' : isCompleted ? 'text-emerald-900' : 'text-slate-600'
+                      }`}>
+                        {st.name}
+                      </p>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          ))}
+        </div>
       </section>
 
       {/* Histórico Recente de Treinos */}

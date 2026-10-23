@@ -383,3 +383,71 @@ export interface WorkoutProgram {
   isCustom?: boolean;
 }
 
+export type ProgressionItemUpgradeType = 'rep_increase' | 'time_increase' | 'ladder_step_up' | 'deload_suggested';
+
+export interface ProgressionItemUpgrade {
+  exerciseId: string;
+  exerciseName: string;
+  type: ProgressionItemUpgradeType;
+  currentValue: number;
+  suggestedValue: number;
+  unit: 'reps' | 'seconds' | 'degrau';
+  reason: string;
+  ladderInfo?: {
+    ladderId: string;
+    fromStepIndex: number;
+    toStepIndex: number;
+    toStepName: string;
+    replacementExerciseId: string;
+  };
+}
+
+export interface SessionProgressionAnalysis {
+  workoutPlanId: string;
+  workoutTitle: string;
+  sessionRpe: number; // 1-5
+  upgrades: ProgressionItemUpgrade[];
+  summaryMessage: string;
+}
+
+export interface GentleReturnInfo {
+  isEligible: boolean;
+  daysAbsent: number;
+  headline: string;
+  message: string;
+  suggestedSetsScale: number;
+  suggestedVolumeScale: number;
+}
+
+export interface LadderStepDefinition {
+  stepIndex: number;
+  name: string;
+  exerciseId: string;
+  exerciseName: string;
+  repsToLevelUp: number;
+  setsToLevelUp: number;
+  description: string;
+}
+
+export interface MovementLadderTrack {
+  ladderId: 'pushup' | 'squat' | 'plank' | 'glute_bridge' | 'row';
+  title: string;
+  pattern: FunctionalMovementPattern;
+  steps: LadderStepDefinition[];
+}
+
+export interface MovementLadderUserProgress {
+  ladderId: 'pushup' | 'squat' | 'plank' | 'glute_bridge' | 'row';
+  title: string;
+  currentStepIndex: number;
+  currentStepName: string;
+  bestMarkText: string;
+  isCompleted: boolean;
+  steps: {
+    stepIndex: number;
+    name: string;
+    exerciseId: string;
+    exerciseName: string;
+    status: 'completed' | 'current' | 'locked';
+  }[];
+}

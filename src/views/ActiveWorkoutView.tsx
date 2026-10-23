@@ -28,6 +28,8 @@ import { soundManager } from '../lib/audio';
 import { mediaSessionManager } from '../lib/backgroundWorkout';
 import { PostWorkoutMood, PreWorkoutMood } from '../types';
 import { generateDailyMicroChallenge, generateTomorrowBridge } from '../lib/storage';
+import { findSafeEquivalentExercises, analyzeSessionProgression } from '../lib/workoutEngine';
+import { ProgressionItemUpgrade, SessionProgressionAnalysis } from '../types';
 
 interface ActiveWorkoutViewProps {
   onPauseAndReturnHome?: () => void;
@@ -84,12 +86,19 @@ export const ActiveWorkoutView: React.FC<ActiveWorkoutViewProps> = ({
   const [copiedShare, setCopiedShare] = useState<boolean>(false);
   const [postMood, setPostMood] = useState<PostWorkoutMood | null>('orgulhoso');
   const [isMobilityScheduled, setIsMobilityScheduled] = useState<boolean>(false);
+  // Fase 4: Adaptação Viva
+  const [showSwapModal, setShowSwapModal] = useState<boolean>(false);
+  const [progressionAnalysis, setProgressionAnalysis] = useState<SessionProgressionAnalysis | null>(null);
+  const [selectedUpgrades, setSelectedUpgrades] = useState<Record<string, boolean>>({});
+  const [progressionApplied, setProgressionApplied] = useState<boolean>(false);
+
 
   // Tecla Escape para fechar qualquer modal aberto
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
-        if (showExerciseDetail) setShowExerciseDetail(false);
+        if (showSwapModal) setShowSwapModal(false);
+        else if (showExerciseDetail) setShowExerciseDetail(false);
         else if (showConfirmSheet) setShowConfirmSheet(false);
         else if (showAbandonConfirm) setShowAbandonConfirm(false);
       }
@@ -165,6 +174,21 @@ export const ActiveWorkoutView: React.FC<ActiveWorkoutViewProps> = ({
       activeSession.currentSetIndex >= currentExerciseItem.targetSets;
 
     if (isVeryLast) {
+      if (currentPlan) {
+        try {
+          const analysis = analyzeSessionProgression(
+            { ...activeSession, feedbackEffort: effortScore },
+            currentPlan,
+            personalRecords
+          );
+          setProgressionAnalysis(analysis);
+          const initialSelected: Record<string, boolean> = {};
+          analysis.upgrades.forEach(u => { initialSelected[u.exerciseId] = true; });
+          setSelectedUpgrades(initialSelected);
+        } catch (err) {
+          console.warn('Erro ao analisar progressao:', err);
+        }
+      }
       setShowFinishScreen(true);
     }
   };
@@ -586,7 +610,24 @@ export const ActiveWorkoutView: React.FC<ActiveWorkoutViewProps> = ({
                   {dailyChallenge.badgeText}
                 </span>
               </div>
-              <h4 className="text-xs font-bold text-[#152A29] mt-0.5">{dailyChallenge.title}</h4>
+              <div className="flex items-center justify-between">
+                <h4 className="text-xs font-bold text-[#152A29] mt-0.5">{dailyChallenge.title}</h4>
+                {dailyChallenge.targetMark && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (dailyChallenge.targetMark) {
+                        updateActiveExerciseTarget(activeSession.currentExerciseIndex, dailyChallenge.targetMark);
+                        if (isTimeTracking) setActualDurationInput(dailyChallenge.targetMark);
+                        else setActualRepsInput(dailyChallenge.targetMark);
+                      }
+                    }}
+                    className="px-2 py-0.5 rounded-lg bg-[#125F55] text-white text-[10px] font-bold hover:bg-[#0C5148] cursor-pointer"
+                  >
+                    Assumir Meta ({dailyChallenge.targetMark} {isTimeTracking ? 's' : 'reps'})
+                  </button>
+                )}
+              </div>
               <p className="text-[11px] text-[#203826] leading-relaxed">{dailyChallenge.description}</p>
             </div>
           )}
@@ -793,6 +834,79 @@ export const ActiveWorkoutView: React.FC<ActiveWorkoutViewProps> = ({
               >
                 Voltar ao Treino
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL DE TROCA INTELIGENTE DE EXERCÍCIO AO VIVO (Fase 4) */}
+      {showSwapModal && currentExerciseItem && (
+        <div
+          onClick={() => setShowSwapModal(false)}
+          className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/60 p-4 backdrop-blur-xs animate-in fade-in cursor-pointer"
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            className="w-full max-w-md bg-white rounded-3xl p-5 border border-[#C9DBD3] text-[#152A29] space-y-4 shadow-2xl cursor-default"
+          >
+            <div className="flex items-center justify-between border-b border-slate-200 pb-2">
+              <div>
+                <h3 className="text-sm font-bold text-slate-900">Substituir Exercício</h3>
+                <p className="text-[11px] text-slate-500">
+                  Substitutos seguros do mesmo padrão biomecânico
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowSwapModal(false)}
+                className="p-1 rounded-full text-slate-400 hover:bg-slate-100 cursor-pointer"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="space-y-2 max-h-72 overflow-y-auto">
+              {(() => {
+                const candidates = findSafeEquivalentExercises(
+                  currentExerciseItem.exerciseId,
+                  profile,
+                  []
+                );
+
+                if (candidates.length === 0) {
+                  return (
+                    <div className="p-4 bg-slate-50 rounded-xl text-center text-xs text-slate-600">
+                      Nenhum outro exercício compatível com seus equipamentos e articulações encontrado no momento.
+                    </div>
+                  );
+                }
+
+                return candidates.map((cand) => (
+                  <div
+                    key={cand.id}
+                    className="p-3 bg-slate-50 hover:bg-[#EAF3EF] rounded-2xl border border-slate-200 flex items-center justify-between gap-3 transition-colors"
+                  >
+                    <div className="min-w-0">
+                      <p className="text-xs font-bold text-slate-900 truncate">
+                        {cand.name_pt || cand.name_en}
+                      </p>
+                      <p className="text-[10px] text-slate-500 mt-0.5">
+                        {cand.target_muscle || 'Geral'} • {cand.equipment?.join(', ') || 'peso corporal'}
+                      </p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        swapExerciseInActiveSession(activeSession.currentExerciseIndex, cand);
+                        setShowSwapModal(false);
+                      }}
+                      className="px-3 py-1.5 bg-[#125F55] text-white rounded-xl text-xs font-bold hover:bg-[#0C5148] cursor-pointer shrink-0"
+                    >
+                      Escolher
+                    </button>
+                  </div>
+                ));
+              })()}
             </div>
           </div>
         </div>

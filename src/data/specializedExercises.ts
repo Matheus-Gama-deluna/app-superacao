@@ -1646,3 +1646,5 @@ export const specializedHomeExercises: Exercise[] = [
     ],
   },
 ];
+
+export const SPECIALIZED_EXERCISES = specializedHomeExercises;

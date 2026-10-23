@@ -25,6 +25,7 @@ import {
 import { WorkoutPlan } from '../types';
 import { premadeWorkouts } from '../data/premadeWorkouts';
 import { calculateCanonicalMetrics, generateWellbeingInsight, generateDailyMicroChallenge } from '../lib/storage';
+import { detectGentleReturn, createGentleReturnPlanSnapshot } from '../lib/workoutEngine';
 import { OnboardingModal } from './OnboardingModal';
 
 interface HomeViewProps {
@@ -91,7 +92,11 @@ export const HomeView: React.FC<HomeViewProps> = ({
   const recoveryPlan = plans.find((p) => p.category === 'mobilidade') || null;
 
   // Insights de Bem-Estar e Micro-Desafio do Dia (Estratégias C e D)
-  const wellbeingInsight = generateWellbeingInsight(sessions);
+  // Detecção de Retomada Gentil (Fase 4 - Ausência prolongada >= 7 dias)
+  const lastSessionDate = sessions.length > 0 ? sessions[0].date : null;
+  const gentleReturn = detectGentleReturn(lastSessionDate, todayStr);
+
+    const wellbeingInsight = generateWellbeingInsight(sessions);
   const dailyChallenge = todayPlan ? generateDailyMicroChallenge(todayPlan, personalRecords) : null;
 
   // Estatísticas de consistência derivadas dos eventos canônicos reais (A07, R04, Seção 5)
@@ -118,6 +123,46 @@ export const HomeView: React.FC<HomeViewProps> = ({
   return (
     <div className="space-y-6 pb-24">
       {/* Banner de Revisão Amigável para Usuários com Rotina Legada (A18) */}
+      {/* Card de Retomada Gentil (Fase 4 - Acolhimento pós-ausência) */}
+      {gentleReturn.isEligible && todayPlan && (
+        <section className="bg-amber-50 rounded-2xl p-4.5 border border-amber-300 shadow-sm space-y-3">
+          <div className="flex items-start gap-3">
+            <div className="w-9 h-9 rounded-xl bg-amber-200 text-amber-900 flex items-center justify-center shrink-0 font-black text-lg">
+              🌿
+            </div>
+            <div className="flex-1 min-w-0">
+              <div className="flex items-center gap-2">
+                <h3 className="text-sm font-bold text-amber-950">{gentleReturn.headline}</h3>
+                <span className="px-2 py-0.5 bg-amber-200/80 text-amber-900 text-[10px] font-bold rounded-full">
+                  Readaptação
+                </span>
+              </div>
+              <p className="text-xs text-amber-800/90 mt-1 leading-relaxed">
+                {gentleReturn.message}
+              </p>
+            </div>
+          </div>
+          <div className="flex items-center gap-2 pt-1">
+            <button
+              onClick={() => {
+                const adaptedPlan = createGentleReturnPlanSnapshot(todayPlan);
+                startWorkout(adaptedPlan, todaySchedule?.id, 'scheduled');
+              }}
+              className="flex-1 py-2.5 px-3 bg-amber-800 text-white rounded-xl text-xs font-bold shadow hover:bg-amber-900 flex items-center justify-center gap-1.5 cursor-pointer"
+            >
+              <Play className="w-3.5 h-3.5 fill-current" />
+              Iniciar Treino Gentil (2 séries)
+            </button>
+            <button
+              onClick={() => startWorkout(todayPlan, todaySchedule?.id, 'scheduled')}
+              className="py-2.5 px-3 bg-white text-amber-900 border border-amber-300 rounded-xl text-xs font-bold hover:bg-amber-100 cursor-pointer"
+            >
+              Fazer Normal
+            </button>
+          </div>
+        </section>
+      )}
+
       {profile.needsReviewPrompt && activeProgram && (
         <section className="bg-[#EAF3EF] rounded-2xl p-4 border border-[#125F55]/30 space-y-2">
           <div className="flex items-start gap-2.5">

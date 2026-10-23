@@ -52,6 +52,7 @@ import {
   workoutNotifications,
 } from '../lib/backgroundWorkout';
 import { allTemplates, getExerciseById } from '../data/catalog';
+import { applyUpgradesToWorkoutPlan } from '../lib/workoutEngine';
 import { premadePrograms } from '../data/premadePrograms';
 import confetti from 'canvas-confetti';
 
@@ -553,6 +554,54 @@ export const WorkoutProvider: React.FC<{ children: React.ReactNode }> = ({ child
     setActiveSession(session);
     setLocal('superacao_active_session', session);
     triggerHaptic(80, profile.hapticEnabled);
+  };
+
+  const swapExerciseInActiveSession = (targetIndex: number, newExercise: any) => {
+    if (!activeSession) return;
+    const currentList = [...activeSession.exercisesSnapshot];
+    if (targetIndex < 0 || targetIndex >= currentList.length) return;
+
+    const oldItem = currentList[targetIndex];
+    currentList[targetIndex] = {
+      ...oldItem,
+      exerciseId: newExercise.id,
+      exerciseName: newExercise.name_pt || newExercise.name_en || oldItem.exerciseName,
+    };
+
+    const updatedSession: WorkoutSession = {
+      ...activeSession,
+      exercisesSnapshot: currentList,
+    };
+    setActiveSession(updatedSession);
+    setLocal('superacao_active_session', updatedSession);
+    triggerHaptic(50, profile.hapticEnabled);
+  };
+
+  const updateActiveExerciseTarget = (targetIndex: number, newTargetReps: number) => {
+    if (!activeSession) return;
+    const currentList = [...activeSession.exercisesSnapshot];
+    if (targetIndex < 0 || targetIndex >= currentList.length) return;
+
+    currentList[targetIndex] = {
+      ...currentList[targetIndex],
+      targetReps: newTargetReps,
+    };
+
+    const updatedSession: WorkoutSession = {
+      ...activeSession,
+      exercisesSnapshot: currentList,
+    };
+    setActiveSession(updatedSession);
+    setLocal('superacao_active_session', updatedSession);
+  };
+
+  const applyPlanProgression = async (planId: string, approvedUpgrades: ProgressionItemUpgrade[]) => {
+    const existingPlan = plans.find(p => p.id === planId);
+    if (!existingPlan) return;
+
+    const updatedPlan = applyUpgradesToWorkoutPlan(existingPlan, approvedUpgrades);
+    await savePlan(updatedPlan, planId);
+    confetti({ particleCount: 35, spread: 60, origin: { y: 0.8 } });
   };
 
   const setSessionPreMood = (mood: PreWorkoutMood) => {

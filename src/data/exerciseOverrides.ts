@@ -35,6 +35,20 @@ export const EXERCISE_METADATA_OVERRIDES: Record<string, ExerciseMetadataOverrid
     movementComplexity: 1,
     ladder: { ladderId: 'pushup', stepIndex: 2, name: 'Flexão Inclinada na Cadeira/Banco' },
   },
+  incline_pushup: {
+    functionalPattern: 'push_horizontal',
+    jointStress: { knee: 0, lumbar: 0, shoulder: 1, wrist: 1 },
+    floorTransition: false,
+    movementComplexity: 1,
+    ladder: { ladderId: 'pushup', stepIndex: 2, name: 'Flexão Inclinada na Cadeira/Banco' },
+  },
+  kneeling_pushup: {
+    functionalPattern: 'push_horizontal',
+    jointStress: { knee: 0, lumbar: 0, shoulder: 1, wrist: 1 },
+    floorTransition: true,
+    movementComplexity: 1,
+    ladder: { ladderId: 'pushup', stepIndex: 3, name: 'Flexão com Joelhos Apoiados' },
+  },
   'push-up': {
     functionalPattern: 'push_horizontal',
     jointStress: { knee: 0, lumbar: 1, shoulder: 1, wrist: 2 },
@@ -72,15 +86,22 @@ export const EXERCISE_METADATA_OVERRIDES: Record<string, ExerciseMetadataOverrid
     movementComplexity: 1,
     ladder: { ladderId: 'squat', stepIndex: 2, name: 'Agachamento Livre' },
   },
-
-  // ─── AFUNDOS / LUNGES (UNILATERAL) ──────────────────────────
-  bodyweight_walking_lunge: {
-    functionalPattern: 'lunge',
-    jointStress: { knee: 2, lumbar: 1, shoulder: 0, wrist: 0 },
+  band_squat: {
+    functionalPattern: 'squat',
+    jointStress: { knee: 1, lumbar: 1, shoulder: 0, wrist: 0 },
+    floorTransition: false,
+    movementComplexity: 1,
+    ladder: { ladderId: 'squat', stepIndex: 3, name: 'Agachamento com Faixa Elástica' },
+  },
+  goblet_squat_dumbbell: {
+    functionalPattern: 'squat',
+    jointStress: { knee: 1, lumbar: 1, shoulder: 0, wrist: 1 },
     floorTransition: false,
     movementComplexity: 2,
-    ladder: { ladderId: 'lunge', stepIndex: 2, name: 'Avanço / Passada' },
+    ladder: { ladderId: 'squat', stepIndex: 4, name: 'Agachamento Goblet com Halter' },
   },
+
+  // ─── AFUNDOS / LUNGES (UNILATERAL) ──────────────────────────
   stationary_lunge: {
     functionalPattern: 'lunge',
     jointStress: { knee: 1, lumbar: 0, shoulder: 0, wrist: 0 },
@@ -88,21 +109,42 @@ export const EXERCISE_METADATA_OVERRIDES: Record<string, ExerciseMetadataOverrid
     movementComplexity: 2,
     ladder: { ladderId: 'lunge', stepIndex: 1, name: 'Afundo Estático' },
   },
+  bodyweight_walking_lunge: {
+    functionalPattern: 'lunge',
+    jointStress: { knee: 2, lumbar: 1, shoulder: 0, wrist: 0 },
+    floorTransition: false,
+    movementComplexity: 2,
+    ladder: { ladderId: 'lunge', stepIndex: 2, name: 'Avanço / Passada' },
+  },
 
-  // ─── ESCADA DE PUXAR (PULL) ─────────────────────────────────
+  // ─── ESCADA DE PUXAR (ROW / PULL) ───────────────────────────
+  standing_scapular_y_t_w: {
+    functionalPattern: 'pull_horizontal',
+    jointStress: { knee: 0, lumbar: 0, shoulder: 0, wrist: 0 },
+    floorTransition: false,
+    movementComplexity: 1,
+    ladder: { ladderId: 'row', stepIndex: 1, name: 'Y-T-W Escapular em Pé' },
+  },
   door_towel_row: {
     functionalPattern: 'pull_horizontal',
     jointStress: { knee: 0, lumbar: 0, shoulder: 1, wrist: 0 },
     floorTransition: false,
     movementComplexity: 1,
-    ladder: { ladderId: 'row', stepIndex: 1, name: 'Remada com Toalha na Porta' },
+    ladder: { ladderId: 'row', stepIndex: 2, name: 'Remada com Toalha na Porta' },
+  },
+  band_pull_apart: {
+    functionalPattern: 'pull_horizontal',
+    jointStress: { knee: 0, lumbar: 0, shoulder: 0, wrist: 0 },
+    floorTransition: false,
+    movementComplexity: 1,
+    ladder: { ladderId: 'row', stepIndex: 3, name: 'Crucifixo Invertido com Elástico' },
   },
   table_inverted_row: {
     functionalPattern: 'pull_horizontal',
     jointStress: { knee: 0, lumbar: 0, shoulder: 1, wrist: 1 },
     floorTransition: true,
     movementComplexity: 2,
-    ladder: { ladderId: 'row', stepIndex: 2, name: 'Remada Invertida' },
+    ladder: { ladderId: 'row', stepIndex: 4, name: 'Remada Invertida na Mesa' },
   },
   floor_towel_lat_pulldown: {
     functionalPattern: 'pull_vertical',
@@ -116,14 +158,8 @@ export const EXERCISE_METADATA_OVERRIDES: Record<string, ExerciseMetadataOverrid
     floorTransition: true,
     movementComplexity: 1,
   },
-  standing_scapular_y_t_w: {
-    functionalPattern: 'pull_horizontal',
-    jointStress: { knee: 0, lumbar: 0, shoulder: 1, wrist: 0 },
-    floorTransition: false,
-    movementComplexity: 1,
-  },
 
-  // ─── ESCADA DE DOBRADIÇA / CADEIA POSTERIOR (HINGE) ─────────
+  // ─── ESCADA DE DOBRADIÇA / CADEIA POSTERIOR (GLUTE_BRIDGE / HINGE) ───
   glute_bridge: {
     functionalPattern: 'hinge',
     jointStress: { knee: 0, lumbar: 0, shoulder: 0, wrist: 0 },
@@ -138,6 +174,13 @@ export const EXERCISE_METADATA_OVERRIDES: Record<string, ExerciseMetadataOverrid
     movementComplexity: 1,
     ladder: { ladderId: 'glute_bridge', stepIndex: 1, name: 'Extensão Posterior Solo' },
   },
+  band_glute_bridge: {
+    functionalPattern: 'hinge',
+    jointStress: { knee: 0, lumbar: 0, shoulder: 0, wrist: 0 },
+    floorTransition: true,
+    movementComplexity: 1,
+    ladder: { ladderId: 'glute_bridge', stepIndex: 2, name: 'Ponte de Glúteo com Elástico' },
+  },
   hamstring_bridge_walkout: {
     functionalPattern: 'hinge',
     jointStress: { knee: 0, lumbar: 0, shoulder: 0, wrist: 0 },
@@ -151,6 +194,13 @@ export const EXERCISE_METADATA_OVERRIDES: Record<string, ExerciseMetadataOverrid
     floorTransition: true,
     movementComplexity: 2,
     ladder: { ladderId: 'glute_bridge', stepIndex: 3, name: 'Ponte Unilateral' },
+  },
+  glute_bridge_dumbbell: {
+    functionalPattern: 'hinge',
+    jointStress: { knee: 0, lumbar: 1, shoulder: 0, wrist: 0 },
+    floorTransition: true,
+    movementComplexity: 2,
+    ladder: { ladderId: 'glute_bridge', stepIndex: 4, name: 'Elevação Pélvica com Halter' },
   },
 
   // ─── CORE & ESTABILIDADE (PLANK / MC GILL) ───────────────────
@@ -168,11 +218,19 @@ export const EXERCISE_METADATA_OVERRIDES: Record<string, ExerciseMetadataOverrid
     movementComplexity: 1,
     ladder: { ladderId: 'plank', stepIndex: 2, name: 'Prancha Frontal' },
   },
+  plank_shoulder_tap: {
+    functionalPattern: 'core_anti_rotation',
+    jointStress: { knee: 0, lumbar: 1, shoulder: 1, wrist: 1 },
+    floorTransition: true,
+    movementComplexity: 2,
+    ladder: { ladderId: 'plank', stepIndex: 3, name: 'Prancha com Toque no Ombro' },
+  },
   side_plank: {
     functionalPattern: 'core_anti_rotation',
     jointStress: { knee: 0, lumbar: 0, shoulder: 1, wrist: 0 },
     floorTransition: true,
     movementComplexity: 2,
+    ladder: { ladderId: 'plank', stepIndex: 4, name: 'Prancha Lateral' },
   },
   dead_bug: {
     functionalPattern: 'core_anti_extension',
