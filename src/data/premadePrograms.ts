@@ -226,4 +226,191 @@ export const premadePrograms: WorkoutProgram[] = [
     createdAt: 1700000000000,
     updatedAt: 1700000000000,
   },
+  // 6. Anti-Sedentarismo: Cadeira & Parede (Iniciante Absoluto)
+  {
+    id: 'prog_anti_sedentarismo_cadeira',
+    title: 'Anti-Sedentarismo • Cadeira & Parede (4 Semanas)',
+    description: 'Movimentos seguros em pé ou com cadeira firme. Zero deitar no chão, zero impacto nos joelhos. Perfeito para recomeçar com tranquilidade.',
+    objective: 'habito',
+    environment: 'casa',
+    durationWeeks: 4,
+    currentWeek: 1,
+    splitType: 'full_body',
+    weeklyFrequency: 3,
+    habitAnchor: 'Logo antes do almoço ou no final do expediente',
+    phases: [
+      {
+        name: 'Fase 1: Reconexão e Segurança',
+        weeks: [1, 2],
+        description: 'Construção da confiança em movimentos cotidianos (sentar, levantar e respirar com calma).',
+      },
+      {
+        name: 'Fase 2: Ritmo Diário Sustentável',
+        weeks: [3, 4],
+        description: 'Sensação revigorante de dever cumprido em 12 minutos por dia.',
+      },
+    ],
+    routines: [
+      getPlan('plan_anti_sedentarismo_cadeira_a'),
+      getPlan('plan_anti_sedentarismo_cadeira_b'),
+    ],
+    weeklySchedule: {
+      1: 'plan_anti_sedentarismo_cadeira_a', // Segunda
+      3: 'plan_anti_sedentarismo_cadeira_b', // Quarta
+      5: 'plan_anti_sedentarismo_cadeira_a', // Sexta
+    },
+    emergencyPlanId: 'plan_emergencia_salvar_habito_5m',
+    createdAt: 1700000000000,
+    updatedAt: 1700000000000,
+  },
+
+  // 7. Coluna Blindada McGill (Alívio & Estabilidade)
+  {
+    id: 'prog_coluna_blindada_mcgill',
+    title: 'Coluna Blindada McGill • Saúde Vertebral (6 Semanas)',
+    description: 'Protocolo de estabilização do tronco baseado nas diretrizes do Prof. Stuart McGill para alívio duradouro de dores e rigidez lombar.',
+    objective: 'postura',
+    environment: 'casa',
+    durationWeeks: 6,
+    currentWeek: 1,
+    splitType: 'full_body',
+    weeklyFrequency: 3,
+    habitAnchor: 'Ao término do dia para descomprimir a coluna',
+    phases: [
+      {
+        name: 'Fase 1: Ativação dos Estabilizadores Profundos',
+        weeks: [1, 2, 3],
+        description: 'Mobilidade suave e controle do core neutro com o Big 3.',
+      },
+      {
+        name: 'Fase 2: Resistência Postural e Proteção Contínua',
+        weeks: [4, 5, 6],
+        description: 'Aumento gradual do tempo de sustentação isométrica sem dor.',
+      },
+    ],
+    routines: [
+      getPlan('plan_coluna_mcgill_a'),
+      getPlan('plan_coluna_mcgill_b'),
+    ],
+    weeklySchedule: {
+      1: 'plan_coluna_mcgill_a', // Segunda
+      3: 'plan_coluna_mcgill_b', // Quarta
+      5: 'plan_coluna_mcgill_a', // Sexta
+    },
+    emergencyPlanId: 'plan_emergencia_salvar_habito_5m',
+    createdAt: 1700000000000,
+    updatedAt: 1700000000000,
+  },
+
+  // 8. Calistenia de Base Progressiva (Força Funcional em Casa)
+  {
+    id: 'prog_calistenia_base',
+    title: 'Calistenia de Base Progressiva (8 Semanas)',
+    description: 'Ganhe força, definição e controle muscular com agachamentos, flexões e remadas usando apenas o peso do corpo e móveis seguros.',
+    objective: 'forca',
+    environment: 'casa',
+    durationWeeks: 8,
+    currentWeek: 1,
+    splitType: 'full_body',
+    weeklyFrequency: 3,
+    habitAnchor: 'Pela manhã para acordar o corpo com energia',
+    phases: [
+      {
+        name: 'Fase 1: Alavancas Inclinadas & Padrões',
+        weeks: [1, 2, 3, 4],
+        description: 'Ajuste biomecânico dos movimentos essenciais.',
+      },
+      {
+        name: 'Fase 2: Sobrecarga em Volume e Densidade',
+        weeks: [5, 6, 7, 8],
+        description: 'Transição segura para maiores repetições e controle de descida.',
+      },
+    ],
+    routines: [
+      getPlan('plan_calistenia_base_a'),
+      getPlan('plan_calistenia_base_b'),
+    ],
+    weeklySchedule: {
+      1: 'plan_calistenia_base_a', // Segunda
+      3: 'plan_calistenia_base_b', // Quarta
+      5: 'plan_calistenia_base_a', // Sexta
+    },
+    emergencyPlanId: 'plan_emergencia_salvar_habito_5m',
+    createdAt: 1700000000000,
+    updatedAt: 1700000000000,
+  },
+
+  // 9. Joelhos Protegidos & Pernas Fortes
+  {
+    id: 'prog_joelhos_protegidos',
+    title: 'Joelhos Protegidos & Pernas Fortes (6 Semanas)',
+    description: 'Protocolo focado em fortalecer vasto medial, isquiotibiais e glúteo médio sem impacto patelar e sem flexão profunda dos joelhos.',
+    objective: 'alivio_dores',
+    environment: 'casa',
+    durationWeeks: 6,
+    currentWeek: 1,
+    splitType: 'full_body',
+    weeklyFrequency: 3,
+    phases: [
+      {
+        name: 'Fase 1: Fortalecimento Isométrico e Cadeia Posterior',
+        weeks: [1, 2, 3],
+        description: 'Ativação glútea potente e descompressão articular.',
+      },
+      {
+        name: 'Fase 2: Estabilidade e Equilíbrio Dinâmico',
+        weeks: [4, 5, 6],
+        description: 'Reforço de alinhamento patelar em movimentos funcionais.',
+      },
+    ],
+    routines: [
+      getPlan('plan_joelhos_protegidos_a'),
+      getPlan('plan_joelhos_protegidos_b'),
+    ],
+    weeklySchedule: {
+      1: 'plan_joelhos_protegidos_a', // Segunda
+      3: 'plan_joelhos_protegidos_b', // Quarta
+      5: 'plan_joelhos_protegidos_a', // Sexta
+    },
+    emergencyPlanId: 'plan_emergencia_salvar_habito_5m',
+    createdAt: 1700000000000,
+    updatedAt: 1700000000000,
+  },
+
+  // 10. Mini Band Total em Casa
+  {
+    id: 'prog_mini_band_total',
+    title: 'Mini Band Total em Casa (6 Semanas)',
+    description: 'Aproveite a resistência progressiva da mini band para tonificar glúteos, costas e ombros com total segurança e comodidade.',
+    objective: 'vitalidade',
+    environment: 'casa',
+    durationWeeks: 6,
+    currentWeek: 1,
+    splitType: 'full_body',
+    weeklyFrequency: 3,
+    phases: [
+      {
+        name: 'Fase 1: Ativação e Tensão Constante',
+        weeks: [1, 2, 3],
+        description: 'Familiarização com a resistência elástica e controle motor.',
+      },
+      {
+        name: 'Fase 2: Resistência e Firmeza Muscular',
+        weeks: [4, 5, 6],
+        description: 'Aumento das repetições e contrações de pico nos glúteos e costas.',
+      },
+    ],
+    routines: [
+      getPlan('plan_mini_band_total_a'),
+      getPlan('plan_mini_band_total_b'),
+    ],
+    weeklySchedule: {
+      1: 'plan_mini_band_total_a', // Segunda
+      3: 'plan_mini_band_total_b', // Quarta
+      5: 'plan_mini_band_total_a', // Sexta
+    },
+    emergencyPlanId: 'plan_emergencia_salvar_habito_5m',
+    createdAt: 1700000000000,
+    updatedAt: 1700000000000,
+  },
 ];

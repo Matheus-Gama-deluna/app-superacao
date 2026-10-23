@@ -3,6 +3,12 @@ import { Exercise, WorkoutPlan, ExercisePlanItem } from '../types';
 import { allExercises } from '../data/catalog';
 import { useAuth } from '../context/AuthContext';
 import { isExerciseCompatibleWithUser } from '../lib/storage';
+import {
+  generateSmartWorkoutRoutine,
+  enrichExercise,
+  isExerciseSafeForUser,
+  prescribeExerciseItem,
+} from '../lib/workoutEngine';
 import { ExerciseIllustration } from './ExerciseIllustration';
 import {
   Sparkles,
@@ -143,112 +149,36 @@ export const SmartWorkoutGeneratorModal: React.FC<SmartWorkoutGeneratorModalProp
   };
 
   const handleGenerate = () => {
-    // 1. Filtra candidatos garantindo que TODOS os equipamentos obrigatórios e apoios estejam presentes (C01, C02)
-    const available = allExercises.filter((ex) => {
-      const hasAllRequired = ex.equipment.every(
-        (eq) => eq === 'nenhum' || eq === 'colchonete' || selectedEquipments.includes(eq)
-      );
-      if (!hasAllRequired) return false;
-      if (ex.requires_supports && Array.isArray(ex.requires_supports)) {
-        const hasSupports = ex.requires_supports.every((sup: string) => selectedEquipments.includes(sup));
-        if (!hasSupports) return false;
+    const targetMinutes = durationPreset === 'express' ? 15 : durationPreset === 'padrao' ? 25 : 40;
+    
+    // Geração canônica com workoutEngine v2
+    const proposal = generateSmartWorkoutRoutine(
+      {
+        ...profile,
+        experienceLevel: level,
+        equipments: selectedEquipments,
+        sessionDurationMinutes: targetMinutes,
+        primaryGoal: goal,
+      },
+      {
+        orderedGoals: [goal],
+        equipments: selectedEquipments,
+        sessionDurationMinutes: targetMinutes,
+        experienceLevel: level,
+        avoidedMovements: profile?.avoidedMovements || [],
+        reportedLimitations: profile?.reportedLimitations || [],
+      },
+      {
+        seed: Date.now(),
       }
-      return true;
-    });
+    );
 
-    if (available.length === 0) {
+    if (!proposal.hasCompatibleExercises || proposal.routines.length === 0) {
       alert('Nenhum exercício encontrado com os filtros selecionados. Marque mais opções de equipamentos.');
       return;
     }
 
-    const currentDur = durationOptions.find((d) => d.id === durationPreset) || durationOptions[1];
-    const targetCount = currentDur.count;
-    const defaultSets = currentDur.sets;
-
-    // 2. Filtra por objetivo prioritário com salvaguarda estrita para iniciantes em hábitos (C01)
-    let candidates = available;
-    if (goal === 'habito') {
-      candidates = available.filter((e) => {
-        const isAdvanced = e.difficulty_candidate === 'avancado';
-        const textName = (e.name_pt || '').toLowerCase();
-        const isHighImpact =
-          e.movement_pattern === 'pliometria' ||
-          textName.includes('salto') ||
-          textName.includes('jump') ||
-          textName.includes('polichinelo') ||
-          textName.includes('burpee') ||
-          textName.includes('pliométr');
-
-        if (level === 'iniciante' && (isAdvanced || isHighImpact)) {
-          return false;
-        }
-
-        return (
-          e.difficulty_candidate === 'iniciante' ||
-          e.modality === 'mobilidade' ||
-          e.modality === 'alongamento' ||
-          (e.equipment.includes('peso_corporal') && !isAdvanced && !isHighImpact)
-        );
-      });
-    } else if (goal === 'postura') {
-      candidates = available.filter((e) => {
-        const t = (e.target_muscle || '').toLowerCase();
-        const p = (e.primary_muscles || []).join(' ').toLowerCase();
-        return (
-          t.includes('coluna') ||
-          t.includes('lombar') ||
-          t.includes('abdômen') ||
-          t.includes('glúteo') ||
-          p.includes('lombar') ||
-          p.includes('core') ||
-          p.includes('glúteos') ||
-          e.movement_pattern.includes('mobilidade') ||
-          e.modality === 'alongamento'
-        );
-      });
-    } else if (goal === 'vitalidade') {
-      candidates = available.filter((e) => {
-        return e.movement_pattern !== 'isolamento' && (e.modality === 'forca' || e.modality === 'cardio');
-      });
-    } else if (goal === 'hipertrofia') {
-      candidates = available.filter((e) => {
-        return e.modality === 'forca';
-      });
-    }
-
-    if (candidates.length < targetCount) {
-      candidates = [...candidates, ...available];
-    }
-
-    // Embaralha determinístico
-    const shuffled = [...candidates].sort(() => 0.5 - Math.random());
-    const selectedList: Exercise[] = [];
-    const usedIds = new Set<string>();
-
-    for (const item of shuffled) {
-      if (!usedIds.has(item.id)) {
-        usedIds.add(item.id);
-        selectedList.push(item);
-      }
-      if (selectedList.length >= targetCount) break;
-    }
-
-    // Configura descanso baseado no nível
-    const rest = level === 'iniciante' ? 60 : level === 'intermediario' ? 50 : 40;
-    const reps = level === 'iniciante' ? 10 : level === 'intermediario' ? 12 : 15;
-
-    const planItems: ExercisePlanItem[] = selectedList.map((ex) => {
-      const isTime = ex.tracking === 'time';
-      return {
-        exerciseId: ex.id,
-        exerciseName: ex.name_pt,
-        targetSets: defaultSets,
-        targetReps: isTime ? 0 : reps,
-        targetDurationSeconds: isTime ? 30 : undefined,
-        restSeconds: rest,
-      };
-    });
-
+    const plan = proposal.routines[0];
     const goalNameMap: Record<string, string> = {
       habito: 'Hábito Ativo & Saúde',
       postura: 'Coluna Saudável & Postura',
@@ -256,58 +186,60 @@ export const SmartWorkoutGeneratorModal: React.FC<SmartWorkoutGeneratorModalProp
       hipertrofia: 'Hipertrofia & Força',
     };
 
-    const newPlan: WorkoutPlan = {
-      id: `smart_gen_${Date.now()}`,
-      ownerUid: '',
-      title: `${goalNameMap[goal]} • ${durationPreset === 'express' ? '15m' : durationPreset === 'padrao' ? '30m' : '45m'}`,
-      description: `Treino inteligente adaptado para seus equipamentos (${selectedEquipments
-        .map((eq) => equipmentOptions.find((o) => o.id === eq)?.label || eq)
-        .join(', ')}).`,
-      version: 1,
+    setGeneratedPlan({
+      ...plan,
+      title: `${goalNameMap[goal] || plan.title} • ${durationPreset === 'express' ? '15m' : durationPreset === 'padrao' ? '30m' : '45m'}`,
       isProfessional: true,
-      authorName: 'Superação (Gerador Inteligente)',
-      isTemplate: false,
-      category: selectedEquipments.includes('peso_corporal') && selectedEquipments.length === 1 ? 'casa' : 'academia',
-      estimatedDurationMinutes: durationPreset === 'express' ? 15 : durationPreset === 'padrao' ? 30 : 45,
-      exercises: planItems,
-      createdAt: Date.now(),
-      updatedAt: Date.now(),
-    };
-
-    setGeneratedPlan(newPlan);
+      authorName: 'Superação (Motor v2)',
+    });
     setSaveSuccess(false);
   };
 
-  // Troca pontual de exercício por outro equivalente compatível
+  // Troca pontual de exercício por outro equivalente seguro do mesmo padrão funcional
   const handleSwapExercise = (indexToSwap: number) => {
     if (!generatedPlan) return;
     const currentItem = generatedPlan.exercises[indexToSwap];
-    const currentEx = allExercises.find((e) => e.id === currentItem.exerciseId);
+    const currentRaw = allExercises.find((e) => e.id === currentItem.exerciseId);
+    const currentEnriched = currentRaw ? enrichExercise(currentRaw) : null;
 
-    // Encontra substitutos compatíveis com os equipamentos
     const currentUsedIds = new Set(generatedPlan.exercises.map((e) => e.exerciseId));
-    const substitutes = allExercises.filter((e) => {
-      if (currentUsedIds.has(e.id)) return false;
-      const matchesEquip = e.equipment.some((eq) => selectedEquipments.includes(eq));
-      if (!matchesEquip) return false;
-      if (currentEx?.target_muscle && e.target_muscle === currentEx.target_muscle) return true;
-      if (currentEx?.movement_pattern && e.movement_pattern === currentEx.movement_pattern) return true;
-      return true;
-    });
+    const safeCandidates = allExercises
+      .map(enrichExercise)
+      .filter((e) => {
+        if (currentUsedIds.has(e.id)) return false;
+        const check = isExerciseSafeForUser(
+          e,
+          selectedEquipments,
+          profile?.avoidedMovements || [],
+          profile?.reportedLimitations || []
+        );
+        if (!check.safe) return false;
+        if (level === 'iniciante' && (e.difficulty_candidate === 'avancado' || e.movementComplexity === 3)) return false;
+        return true;
+      });
 
-    if (substitutes.length === 0) return;
-    const randomPick = substitutes[Math.floor(Math.random() * substitutes.length)];
+    // Filtra pelo mesmo padrão funcional primário se possível
+    let matching = safeCandidates.filter(
+      (e) => currentEnriched && e.functionalPattern === currentEnriched.functionalPattern
+    );
+    if (matching.length === 0) {
+      matching = safeCandidates;
+    }
+    if (matching.length === 0) return;
+
+    // Pega o próximo candidato determinístico
+    const pick = matching[0];
+    const updatedPlanItem = prescribeExerciseItem(
+      pick,
+      {
+        sessionDurationMinutes: durationPreset === 'express' ? 15 : durationPreset === 'padrao' ? 25 : 40,
+        experienceLevel: level,
+        goalKey: goal,
+      }
+    );
 
     const updatedExercises = [...generatedPlan.exercises];
-    const isTime = randomPick.tracking === 'time';
-    updatedExercises[indexToSwap] = {
-      exerciseId: randomPick.id,
-      exerciseName: randomPick.name_pt,
-      targetSets: currentItem.targetSets,
-      targetReps: isTime ? 0 : currentItem.targetReps || 10,
-      targetDurationSeconds: isTime ? 30 : undefined,
-      restSeconds: currentItem.restSeconds,
-    };
+    updatedExercises[indexToSwap] = updatedPlanItem;
 
     setGeneratedPlan({
       ...generatedPlan,

@@ -1,3 +1,5 @@
+import { getLocalDateStr } from './dateUtils';
+import { generateSmartWorkoutRoutine, isExerciseSafeForUser } from './workoutEngine';
 import {
   WorkoutPlan,
   WorkoutSession,
@@ -244,206 +246,17 @@ export const AVOIDANCE_LABELS: Record<string, string> = {
 export function isExerciseCompatibleWithUser(
   ex: any,
   userEquipments: string[],
-  userAvoided: string[] = []
+  userAvoided: string[] = [],
+  reportedLimitations: string[] = []
 ): boolean {
-  // 1. Requisitos de apoios obrigatórios (Critérios 13, 14, 15)
-  // Se o exercício requer barra_fixa, banco, cadeira, parede ou paralelas, o usuário DEVE ter esse recurso
-  if (ex.requires_supports && Array.isArray(ex.requires_supports) && ex.requires_supports.length > 0) {
-    for (const sup of ex.requires_supports) {
-      if (!userEquipments.includes(sup)) {
-        return false;
-      }
-    }
-  }
-
-  // 2. Compatibilidade estrita de equipamentos (Critérios 12, 16)
-  // Mini band circular, faixa longa e tubos elásticos NÃO são intercambiáveis.
-  // Todos os equipamentos obrigatórios devem estar presentes no inventário do usuário.
-  const requiresOtherEquip = ex.equipment.some(
-    (eq: string) =>
-      eq !== 'nenhum' &&
-      eq !== 'colchonete' &&
-      !userEquipments.includes(eq)
-  );
-  if (requiresOtherEquip) return false;
-
-  // 3. Restrições e movimentos evitados (Critério 17)
-  const textCorpus = `${ex.name_pt || ''} ${ex.instructions_pt || ''} ${ex.caution_pt || ''}`.toLowerCase();
-  if (userAvoided.includes('impacto_saltos')) {
-    if (
-      textCorpus.includes('salto') ||
-      textCorpus.includes('jump') ||
-      textCorpus.includes('polichinelo') ||
-      textCorpus.includes('burpee')
-    ) {
-      return false;
-    }
-  }
-  if (userAvoided.includes('flexao_chao')) {
-    if (
-      (ex.name_pt || '').toLowerCase().includes('flexão de braço') &&
-      !(ex.name_pt || '').toLowerCase().includes('parede') &&
-      !(ex.name_pt || '').toLowerCase().includes('inclinada')
-    ) {
-      return false;
-    }
-  }
-  if (userAvoided.includes('agachamento_profundo')) {
-    if (textCorpus.includes('agachamento profundo') || textCorpus.includes('pistol squat')) {
-      return false;
-    }
-  }
-  if (userAvoided.includes('sobrecarga_lombar')) {
-    if (
-      textCorpus.includes('levantamento terra pesado') ||
-      textCorpus.includes('stiff com barra pesada') ||
-      textCorpus.includes('deadlift')
-    ) {
-      return false;
-    }
-  }
-
-  return true;
+  return isExerciseSafeForUser(ex, userEquipments, userAvoided, reportedLimitations).safe;
 }
 
 export function generateExplainableProposal(
   profile: Partial<UserProfile>,
   draft?: Partial<OnboardingDraft>
 ): ExplainableProposal {
-  const targetDays = draft?.availableDays || profile.availableDays || [1, 3, 5];
-  const targetDuration = draft?.sessionDurationMinutes || profile.sessionDurationMinutes || 20;
-  const userEquipments = draft?.equipments || profile.equipments || ['peso_corporal'];
-  const userAvoided = draft?.avoidedMovements || profile.avoidedMovements || [];
-  const primaryGoal = draft?.orderedGoals?.[0] || profile.primaryGoal || 'Construir o hábito e me sentir melhor';
-  const environment = draft?.environmentPreference === 'academia' ? 'na academia' : 'em casa';
-
-  // Filtra candidatos usando a regra canônica única de compatibilidade (Critérios 12 a 18)
-  const eligibleExercises = allExercises.filter((ex) => {
-    return isExerciseCompatibleWithUser(ex, userEquipments, userAvoided);
-  });
-
-  // Se nenhuma alternativa for compatível, explica a indisponibilidade honestamente (Critério 18)
-  if (eligibleExercises.length === 0) {
-    const daysText = targetDays.length === 1 ? '1 dia' : `${targetDays.length} dias`;
-    const equipText = userEquipments.map((e) => EQUIPMENT_LABELS[e] || e).join(', ');
-    const noOptionText = `Não encontramos movimentos certificados no catálogo para a combinação informada (${equipText}) com suas restrições. Você pode ajustar seus apoios ou cadastrar sua rotina manualmente.`;
-    return {
-      id: `proposal_${Date.now()}`,
-      title: `Ajuste Necessário: ${primaryGoal}`,
-      description: noOptionText,
-      targetDaysCount: targetDays.length,
-      sessionDurationMinutes: targetDuration,
-      environment,
-      equipmentsUsed: userEquipments,
-      avoidedMovements: userAvoided,
-      justificationText: noOptionText,
-      timeBreakdownText: 'Nenhuma ficha automática gerada para critérios sem cobertura.',
-      routines: [],
-      weeklySchedule: {},
-      generatedAt: Date.now(),
-      isConfirmed: false,
-      hasCompatibleExercises: false,
-      reasonIfUnavailable: noOptionText,
-    };
-  }
-
-  // Determina número de exercícios e séries pelo tempo
-  let numExercises = 4;
-  let defaultSets = 2;
-  let restSecs = 45;
-  if (targetDuration <= 15) {
-    numExercises = 3;
-    defaultSets = 2;
-    restSecs = 40;
-  } else if (targetDuration <= 20) {
-    numExercises = 4;
-    defaultSets = 2;
-    restSecs = 45;
-  } else if (targetDuration <= 30) {
-    numExercises = 5;
-    defaultSets = 3;
-    restSecs = 50;
-  } else {
-    numExercises = 6;
-    defaultSets = 3;
-    restSecs = 60;
-  }
-
-  // Seleciona movimentos equilibrados (pernas, empurrar, puxar, core/mobilidade)
-  const safeSelection = eligibleExercises.slice(0, Math.max(numExercises, 3));
-
-  // Constrói itens da ficha
-  const exerciseItems: ExercisePlanItem[] = safeSelection.map((ex) => ({
-    exerciseId: ex.id,
-    exerciseName: ex.name_pt,
-    targetSets: defaultSets,
-    targetReps: ex.tracking === 'reps' ? (ex.difficulty_candidate === 'iniciante' ? 10 : 12) : 0,
-    targetDurationSeconds: ex.tracking === 'time' ? 30 : undefined,
-    restSeconds: restSecs,
-    notes: ex.caution_pt || undefined,
-  }));
-
-  // Estimativa de duração realista com séries, descansos somados e transições
-  const totalSecondsPerExercise = exerciseItems.reduce((acc, item) => {
-    const execTime = item.targetDurationSeconds || item.targetReps * 3.5 || 35;
-    return acc + item.targetSets * (execTime + item.restSeconds);
-  }, 0);
-  const transitionTime = Math.max(0, (exerciseItems.length - 1) * 15);
-  const calculatedTotalMinutes = Math.max(8, Math.round((totalSecondsPerExercise + transitionTime) / 60));
-
-  const planAId = `proposal_plan_a_${Date.now()}`;
-  const planA: WorkoutPlan = {
-    id: planAId,
-    ownerUid: profile.uid || 'guest_user',
-    title: `Treino Essencial (${calculatedTotalMinutes} min)`,
-    description: `Ficha calibrada para seu ritmo em ${environment}, usando apenas os apoios e equipamentos que você confirmou.`,
-    version: 1,
-    isProfessional: false,
-    isTemplate: false,
-    sourceKind: 'modelo_revisado',
-    reviewStatus: 'revisado',
-    exercises: exerciseItems,
-    estimatedDurationMinutes: calculatedTotalMinutes,
-    category: userEquipments.includes('mini_band') ? 'mini_band' : 'casa',
-    createdAt: Date.now(),
-    updatedAt: Date.now(),
-  };
-
-  // Mapeia agenda semanal estritamente para os dias selecionados
-  const weeklySchedule: { [dayOfWeek: number]: string } = {};
-  targetDays.forEach((dayIdx) => {
-    weeklySchedule[dayIdx] = planAId;
-  });
-
-  // Justificativa e discriminação de tempo verificáveis
-  const daysText = targetDays.length === 1 ? '1 dia' : `${targetDays.length} dias`;
-  const equipText = userEquipments
-    .map((e) => EQUIPMENT_LABELS[e] || e)
-    .join(', ');
-  const avoidanceText = userAvoided.length > 0
-    ? ` e evitando ${userAvoided.map((a) => AVOIDANCE_LABELS[a] || a).join(', ')}`
-    : '';
-
-  const justificationText = `Você informou ${daysText} por semana com ${targetDuration} minutos ${environment}, com foco em "${primaryGoal}", utilizando apenas ${equipText}${avoidanceText}. Esta proposta ocupa rigorosamente os seus dias disponíveis com movimentos 100% compatíveis.`;
-
-  const timeBreakdownText = `${exerciseItems.length} exercícios × ${defaultSets} séries (~${Math.round(totalSecondsPerExercise / 60)} min de execução e descansos) + 15s de transição = ~${calculatedTotalMinutes} min por sessão.`;
-
-  return {
-    id: `proposal_${Date.now()}`,
-    title: `Rotina Personalizada: ${primaryGoal}`,
-    description: justificationText,
-    targetDaysCount: targetDays.length,
-    sessionDurationMinutes: calculatedTotalMinutes,
-    environment,
-    equipmentsUsed: userEquipments,
-    avoidedMovements: userAvoided,
-    justificationText,
-    timeBreakdownText,
-    routines: [planA],
-    weeklySchedule,
-    generatedAt: Date.now(),
-    isConfirmed: false,
-  };
+  return generateSmartWorkoutRoutine(profile, draft);
 }
 
 // Gera agenda semanal a partir de uma proposta confirmada
@@ -460,7 +273,7 @@ export function generateWeeklyCalendarFromProposal(
   for (let i = 0; i < 7; i++) {
     const d = new Date(startOfWeek);
     d.setDate(startOfWeek.getDate() + i);
-    const dateStr = d.toISOString().split('T')[0];
+    const dateStr = getLocalDateStr(d);
     const planId = proposal.weeklySchedule[i];
     const plan = planId ? proposal.routines.find((r) => r.id === planId) : undefined;
 
@@ -500,7 +313,7 @@ export function generateWeeklyCalendarFromProgram(uid: string, program: WorkoutP
   for (let i = 0; i < 7; i++) {
     const d = new Date(startOfWeek);
     d.setDate(startOfWeek.getDate() + i);
-    const dateStr = d.toISOString().split('T')[0];
+    const dateStr = getLocalDateStr(d);
     const planId = program.weeklySchedule ? program.weeklySchedule[i] : undefined;
     const plan = planId ? program.routines.find((r) => r.id === planId) : undefined;
 
@@ -652,7 +465,7 @@ export function calculateCanonicalMetrics(
           (s) =>
             s.status === 'completed' &&
             (s.scheduledDayId === c.id ||
-              (s.completedAt && new Date(s.completedAt).toISOString().split('T')[0] === c.dateStr)) &&
+              (s.completedAt && getLocalDateStr(new Date(s.completedAt)) === c.dateStr)) &&
             (s.planId.includes('mobilidade') ||
               s.planId.includes('walk') ||
               s.originType === 'active_recovery' ||
@@ -975,7 +788,7 @@ export function exportUserDataAsJSON(data: {
   const url = URL.createObjectURL(blob);
   const link = document.createElement('a');
   link.href = url;
-  link.download = `superacao_backup_${new Date().toISOString().split('T')[0]}.json`;
+  link.download = `superacao_backup_${getLocalDateStr()}.json`;
   document.body.appendChild(link);
   link.click();
   document.body.removeChild(link);

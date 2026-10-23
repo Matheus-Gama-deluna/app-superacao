@@ -12,7 +12,37 @@ export type AchievementCoinType =
   | 'performance_pr'
   | 'efficiency_gain'
   | 'care_vitality'
-  | 'habit_saved';
+  | 'habit_saved'
+  | 'ladder_levelup';
+
+export type FunctionalMovementPattern =
+  | 'squat'
+  | 'lunge'
+  | 'hinge'
+  | 'push_horizontal'
+  | 'push_vertical'
+  | 'pull_horizontal'
+  | 'pull_vertical'
+  | 'core_anti_extension'
+  | 'core_anti_rotation'
+  | 'core_flexion'
+  | 'mobility_spine'
+  | 'mobility_hip'
+  | 'cardio_low_impact'
+  | 'cardio_high_impact';
+
+export interface JointStressRating {
+  knee: 0 | 1 | 2;
+  lumbar: 0 | 1 | 2;
+  shoulder: 0 | 1 | 2;
+  wrist: 0 | 1 | 2;
+}
+
+export interface MovementLadderStep {
+  ladderId: 'pushup' | 'squat' | 'plank' | 'glute_bridge' | 'row' | 'lunge';
+  stepIndex: number;
+  name: string;
+}
 
 export interface SessionEfficiencyComparison {
   previousSessionId: string;
@@ -90,6 +120,11 @@ export interface Exercise {
   steps_pt?: string[]; // Passo a passo enumerado em português
   source_kind?: string;
   version?: string;
+  functionalPattern?: FunctionalMovementPattern;
+  jointStress?: JointStressRating;
+  floorTransition?: boolean;
+  movementComplexity?: 1 | 2 | 3;
+  ladder?: MovementLadderStep;
 }
 
 export interface ExercisePlanItem {
@@ -101,6 +136,7 @@ export interface ExercisePlanItem {
   targetDurationSeconds?: number;
   restSeconds: number;
   notes?: string;
+  reason?: string;
 }
 
 export interface WorkoutPlan {

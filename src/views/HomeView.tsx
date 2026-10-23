@@ -1,3 +1,4 @@
+import { getLocalDateStr } from '../lib/dateUtils';
 import React, { useState } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useWorkout } from '../context/WorkoutContext';
@@ -69,7 +70,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
   // Dia de hoje e fuso local (A06)
   const today = new Date();
   const dayOfWeek = today.getDay(); // 0 a 6
-  const todayStr = today.toISOString().split('T')[0];
+  const todayStr = getLocalDateStr(today);
   const todaySchedule =
     calendar.find((c) => c.dateStr === todayStr) || calendar.find((c) => c.dayOfWeek === dayOfWeek);
 

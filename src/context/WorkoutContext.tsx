@@ -1,3 +1,4 @@
+import { getLocalDateStr } from '../lib/dateUtils';
 import React, { createContext, useContext, useEffect, useState, useMemo, useRef } from 'react';
 import {
   WorkoutPlan,
@@ -707,7 +708,7 @@ export const WorkoutProvider: React.FC<{ children: React.ReactNode }> = ({ child
         await toggleCalendarDayCompleted(targetDay.id);
       }
     } else {
-      const todayStr = new Date().toISOString().split('T')[0];
+      const todayStr = getLocalDateStr();
       const todayCal = calendar.find((c) => c.dateStr === todayStr);
       if (todayCal && todayCal.activityType !== 'rest' && todayCal.activityType !== 'unassigned') {
         await updateCalendarDay(todayCal.id, todayCal.activityType, completedSession.planId, completedSession.planTitle);
@@ -787,7 +788,7 @@ export const WorkoutProvider: React.FC<{ children: React.ReactNode }> = ({ child
     const durationSec = Math.max(60, durationMinutes * 60);
     const title = distanceKm && distanceKm > 0 ? `Caminhada (${distanceKm} km)` : 'Caminhada Livre';
 
-    const todayStr = new Date().toISOString().split('T')[0];
+    const todayStr = getLocalDateStr();
     const todayCal = calendar.find((c) => c.dateStr === todayStr);
     const isTodayRest = todayCal?.activityType === 'rest';
 
@@ -878,7 +879,7 @@ export const WorkoutProvider: React.FC<{ children: React.ReactNode }> = ({ child
     setSessions(newSessions);
     setLocal('superacao_sessions', newSessions);
 
-    const todayStr = new Date().toISOString().split('T')[0];
+    const todayStr = getLocalDateStr();
     const todayCal = calendar.find((c) => c.dateStr === todayStr);
     if (todayCal) {
       if (todayCal.activityType === 'rest') {
@@ -915,7 +916,7 @@ export const WorkoutProvider: React.FC<{ children: React.ReactNode }> = ({ child
     if (!targetDate) {
       const tomorrow = new Date();
       tomorrow.setDate(tomorrow.getDate() + 1);
-      targetDate = tomorrow.toISOString().split('T')[0];
+      targetDate = getLocalDateStr(tomorrow);
     }
 
     const updated = calendar.map((c) => {

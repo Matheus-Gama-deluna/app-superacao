@@ -1,7 +1,8 @@
 import catalogFullJson from '../../data/catalog_full_pt.json';
 import exercisesSeedJson from '../../data/exercicios_seed.json';
 import templatesJson from '../../data/templates_seed.json';
-import { Exercise, WorkoutPlan } from '../types';
+import { Exercise, WorkoutPlan } from '../types';
+import { specializedHomeExercises } from './specializedExercises';
 
 // Exercícios dedicados de Recuperação Ativa (Mobilidade & Alongamento)
 export const specializedRecoveryExercises: Exercise[] = [
@@ -245,6 +246,14 @@ export const allExercises: Exercise[] = [];
 
 // Adiciona primeiro os exercícios especializados de recuperação ativa
 specializedRecoveryExercises.forEach((ex) => {
+  if (!exerciseIdSet.has(ex.id)) {
+    exerciseIdSet.add(ex.id);
+    allExercises.push(ex);
+  }
+});
+
+// Adiciona os 12 exercícios especializados de puxar, costas e fortalecimento em casa
+specializedHomeExercises.forEach((ex) => {
   if (!exerciseIdSet.has(ex.id)) {
     exerciseIdSet.add(ex.id);
     allExercises.push(ex);
