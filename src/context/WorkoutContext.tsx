@@ -18,7 +18,13 @@ import {
   TimeOfDay,
   ScheduledDayActivity,
   ProgressionItemUpgrade,
+  Exercise,
 } from '../types';
+import {
+  persistActiveProgram,
+  persistCalendarDays,
+  persistUserProfile,
+} from '../lib/persistence';
 import { useAuth } from './AuthContext';
 import {
   db,
@@ -126,8 +132,9 @@ interface WorkoutContextType {
   latestPRAnnouncement: string | null;
   clearPRAnnouncement: () => void;
 
-  // Fase 4 & 5: Adaptação Viva & Progressão
-  swapExerciseInActiveSession: (targetIndex: number, newExercise: any) => void;
+  // Fase 4, 5 & 6: Adaptação Viva, Troca & Progressão
+  swapExerciseInActiveSession: (targetIndex: number, newExercise: Exercise) => void;
+  replaceExerciseInPlan: (planId: string, oldExerciseId: string, newExercise: Exercise) => Promise<void>;
   updateActiveExerciseTarget: (targetIndex: number, newTargetReps: number) => void;
   applyPlanProgression: (planId: string, approvedUpgrades: ProgressionItemUpgrade[]) => Promise<void>;
 }
@@ -323,11 +330,33 @@ export const WorkoutProvider: React.FC<{ children: React.ReactNode }> = ({ child
       (error) => handleFirestoreError(error, OperationType.LIST, `users/${currentUid}/calendar`)
     );
 
+    // 5. Programa Ativo (Fase 6)
+    const progDocRef = doc(db, 'users', currentUid, 'programs', 'active_program');
+    const stopActiveProgram = onSnapshot(
+      progDocRef,
+      { includeMetadataChanges: true },
+      (snapshot) => {
+        if (snapshot.exists()) {
+          const loadedProg = snapshot.data() as WorkoutProgram;
+          setActiveProgram(loadedProg);
+          setLocal('superacao_active_program', loadedProg);
+        } else {
+          // Se não existir no Firestore mas existe localmente, faz upload único de sincronização
+          const localProg = getLocal<WorkoutProgram | null>('superacao_active_program', null);
+          if (localProg) {
+            void persistActiveProgram(currentUid, localProg);
+          }
+        }
+      },
+      (error) => handleFirestoreError(error, OperationType.GET, `users/${currentUid}/programs/active_program`)
+    );
+
     return () => {
       stopPlans();
       stopSessions();
       stopSetEvents();
       stopCalendar();
+      stopActiveProgram();
     };
   }, [user, isGuest]);
 
@@ -564,16 +593,36 @@ export const WorkoutProvider: React.FC<{ children: React.ReactNode }> = ({ child
     triggerHaptic(80, profile.hapticEnabled);
   };
 
-  const swapExerciseInActiveSession = (targetIndex: number, newExercise: any) => {
+  const swapExerciseInActiveSession = (targetIndex: number, newExercise: Exercise) => {
     if (!activeSession) return;
     const currentList = [...activeSession.exercisesSnapshot];
     if (targetIndex < 0 || targetIndex >= currentList.length) return;
 
     const oldItem = currentList[targetIndex];
+    const isNewTime = newExercise.tracking === 'time' || newExercise.modality === 'mobilidade' || newExercise.modality === 'alongamento';
+    const wasTime = oldItem.trackingMode === 'time' || (!oldItem.trackingMode && !!oldItem.targetDurationSeconds);
+
+    let nextTrackingMode: 'reps' | 'time' = isNewTime ? 'time' : 'reps';
+    let nextTargetDurationSeconds: number | undefined = oldItem.targetDurationSeconds;
+    let nextTargetReps: number = oldItem.targetReps;
+
+    if (isNewTime && !wasTime) {
+      // Reps para tempo: 1 rep ~ 3s (mín 20s, máx 60s)
+      nextTargetDurationSeconds = Math.min(60, Math.max(20, (oldItem.targetReps || 10) * 3));
+      nextTargetReps = 0;
+    } else if (!isNewTime && wasTime) {
+      // Tempo para reps: 3s ~ 1 rep (mín 6, máx 15)
+      nextTargetReps = Math.min(15, Math.max(6, Math.round((oldItem.targetDurationSeconds || 30) / 3)));
+      nextTargetDurationSeconds = undefined;
+    }
+
     currentList[targetIndex] = {
       ...oldItem,
       exerciseId: newExercise.id,
       exerciseName: newExercise.name_pt || newExercise.name_en || oldItem.exerciseName,
+      trackingMode: nextTrackingMode,
+      targetReps: nextTargetReps,
+      targetDurationSeconds: nextTargetDurationSeconds,
     };
 
     const updatedSession: WorkoutSession = {
@@ -583,6 +632,75 @@ export const WorkoutProvider: React.FC<{ children: React.ReactNode }> = ({ child
     setActiveSession(updatedSession);
     setLocal('superacao_active_session', updatedSession);
     triggerHaptic(50, profile.hapticEnabled);
+  };
+
+  const replaceExerciseInPlan = async (
+    planId: string,
+    oldExerciseId: string,
+    newExercise: Exercise
+  ): Promise<void> => {
+    const existingPlan = plans.find((p) => p.id === planId) ||
+      premadePrograms.flatMap((pr) => pr.routines).find((r) => r.id === planId);
+    if (!existingPlan) return;
+
+    const isNewTime = newExercise.tracking === 'time' || newExercise.modality === 'mobilidade' || newExercise.modality === 'alongamento';
+
+    const updatedExercises = existingPlan.exercises.map((item) => {
+      if (item.exerciseId !== oldExerciseId) return item;
+      const wasTime = item.trackingMode === 'time' || (!item.trackingMode && !!item.targetDurationSeconds);
+
+      let nextTrackingMode: 'reps' | 'time' = isNewTime ? 'time' : 'reps';
+      let nextTargetDurationSeconds: number | undefined = item.targetDurationSeconds;
+      let nextTargetReps: number = item.targetReps;
+
+      if (isNewTime && !wasTime) {
+        nextTargetDurationSeconds = Math.min(60, Math.max(20, (item.targetReps || 10) * 3));
+        nextTargetReps = 0;
+      } else if (!isNewTime && wasTime) {
+        nextTargetReps = Math.min(15, Math.max(6, Math.round((item.targetDurationSeconds || 30) / 3)));
+        nextTargetDurationSeconds = undefined;
+      }
+
+      return {
+        ...item,
+        exerciseId: newExercise.id,
+        exerciseName: newExercise.name_pt || newExercise.name_en || item.exerciseName,
+        trackingMode: nextTrackingMode,
+        targetReps: nextTargetReps,
+        targetDurationSeconds: nextTargetDurationSeconds,
+      };
+    });
+
+    const updatedPlan: WorkoutPlan = {
+      ...existingPlan,
+      exercises: updatedExercises,
+      version: (existingPlan.version || 1) + 1,
+      updatedAt: Date.now(),
+    };
+
+    await savePlan(updatedPlan, planId);
+
+    // Sinergia com o Programa Ativo se a rotina fizer parte dele (Fase 5 & 6)
+    if (activeProgram && activeProgram.routines.some((r) => r.id === planId)) {
+      const updatedRoutines = activeProgram.routines.map((r) => (r.id === planId ? updatedPlan : r));
+      const updatedProgram = {
+        ...activeProgram,
+        routines: updatedRoutines,
+        updatedAt: Date.now(),
+      };
+      setActiveProgram(updatedProgram);
+      setLocal('superacao_active_program', updatedProgram);
+      if (user && !isGuest) {
+        await persistActiveProgram(user.uid, updatedProgram);
+      }
+    }
+
+    confetti({
+      particleCount: 50,
+      spread: 70,
+      origin: { y: 0.7 },
+      colors: ['#D9F277', '#125F55', '#246747'],
+    });
   };
 
   const updateActiveExerciseTarget = (targetIndex: number, newTargetReps: number) => {
@@ -610,7 +728,7 @@ export const WorkoutProvider: React.FC<{ children: React.ReactNode }> = ({ child
     const updatedPlan = applyUpgradesToWorkoutPlan(existingPlan, approvedUpgrades);
     await savePlan(updatedPlan, planId);
 
-    // Sinergia com Programa Ativo (Fase 5)
+    // Sinergia com Programa Ativo (Fase 5 & 6)
     if (activeProgram && activeProgram.routines.some(r => r.id === planId)) {
       const updatedRoutines = activeProgram.routines.map(r => r.id === planId ? updatedPlan : r);
       const updatedProgram = {
@@ -620,6 +738,9 @@ export const WorkoutProvider: React.FC<{ children: React.ReactNode }> = ({ child
       };
       setActiveProgram(updatedProgram);
       setLocal('superacao_active_program', updatedProgram);
+      if (user && !isGuest) {
+        await persistActiveProgram(user.uid, updatedProgram);
+      }
     }
 
     confetti({ particleCount: 45, spread: 70, origin: { y: 0.8 } });
@@ -1096,8 +1217,7 @@ export const WorkoutProvider: React.FC<{ children: React.ReactNode }> = ({ child
   const confirmLegacyRoutine = async () => {
     if (user && !isGuest) {
       try {
-        const docRef = doc(db, 'users', user.uid, 'profile', 'meta');
-        await setDoc(docRef, { needsReviewPrompt: false }, { merge: true });
+        await persistUserProfile(user.uid, { needsReviewPrompt: false });
       } catch (e) {
         console.warn('Erro ao atualizar perfil no Firestore:', e);
       }
@@ -1416,6 +1536,9 @@ export const WorkoutProvider: React.FC<{ children: React.ReactNode }> = ({ child
 
     setCalendar(updated);
     setLocal('superacao_calendar', updated);
+    if (user && !isGuest) {
+      void persistCalendarDays(user.uid, updated);
+    }
   };
 
   const removeActivityFromDay = async (dayId: string, activityId: string) => {
@@ -1430,6 +1553,9 @@ export const WorkoutProvider: React.FC<{ children: React.ReactNode }> = ({ child
 
     setCalendar(updated);
     setLocal('superacao_calendar', updated);
+    if (user && !isGuest) {
+      void persistCalendarDays(user.uid, updated);
+    }
   };
 
   const toggleDayActivityCompleted = async (dayId: string, activityId?: string) => {
@@ -1456,6 +1582,9 @@ export const WorkoutProvider: React.FC<{ children: React.ReactNode }> = ({ child
 
     setCalendar(updated);
     setLocal('superacao_calendar', updated);
+    if (user && !isGuest) {
+      void persistCalendarDays(user.uid, updated);
+    }
   };
 
   const advanceProgramWeek = () => {
@@ -1464,6 +1593,9 @@ export const WorkoutProvider: React.FC<{ children: React.ReactNode }> = ({ child
     const updated = { ...activeProgram, currentWeek: nextWeek, updatedAt: Date.now() };
     setActiveProgram(updated);
     setLocal('superacao_active_program', updated);
+    if (user && !isGuest) {
+      void persistActiveProgram(user.uid, updated);
+    }
   };
 
   const startEmergencyWorkout = () => {
@@ -1523,6 +1655,7 @@ export const WorkoutProvider: React.FC<{ children: React.ReactNode }> = ({ child
         latestPRAnnouncement,
         clearPRAnnouncement,
         swapExerciseInActiveSession,
+        replaceExerciseInPlan,
         updateActiveExerciseTarget,
         applyPlanProgression,
       }}

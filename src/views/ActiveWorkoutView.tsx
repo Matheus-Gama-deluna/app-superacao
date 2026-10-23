@@ -73,6 +73,7 @@ export const ActiveWorkoutView: React.FC<ActiveWorkoutViewProps> = ({
     scheduleOptionalMobilityForTomorrow,
     setEvents,
     swapExerciseInActiveSession,
+    replaceExerciseInPlan,
     updateActiveExerciseTarget,
     applyPlanProgression,
   } = useWorkout();
@@ -1015,15 +1016,7 @@ export const ActiveWorkoutView: React.FC<ActiveWorkoutViewProps> = ({
                       onClick={async () => {
                         swapExerciseInActiveSession(activeSession.currentExerciseIndex, cand);
                         if (saveSwapToPlan && currentPlan) {
-                          const updatedPlan = {
-                            ...currentPlan,
-                            exercises: currentPlan.exercises.map(ex =>
-                              ex.exerciseId === currentExerciseItem.exerciseId
-                                ? { ...ex, exerciseId: cand.id, exerciseName: cand.name_pt || cand.name_en || ex.exerciseName }
-                                : ex
-                            ),
-                          };
-                          await applyPlanProgression(currentPlan.id, []);
+                          await replaceExerciseInPlan(currentPlan.id, currentExerciseItem.exerciseId, cand);
                         }
                         setShowSwapModal(false);
                       }}

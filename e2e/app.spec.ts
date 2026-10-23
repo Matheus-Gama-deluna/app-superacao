@@ -835,4 +835,105 @@ test.describe('Superação - Validação End-to-End Headless (Em Segundo Plano)'
     const bodyContent = await page.textContent('body');
     expect(bodyContent).not.toContain('undefined reps');
   });
+
+  test('13. Troca ao Vivo persistida na Ficha Oficial e Sincronização (Sprint 1)', async ({ page }) => {
+    await page.goto('/');
+    const today = new Date();
+    const dayOfWeek = today.getDay();
+    const year = today.getFullYear();
+    const month = String(today.getMonth() + 1).padStart(2, '0');
+    const day = String(today.getDate()).padStart(2, '0');
+    const todayStr = `${year}-${month}-${day}`;
+
+    await page.evaluate(({ todayStr, dayOfWeek }) => {
+      localStorage.setItem('superacao_access_choice', JSON.stringify('guest'));
+      localStorage.setItem(
+        'superacao_user_profile',
+        JSON.stringify({
+          uid: 'guest_user',
+          displayName: 'Mariana',
+          onboardingCompleted: true,
+          routineConfirmed: true,
+          availableDays: [dayOfWeek],
+          sessionDurationMinutes: 15,
+          equipments: ['peso_corporal'],
+        })
+      );
+
+      const planToTest = {
+        id: 'plan_swap_persistence_test',
+        ownerUid: 'guest_user',
+        title: 'Treino Personalizado da Mariana',
+        description: 'Ficha para teste de troca',
+        version: 1,
+        isProfessional: false,
+        estimatedDurationMinutes: 10,
+        exercises: [
+          {
+            exerciseId: 'wall_pushup_controlled',
+            exerciseName: 'Flexão na Parede',
+            targetSets: 1,
+            targetReps: 12,
+            restSeconds: 30,
+            trackingMode: 'reps',
+          },
+        ],
+      };
+
+      localStorage.setItem('superacao_plans', JSON.stringify([planToTest]));
+      localStorage.setItem(
+        'superacao_calendar',
+        JSON.stringify([
+          {
+            id: `guest_day_${todayStr}`,
+            ownerUid: 'guest_user',
+            dateStr: todayStr,
+            dayOfWeek: dayOfWeek,
+            activityType: 'strength',
+            planId: 'plan_swap_persistence_test',
+            planTitle: 'Treino Personalizado da Mariana',
+            isCompleted: false,
+          },
+        ])
+      );
+    }, { todayStr, dayOfWeek });
+
+    await page.reload();
+
+    // 1. Inicia o Treino agendado de hoje na Home
+    const startBtn = page.getByRole('button', { name: /Iniciar Treino de Hoje/i });
+    await expect(startBtn).toBeVisible();
+    await startBtn.click();
+
+    // 2. Valida tela de treino ativo e abre modal de Troca
+    await expect(page.getByRole('heading', { name: 'Flexão na Parede', exact: true })).toBeVisible();
+    const swapBtn = page.getByRole('button', { name: /Trocar/i });
+    await expect(swapBtn).toBeVisible();
+    await swapBtn.click();
+
+    // 3. Marca checkbox para atualizar também na ficha oficial
+    await expect(page.getByText('Substituir Exercício')).toBeVisible();
+    const saveToPlanCheckbox = page.getByLabel('Atualizar também na minha ficha oficial para os próximos treinos');
+    await expect(saveToPlanCheckbox).toBeVisible();
+    await saveToPlanCheckbox.check();
+
+    // 4. Seleciona o primeiro exercício substituto equivalente
+    const chooseButtons = page.getByRole('button', { name: 'Escolher' });
+    await expect(chooseButtons.first()).toBeVisible();
+    await chooseButtons.first().click();
+
+    // 5. Valida que o modal fechou e o exercício foi trocado na tela ativa
+    await expect(page.getByText('Substituir Exercício')).not.toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Flexão na Parede', exact: true })).not.toBeVisible();
+
+    // 6. Valida que a ficha no armazenamento foi atualizada com versão incrementada (> 1)
+    const storedPlans = await page.evaluate(() => {
+      const raw = localStorage.getItem('superacao_plans');
+      return raw ? JSON.parse(raw) : [];
+    });
+    const updatedPlan = storedPlans.find((p: any) => p.id === 'plan_swap_persistence_test');
+    expect(updatedPlan).toBeDefined();
+    expect(updatedPlan.version).toBeGreaterThan(1);
+    expect(updatedPlan.exercises[0].exerciseId).not.toBe('wall_pushup_controlled');
+  });
 });

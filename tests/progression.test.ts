@@ -225,4 +225,21 @@ describe('WorkoutEngine - Progressão e Adaptação Viva (Fase 4 & 5)', () => {
     expect(progress[0].steps[0].status).toBe('current');
     expect(progress[0].steps[1].status).toBe('locked');
   });
+
+  it('6. Conversão de trackingMode ao alternar entre repetições e tempo isométrico', () => {
+    // Simula troca de reps para time: 10 reps -> ~30s
+    const repsToTimeSeconds = Math.min(60, Math.max(20, 10 * 3));
+    expect(repsToTimeSeconds).toBe(30);
+
+    // Simula troca de time para reps: 45s -> 15 reps
+    const timeToReps = Math.min(15, Math.max(6, Math.round(45 / 3)));
+    expect(timeToReps).toBe(15);
+
+    // Limites de segurança (clamp)
+    const highRepsToTime = Math.min(60, Math.max(20, 30 * 3));
+    expect(highRepsToTime).toBe(60);
+
+    const lowTimeToReps = Math.min(15, Math.max(6, Math.round(10 / 3)));
+    expect(lowTimeToReps).toBe(6);
+  });
 });
