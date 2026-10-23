@@ -14,6 +14,7 @@ import { WelcomeView } from './views/WelcomeView';
 import { ListeningJourneyView } from './views/ListeningJourneyView';
 import { ProposalView } from './views/ProposalView';
 import { WorkoutPlan, ExplainableProposal, OnboardingDraft } from './types';
+import { premadeWorkouts } from './data/premadeWorkouts';
 import {
   getLocal,
   setLocal,
@@ -83,9 +84,9 @@ const MainAppContent: React.FC = () => {
     startWorkout(plan, scheduledDayId, originType, isExpress, wasPlannedHabit);
   };
 
-  const handleStartPlanById = (planId: string, scheduledDayId?: string) => {
-    const p = plans.find((x) => x.id === planId) || plans[0];
-    if (p) startWorkout(p, scheduledDayId, scheduledDayId ? 'scheduled' : 'ad_hoc');
+  const handleStartPlanById = (planId: string, scheduledDayId?: string, scheduledActivityId?: string) => {
+    const p = plans.find((x) => x.id === planId) || premadeWorkouts.find((x) => x.id === planId) || plans[0];
+    if (p) startWorkout(p, scheduledDayId, scheduledDayId ? 'scheduled' : 'ad_hoc', false, false, scheduledActivityId);
   };
 
   const handleOpenBuilder = (existingId?: string, isPro: boolean = false) => {

@@ -197,6 +197,7 @@ export interface WorkoutSession {
   notes?: string;
   exercisesSnapshot: ExercisePlanItem[];
   scheduledDayId?: string;
+  scheduledActivityId?: string;
   originType?: 'scheduled' | 'program_session' | 'ad_hoc' | 'express';
   isExpress?: boolean;
   wasPlannedHabit?: boolean;
@@ -205,6 +206,20 @@ export interface WorkoutSession {
   newBaselinesCount?: number;
   achievementCoins?: AchievementCoinType[];
   efficiencyComparison?: SessionEfficiencyComparison;
+}
+
+export type TimeOfDay = 'manha' | 'tarde' | 'noite' | 'livre';
+
+export interface ScheduledDayActivity {
+  id: string; // uuid unico da atividade no dia
+  planId: string;
+  planTitle: string;
+  timeOfDay?: TimeOfDay;
+  activityType: ActivityType;
+  isCompleted: boolean;
+  completedAt?: number;
+  programId?: string;
+  programTitle?: string;
 }
 
 export interface CalendarDay {
@@ -217,9 +232,14 @@ export interface CalendarDay {
   planTitle?: string;
   isCompleted: boolean;
   completedAt?: number;
+  timeOfDay?: TimeOfDay;
   notes?: string;
   vitalityBonusCompleted?: boolean;
   vitalityActivityLabel?: string;
+  hasCareRoutine?: boolean;
+  careRoutineTitle?: string;
+  careMinutes?: number;
+  additionalActivities?: ScheduledDayActivity[];
 }
 
 export interface PersonalRecord {
@@ -334,7 +354,7 @@ export interface SyncStatusState {
   error?: string;
 }
 
-export type ProgramObjective = 'habito' | 'postura' | 'vitalidade' | 'hipertrofia' | 'forca' | 'calistenia';
+export type ProgramObjective = 'habito' | 'postura' | 'vitalidade' | 'hipertrofia' | 'forca' | 'calistenia' | 'corrida' | 'longevidade' | 'sono' | 'gluteos';
 
 export interface ProgramPhase {
   name: string;

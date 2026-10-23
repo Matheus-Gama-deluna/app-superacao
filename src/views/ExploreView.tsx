@@ -1,7 +1,7 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { useWorkout } from '../context/WorkoutContext';
 import { useAuth } from '../context/AuthContext';
-import { Exercise, WorkoutPlan, WorkoutProgram } from '../types';
+import { Exercise, WorkoutPlan, WorkoutProgram, TimeOfDay } from '../types';
 import { allExercises, searchExercises } from '../data/catalog';
 import { ExerciseIllustration } from '../components/ExerciseIllustration';
 import {
@@ -46,7 +46,7 @@ export const ExploreView: React.FC<ExploreViewProps> = ({
   } = useWorkout();
 
   const [activeTab, setActiveTab] = useState<'programs' | 'plans' | 'exercises'>('programs');
-  const [programFilter, setProgramFilter] = useState<'todos' | 'casa' | 'postura' | 'vitalidade' | 'academia'>('todos');
+  const [programFilter, setProgramFilter] = useState<string>('todos');
   const [planFilter, setPlanFilter] = useState<'todos' | 'classicas' | 'casa' | 'express' | 'mobilidade' | 'meus'>('todos');
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [selectedEquipment, setSelectedEquipment] = useState<string>('todos');
@@ -55,16 +55,27 @@ export const ExploreView: React.FC<ExploreViewProps> = ({
   const [visibleCount, setVisibleCount] = useState<number>(24);
   const [isGeneratorOpen, setIsGeneratorOpen] = useState<boolean>(false);
   const [generatorFocus, setGeneratorFocus] = useState<any>('habito');
-  const [pendingProgramToActivate, setPendingProgramToActivate] = useState<WorkoutProgram | null>(null);
 
-  // Solicitação de ativação transparente com validação de dias disponíveis (R01, R04)
-  const handleRequestActivateProgram = (prog: WorkoutProgram) => {
-    const userDays = profile.availableDays || [1, 3, 5];
-    if (prog.weeklyFrequency !== userDays.length) {
-      setPendingProgramToActivate(prog);
-    } else {
-      activateProgram(prog, userDays);
-    }
+  // Modal avançado de ativação e mescla de programas
+  const [activationModal, setActivationModal] = useState<{
+    program: WorkoutProgram;
+    mode: 'replace' | 'merge';
+  } | null>(null);
+  const [mergeSelectedDays, setMergeSelectedDays] = useState<number[]>([1, 3, 5]);
+  const [mergeTimeOfDay, setMergeTimeOfDay] = useState<TimeOfDay>('manha');
+  const [activeModalTab, setActiveModalTab] = useState<'replace' | 'merge'>('replace');
+
+  const handleOpenProgramModal = (prog: WorkoutProgram, preferredMode: 'replace' | 'merge' = 'replace') => {
+    const userDays = profile.availableDays && profile.availableDays.length > 0 ? profile.availableDays : [1, 3, 5];
+    const defaultProgDays = Object.keys(prog.weeklySchedule).map(Number);
+    const initialDays = preferredMode === 'merge' 
+      ? (defaultProgDays.length > 0 ? defaultProgDays : [1, 3, 5])
+      : userDays;
+
+    setMergeSelectedDays(initialDays);
+    setMergeTimeOfDay(prog.objective === 'sono' ? 'noite' : 'manha');
+    setActiveModalTab(preferredMode);
+    setActivationModal({ program: prog, mode: preferredMode });
   };
 
   // Fecha modal com a tecla Escape
@@ -110,13 +121,19 @@ export const ExploreView: React.FC<ExploreViewProps> = ({
     { id: 'Panturrilhas', label: 'Panturrilhas' },
   ];
 
-  // Filtra programas de longo prazo
+  // Filtra programas de longo prazo com categorias ricas e momentos de vida
   const filteredPrograms = useMemo(() => {
     return programs.filter((prog) => {
-      if (programFilter === 'casa') return prog.environment === 'casa' || prog.objective === 'habito';
-      if (programFilter === 'postura') return prog.objective === 'postura';
-      if (programFilter === 'vitalidade') return prog.objective === 'vitalidade';
+      if (programFilter === 'todos') return true;
+      if (programFilter === 'sentado') return prog.objective === 'postura' || prog.id.includes('desk') || prog.id.includes('coluna');
+      if (programFilter === 'calistenia') return prog.objective === 'calistenia' || prog.id.includes('calistenia');
+      if (programFilter === 'halteres') return prog.objective === 'forca' || prog.id.includes('halteres');
+      if (programFilter === 'corrida') return prog.objective === 'corrida' || prog.id.includes('couch') || prog.id.includes('corrida');
+      if (programFilter === 'gluteos') return prog.objective === 'gluteos' || prog.id.includes('gluteos') || prog.id.includes('mini_band');
+      if (programFilter === 'sono') return prog.objective === 'sono' || prog.id.includes('desaceleracao') || prog.id.includes('sono');
+      if (programFilter === 'longevidade') return prog.objective === 'longevidade' || prog.id.includes('attia') || prog.id.includes('vitalidade');
       if (programFilter === 'academia') return prog.environment === 'academia';
+      if (programFilter === 'casa') return prog.environment === 'casa' || prog.objective === 'habito';
       return true;
     });
   }, [programs, programFilter]);
@@ -238,14 +255,18 @@ export const ExploreView: React.FC<ExploreViewProps> = ({
       {/* ───────────────────────────────────────────────────────────── */}
       {activeTab === 'programs' && (
         <div className="space-y-4">
-          {/* Filtros de Categoria de Programas */}
+          {/* Filtros de Categoria de Programas / Momentos de Vida */}
           <div className="flex items-center gap-1.5 overflow-x-auto pb-1 no-scrollbar">
             {[
               { id: 'todos', label: 'Todos os Programas' },
-              { id: 'casa', label: 'Casa & Hábitos' },
-              { id: 'postura', label: 'Coluna Sem Dor' },
-              { id: 'vitalidade', label: 'Vitalidade (8 Semanas)' },
-              { id: 'academia', label: 'Academia & Força' },
+              { id: 'sentado', label: '🪑 Coluna & Mesa' },
+              { id: 'calistenia', label: '🏠 Calistenia / Solo' },
+              { id: 'halteres', label: '🏋️ Halteres Dan John' },
+              { id: 'corrida', label: '🏃 Do Zero à Corrida' },
+              { id: 'gluteos', label: '🍑 Glúteos & Pelve' },
+              { id: 'sono', label: '🌙 Desaceleração Noturna' },
+              { id: 'longevidade', label: '🛡️ Longevidade Attia' },
+              { id: 'academia', label: '🏢 Academia' },
             ].map((f) => (
               <button
                 key={f.id}
@@ -369,7 +390,7 @@ export const ExploreView: React.FC<ExploreViewProps> = ({
                   <div className="flex flex-col sm:flex-row items-center gap-2 pt-2 border-t border-[#C9DBD3]/40">
                     <button
                       type="button"
-                      onClick={() => handleRequestActivateProgram(prog)}
+                      onClick={() => handleOpenProgramModal(prog, 'replace')}
                       className={`w-full sm:flex-1 py-3 px-4 rounded-xl text-xs font-black flex items-center justify-center gap-2 cursor-pointer transition-all ${
                         isActive
                           ? 'bg-[#EAF3EF] text-[#125F55] border border-[#125F55]'
@@ -377,16 +398,17 @@ export const ExploreView: React.FC<ExploreViewProps> = ({
                       }`}
                     >
                       <Calendar className="w-4 h-4" />
-                      <span>{isActive ? '✓ Sincronizado na sua Agenda' : 'Ativar como meu Programa'}</span>
+                      <span>{isActive ? '✓ Programa Base Ativo' : 'Definir como Programa Base'}</span>
                     </button>
 
                     <button
                       type="button"
-                      onClick={() => handleOpenGeneratorWithFocus(prog.objective)}
-                      className="w-full sm:w-auto py-3 px-4 rounded-xl bg-white hover:bg-[#F5F8F5] text-[#125F55] border border-[#C9DBD3] text-xs font-bold flex items-center justify-center gap-1.5 cursor-pointer transition-colors"
+                      onClick={() => handleOpenProgramModal(prog, 'merge')}
+                      className="w-full sm:w-auto py-3 px-4 rounded-xl bg-[#EAF3EF] hover:bg-[#D9F277] text-[#125F55] border border-[#C9DBD3] text-xs font-bold flex items-center justify-center gap-1.5 cursor-pointer transition-colors"
+                      title="Intercalar este programa com sua rotina atual em dias ou horários diferentes"
                     >
-                      <Sparkles className="w-3.5 h-3.5 text-[#E07A5F]" />
-                      <span>Personalizar no Assistente</span>
+                      <Sparkles className="w-3.5 h-3.5 text-[#125F55]" />
+                      <span>+ Mesclar à Agenda</span>
                     </button>
                   </div>
                 </div>
@@ -858,22 +880,22 @@ export const ExploreView: React.FC<ExploreViewProps> = ({
         }}
       />
 
-      {/* MODAL DE ADAPTAÇÃO TRANSPARENTE DE PROGRAMA (R01, R04) */}
-      {pendingProgramToActivate && (
+      {/* MODAL AVANÇADO DE ATIVAÇÃO / MESCLAGEM DE PROGRAMAS */}
+      {activationModal && (
         <div
           role="dialog"
           aria-modal="true"
           className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4 animate-in fade-in duration-200"
         >
-          <div className="bg-white rounded-3xl p-6 max-w-sm w-full space-y-4 border border-[#C9DBD3] shadow-xl text-[#152A29]">
+          <div className="bg-white rounded-3xl p-6 max-w-md w-full space-y-4 border border-[#C9DBD3] shadow-xl text-[#152A29]">
             <div className="flex items-center justify-between pb-2 border-b border-[#C9DBD3]">
               <div className="flex items-center gap-2 text-[#125F55]">
                 <Calendar className="w-5 h-5" />
-                <h3 className="text-base font-bold">Adaptação de Programa</h3>
+                <h3 className="text-base font-bold">Organizar na sua Rotina</h3>
               </div>
               <button
                 type="button"
-                onClick={() => setPendingProgramToActivate(null)}
+                onClick={() => setActivationModal(null)}
                 className="p-1 rounded-full text-[#5B7170] hover:bg-slate-100 cursor-pointer"
                 aria-label="Fechar"
               >
@@ -881,58 +903,187 @@ export const ExploreView: React.FC<ExploreViewProps> = ({
               </button>
             </div>
 
-            <p className="text-xs text-[#5B7170] leading-relaxed">
-              O programa <strong>{pendingProgramToActivate.title}</strong> sugere{' '}
-              <strong>{pendingProgramToActivate.weeklyFrequency} dias por semana</strong>, mas sua meta
-              atual definida no perfil é de <strong>{(profile.availableDays || []).length} dias</strong>.
-              Como prefere organizar sua rotina?
-            </p>
+            <div>
+              <h4 className="text-sm font-bold text-[#152A29]">
+                {activationModal.program.title}
+              </h4>
+              <p className="text-xs text-[#5B7170] mt-0.5">
+                {activationModal.program.description}
+              </p>
+            </div>
 
-            <div className="space-y-2 pt-1">
+            {/* Abas do Modal: Definir Base vs Mesclar */}
+            <div className="grid grid-cols-2 gap-2 p-1 bg-[#F5F8F5] rounded-2xl border border-[#C9DBD3]">
               <button
                 type="button"
-                onClick={async () => {
-                  const userDays = profile.availableDays || [1, 3, 5];
-                  await activateProgram(pendingProgramToActivate, userDays);
-                  setPendingProgramToActivate(null);
-                }}
-                className="w-full p-3 rounded-2xl bg-[#125F55] text-white font-bold text-xs hover:bg-[#0C5148] transition-all cursor-pointer shadow-xs text-left flex flex-col gap-0.5"
+                onClick={() => setActiveModalTab('replace')}
+                className={`py-2 px-3 text-xs font-bold rounded-xl transition-all cursor-pointer ${
+                  activeModalTab === 'replace'
+                    ? 'bg-white text-[#125F55] shadow-xs'
+                    : 'text-[#5B7170] hover:text-[#125F55]'
+                }`}
               >
-                <span>(Recomendado) Adaptar aos meus {(profile.availableDays || []).length} dias</span>
-                <span className="text-[10px] font-normal text-white/80">
-                  Mantém sua meta semanal intacta e distribui os treinos nos seus dias de preferência.
-                </span>
+                Programa Base
               </button>
-
               <button
                 type="button"
-                onClick={async () => {
-                  const newDays =
-                    pendingProgramToActivate.weeklyFrequency === 3
-                      ? [1, 3, 5]
-                      : pendingProgramToActivate.weeklyFrequency === 4
-                      ? [1, 2, 4, 5]
-                      : [1, 3, 5];
-                  await updateUserProfile({ availableDays: newDays });
-                  await activateProgram(pendingProgramToActivate, newDays);
-                  setPendingProgramToActivate(null);
-                }}
-                className="w-full p-3 rounded-2xl bg-[#EAF3EF] text-[#125F55] font-bold text-xs hover:bg-[#D9F277] hover:text-[#203826] transition-all cursor-pointer border border-[#C9DBD3] text-left flex flex-col gap-0.5"
+                onClick={() => setActiveModalTab('merge')}
+                className={`py-2 px-3 text-xs font-bold rounded-xl transition-all cursor-pointer flex items-center justify-center gap-1 ${
+                  activeModalTab === 'merge'
+                    ? 'bg-[#125F55] text-white shadow-xs'
+                    : 'text-[#5B7170] hover:text-[#125F55]'
+                }`}
               >
-                <span>Atualizar minha meta para {pendingProgramToActivate.weeklyFrequency} dias</span>
-                <span className="text-[10px] font-normal text-[#5B7170]">
-                  Assume a frequência sugerida pelo programa na sua agenda semanal.
-                </span>
-              </button>
-
-              <button
-                type="button"
-                onClick={() => setPendingProgramToActivate(null)}
-                className="w-full py-2.5 rounded-xl text-center text-xs font-semibold text-[#5B7170] hover:bg-slate-100 transition-colors cursor-pointer"
-              >
-                Manter programa atual
+                <Sparkles className="w-3.5 h-3.5 text-[#D9F277]" />
+                <span>Mesclar Horários</span>
               </button>
             </div>
+
+            {activeModalTab === 'replace' ? (
+              /* ABA 1: DEFINIR COMO PROGRAMA BASE */
+              <div className="space-y-3 pt-1">
+                <p className="text-xs text-[#5B7170] leading-relaxed">
+                  O programa sugere <strong>{activationModal.program.weeklyFrequency} dias por semana</strong>. Como deseja estruturar sua base semanal?
+                </p>
+
+                <div className="space-y-2">
+                  <button
+                    type="button"
+                    onClick={async () => {
+                      const userDays = profile.availableDays || [1, 3, 5];
+                      await activateProgram(activationModal.program, userDays, { mode: 'replace' });
+                      setActivationModal(null);
+                    }}
+                    className="w-full p-3 rounded-2xl bg-[#125F55] text-white font-bold text-xs hover:bg-[#0C5148] transition-all cursor-pointer shadow-xs text-left flex flex-col gap-0.5"
+                  >
+                    <span>(Recomendado) Adaptar aos meus {(profile.availableDays || []).length} dias</span>
+                    <span className="text-[10px] font-normal text-white/80">
+                      Mantém sua meta semanal intacta e distribui os treinos nos seus dias de preferência.
+                    </span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={async () => {
+                      const newDays =
+                        activationModal.program.weeklyFrequency === 3
+                          ? [1, 3, 5]
+                          : activationModal.program.weeklyFrequency === 4
+                          ? [1, 2, 4, 5]
+                          : [1, 3, 5];
+                      await updateUserProfile({ availableDays: newDays });
+                      await activateProgram(activationModal.program, newDays, { mode: 'replace' });
+                      setActivationModal(null);
+                    }}
+                    className="w-full p-3 rounded-2xl bg-[#EAF3EF] text-[#125F55] font-bold text-xs hover:bg-[#D9F277] hover:text-[#203826] transition-all cursor-pointer border border-[#C9DBD3] text-left flex flex-col gap-0.5"
+                  >
+                    <span>Atualizar minha meta para {activationModal.program.weeklyFrequency} dias</span>
+                    <span className="text-[10px] font-normal text-[#5B7170]">
+                      Assume a frequência sugerida pelo programa na sua agenda semanal.
+                    </span>
+                  </button>
+                </div>
+              </div>
+            ) : (
+              /* ABA 2: MESCLAR / INTERCALAR HORÁRIOS & DIAS */
+              <div className="space-y-3 pt-1">
+                <p className="text-xs text-[#5B7170] leading-relaxed">
+                  Adicione as rotinas deste programa à sua semana sem apagar os treinos já planejados. Ideal para combinar <strong>Força pela manhã</strong> com <strong>Desaceleração à noite</strong> ou dias alternados!
+                </p>
+
+                {/* Seleção dos dias da semana */}
+                <div className="space-y-1.5">
+                  <label className="text-xs font-bold text-[#152A29] block">
+                    Em quais dias deseja praticar?
+                  </label>
+                  <div className="grid grid-cols-7 gap-1">
+                    {[
+                      { day: 1, label: 'Seg' },
+                      { day: 2, label: 'Ter' },
+                      { day: 3, label: 'Qua' },
+                      { day: 4, label: 'Qui' },
+                      { day: 5, label: 'Sex' },
+                      { day: 6, label: 'Sáb' },
+                      { day: 0, label: 'Dom' },
+                    ].map((d) => {
+                      const isSelected = mergeSelectedDays.includes(d.day);
+                      return (
+                        <button
+                          key={d.day}
+                          type="button"
+                          onClick={() => {
+                            setMergeSelectedDays((prev) =>
+                              prev.includes(d.day)
+                                ? prev.filter((x) => x !== d.day)
+                                : [...prev, d.day]
+                            );
+                          }}
+                          className={`py-2 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+                            isSelected
+                              ? 'bg-[#125F55] text-white shadow-2xs'
+                              : 'bg-white border border-[#C9DBD3] text-[#5B7170] hover:border-[#125F55]'
+                          }`}
+                        >
+                          {d.label}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                {/* Seleção do momento / horário */}
+                <div className="space-y-1.5">
+                  <label className="text-xs font-bold text-[#152A29] block">
+                    Qual o melhor horário / momento?
+                  </label>
+                  <div className="grid grid-cols-2 gap-2">
+                    {[
+                      { id: 'manha' as TimeOfDay, label: '🌅 Pela Manhã' },
+                      { id: 'tarde' as TimeOfDay, label: '☀️ À Tarde' },
+                      { id: 'noite' as TimeOfDay, label: '🌙 À Noite' },
+                      { id: 'livre' as TimeOfDay, label: '⏱️ Horário Livre' },
+                    ].map((opt) => (
+                      <button
+                        key={opt.id}
+                        type="button"
+                        onClick={() => setMergeTimeOfDay(opt.id)}
+                        className={`p-2.5 rounded-xl border text-xs font-bold text-left transition-all cursor-pointer ${
+                          mergeTimeOfDay === opt.id
+                            ? 'border-[#125F55] bg-[#EAF3EF] text-[#125F55]'
+                            : 'border-[#C9DBD3] bg-white text-[#5B7170] hover:border-[#125F55]/60'
+                        }`}
+                      >
+                        {opt.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                <button
+                  type="button"
+                  disabled={mergeSelectedDays.length === 0}
+                  onClick={async () => {
+                    await activateProgram(activationModal.program, mergeSelectedDays, {
+                      mode: 'merge',
+                      timeOfDay: mergeTimeOfDay,
+                    });
+                    setActivationModal(null);
+                  }}
+                  className="w-full py-3 rounded-2xl bg-[#125F55] disabled:bg-slate-300 text-white font-bold text-xs hover:bg-[#0C5148] transition-all cursor-pointer shadow-xs flex items-center justify-center gap-2"
+                >
+                  <Sparkles className="w-4 h-4 text-[#D9F277]" />
+                  <span>Mesclar {mergeSelectedDays.length} Dias à Agenda</span>
+                </button>
+              </div>
+            )}
+
+            <button
+              type="button"
+              onClick={() => setActivationModal(null)}
+              className="w-full py-2 rounded-xl text-center text-xs font-semibold text-[#5B7170] hover:bg-slate-100 transition-colors cursor-pointer"
+            >
+              Cancelar
+            </button>
           </div>
         </div>
       )}

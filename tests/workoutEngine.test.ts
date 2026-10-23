@@ -212,15 +212,25 @@ describe('Motor Canônico de Geração de Treinos v2 (workoutEngine)', () => {
   });
 
   describe('5. Catálogo Expandido de Programas e Treinos Curados', () => {
-    it('possui pelo menos 10 programas estruturados curados disponíveis', () => {
-      expect(premadePrograms.length).toBeGreaterThanOrEqual(10);
+    it('possui pelo menos 17 programas estruturados curados disponíveis', () => {
+      expect(premadePrograms.length).toBeGreaterThanOrEqual(17);
       const programIds = premadePrograms.map((p) => p.id);
 
+      // Programas base
       expect(programIds).toContain('prog_anti_sedentarismo_cadeira');
       expect(programIds).toContain('prog_coluna_blindada_mcgill');
       expect(programIds).toContain('prog_calistenia_base');
       expect(programIds).toContain('prog_joelhos_protegidos');
       expect(programIds).toContain('prog_mini_band_total');
+
+      // 7 novas famílias de metodologias consagradas
+      expect(programIds).toContain('prog_calistenia_primer_6w');
+      expect(programIds).toContain('prog_desk_worker_reset_4w');
+      expect(programIds).toContain('prog_halteres_minimalista_8w');
+      expect(programIds).toContain('prog_couch_to_move_6w');
+      expect(programIds).toContain('prog_gluteos_pelve_6w');
+      expect(programIds).toContain('prog_desaceleracao_noturna_4w');
+      expect(programIds).toContain('prog_longevidade_attia_8w');
     });
 
     it('todos os programas curados possuem planos válidos referenciados em premadeWorkouts', () => {
@@ -230,6 +240,48 @@ describe('Motor Canônico de Geração de Treinos v2 (workoutEngine)', () => {
           expect(routine.id).toBeDefined();
           expect(routine.exercises.length).toBeGreaterThan(0);
           expect(routine.estimatedDurationMinutes).toBeGreaterThan(0);
+
+          // Integridade referencial estrita de cada exercício no catálogo
+          for (const item of routine.exercises) {
+            const ex = allExercises.find((e) => e.id === item.exerciseId);
+            expect(ex, `Exercício ${item.exerciseId} na rotina ${routine.id} deve existir no catálogo`).toBeDefined();
+          }
+        }
+      }
+    });
+
+    it('todas as novas 13 fichas de treinos consagradas existem em premadeWorkouts', () => {
+      const workoutIds = premadeWorkouts.map((w) => w.id);
+      const expectedIds = [
+        'plan_calistenia_primer_a',
+        'plan_calistenia_primer_b',
+        'plan_desk_worker_a',
+        'plan_desk_worker_b',
+        'plan_halteres_minimalista_a',
+        'plan_halteres_minimalista_b',
+        'plan_c25k_corrida_rua',
+        'plan_c25k_reforco_casa',
+        'plan_gluteos_pelve_a',
+        'plan_gluteos_pelve_b',
+        'plan_desaceleracao_noturna',
+        'plan_longevidade_attia_a',
+        'plan_longevidade_attia_b',
+      ];
+
+      for (const id of expectedIds) {
+        expect(workoutIds).toContain(id);
+      }
+    });
+
+    it('exercícios com imagens associadas no catálogo possuem caminhos bem formatados', () => {
+      const exercisesWithImages = allExercises.filter((e) => e.images && e.images.length > 0);
+      expect(exercisesWithImages.length).toBeGreaterThan(850);
+
+      for (const ex of exercisesWithImages) {
+        expect(ex.images).toBeDefined();
+        for (const img of ex.images!) {
+          expect(img.startsWith('/exercises/')).toBe(true);
+          expect(img.endsWith('.jpg') || img.endsWith('.png')).toBe(true);
         }
       }
     });

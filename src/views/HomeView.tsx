@@ -23,6 +23,7 @@ import {
   Target,
 } from 'lucide-react';
 import { WorkoutPlan } from '../types';
+import { premadeWorkouts } from '../data/premadeWorkouts';
 import { calculateCanonicalMetrics, generateWellbeingInsight, generateDailyMicroChallenge } from '../lib/storage';
 import { OnboardingModal } from './OnboardingModal';
 
@@ -32,7 +33,8 @@ interface HomeViewProps {
     scheduledDayId?: string,
     originType?: 'scheduled' | 'program_session' | 'ad_hoc' | 'express',
     isExpress?: boolean,
-    wasPlannedHabit?: boolean
+    wasPlannedHabit?: boolean,
+    scheduledActivityId?: string
   ) => void;
   onResumeWorkout: () => void;
   onNavigateTab: (tab: 'home' | 'workouts' | 'calendar' | 'progress') => void;
@@ -58,6 +60,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
     startEmergencyWorkout,
     recordWalkSession,
     confirmLegacyRoutine,
+    toggleDayActivityCompleted,
   } = useWorkout();
 
   // Estados locais
@@ -439,7 +442,8 @@ export const HomeView: React.FC<HomeViewProps> = ({
           </div>
         </section>
       ) : todayPlan ? (
-        /* CARD DE TREINO DE FORÇA PROGRAMADO */
+        <>
+        {/* CARD DE TREINO DE FORÇA PROGRAMADO */}
         <section className="bg-white rounded-3xl p-5 border border-[#C9DBD3] shadow-xs space-y-3">
           <div className="flex items-center justify-between text-xs text-[#5B7170]">
             <span className="font-semibold uppercase tracking-wider text-[#125F55]">
@@ -499,6 +503,89 @@ export const HomeView: React.FC<HomeViewProps> = ({
             <span>Iniciar Treino de Hoje</span>
           </button>
         </section>
+
+        {/* ROTINAS COMPLEMENTARES INTERCALADAS DO DIA */}
+        {todaySchedule?.additionalActivities && todaySchedule.additionalActivities.length > 0 && (
+          <section className="bg-white rounded-3xl p-5 border border-[#C9DBD3] shadow-xs space-y-3">
+            <div className="flex items-center justify-between text-xs text-[#5B7170]">
+              <span className="font-semibold uppercase tracking-wider text-[#125F55] flex items-center gap-1.5">
+                <Sparkles className="w-3.5 h-3.5 text-[#E07A5F]" />
+                <span>Rotinas Intercaladas de Hoje</span>
+              </span>
+              <span className="text-[11px] font-bold text-[#125F55]">
+                {todaySchedule.additionalActivities.length} {todaySchedule.additionalActivities.length === 1 ? 'rotina' : 'rotinas'}
+              </span>
+            </div>
+
+            <div className="space-y-2">
+              {todaySchedule.additionalActivities.map((act) => {
+                const extraPlan = plans.find((p) => p.id === act.planId) || premadeWorkouts.find((p) => p.id === act.planId);
+                const timeBadge =
+                  act.timeOfDay === 'manha'
+                    ? '🌅 Manhã'
+                    : act.timeOfDay === 'tarde'
+                    ? '☀️ Tarde'
+                    : act.timeOfDay === 'noite'
+                    ? '🌙 Noite'
+                    : '⏱️ Horário Livre';
+
+                return (
+                  <div
+                    key={act.id}
+                    className={`p-3.5 rounded-2xl border transition-all flex flex-col sm:flex-row sm:items-center justify-between gap-3 ${
+                      act.isCompleted ? 'bg-[#EAF3EF]/60 border-[#246747]/40' : 'bg-[#F5F8F5] border-[#C9DBD3]'
+                    }`}
+                  >
+                    <div className="space-y-1">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <span className="text-[10px] font-bold px-2 py-0.5 rounded-md bg-white border border-[#C9DBD3] text-[#125F55]">
+                          {timeBadge}
+                        </span>
+                        {act.isCompleted && (
+                          <span className="text-[10px] font-bold px-2 py-0.5 rounded-md bg-[#D9F277]/60 text-[#203826]">
+                            ✓ Concluído
+                          </span>
+                        )}
+                      </div>
+                      <h4 className="text-sm font-bold text-[#152A29]">{act.planTitle}</h4>
+                      {act.programTitle && (
+                        <p className="text-[11px] text-[#5B7170]">Programa: {act.programTitle}</p>
+                      )}
+                    </div>
+
+                    <div className="flex items-center gap-2">
+                      {extraPlan && !act.isCompleted && (
+                        <button
+                          type="button"
+                          onClick={() => onStartWorkout(extraPlan, todaySchedule.id, 'scheduled', false, true, act.id)}
+                          className="w-full sm:w-auto px-4 py-2 bg-[#125F55] hover:bg-[#0C5148] text-white text-xs font-bold rounded-xl flex items-center justify-center gap-1.5 cursor-pointer shadow-xs transition-colors"
+                        >
+                          <Play className="w-3.5 h-3.5 fill-current" />
+                          <span>Iniciar Agora</span>
+                        </button>
+                      )}
+                      <button
+                        type="button"
+                        onClick={() => toggleDayActivityCompleted(todaySchedule.id, act.id)}
+                        className={`p-2 rounded-xl transition-all cursor-pointer ${
+                          act.isCompleted ? 'text-[#246747] bg-emerald-50' : 'text-[#5B7170] hover:text-[#125F55]'
+                        }`}
+                        title={act.isCompleted ? 'Desmarcar' : 'Marcar como concluído'}
+                      >
+                        {act.isCompleted ? (
+                          <CheckCircle2 className="w-5 h-5 fill-emerald-100" />
+                        ) : (
+                          <Circle className="w-5 h-5" />
+                        )}
+                      </button>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </section>
+        )}
+        </>
       ) : (
         /* CONTA VAZIA / SEM PROGRAMA ATIVO: 3 ORIGENS CLARAS (A01, A02) */
         <section className="bg-white rounded-3xl p-6 border border-[#C9DBD3] text-center space-y-4">

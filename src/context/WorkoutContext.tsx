@@ -72,9 +72,12 @@ interface WorkoutContextType {
   // Programas de Longo Prazo & Hábitos
   programs: WorkoutProgram[];
   activeProgram: WorkoutProgram | null;
-  activateProgram: (program: WorkoutProgram, customDays?: number[]) => Promise<void>;
+  activateProgram: (program: WorkoutProgram, customDays?: number[], options?: { mode?: 'replace' | 'merge'; timeOfDay?: TimeOfDay }) => Promise<void>;
   advanceProgramWeek: () => void;
   startEmergencyWorkout: () => void;
+  addActivityToDay: (dayId: string, planId: string, timeOfDay?: TimeOfDay, options?: { programId?: string; programTitle?: string }) => Promise<void>;
+  removeActivityFromDay: (dayId: string, activityId: string) => Promise<void>;
+  toggleDayActivityCompleted: (dayId: string, activityId?: string) => Promise<void>;
 
   // Timer de descanso
   isResting: boolean;
@@ -94,7 +97,8 @@ interface WorkoutContextType {
     scheduledDayId?: string,
     originType?: 'scheduled' | 'program_session' | 'ad_hoc' | 'express',
     isExpress?: boolean,
-    wasPlannedHabit?: boolean
+    wasPlannedHabit?: boolean,
+    scheduledActivityId?: string
   ) => void;
   recordSet: (actualReps: number, actualDurationSeconds?: number, restSeconds?: number, actualWeightKg?: number) => Promise<{ isPR: boolean; isNewBaseline?: boolean; prText?: string }>;
   previousExercise: () => void;
@@ -763,8 +767,12 @@ export const WorkoutProvider: React.FC<{ children: React.ReactNode }> = ({ child
     if (completedSession.scheduledDayId) {
       const targetDay = calendar.find((c) => c.id === completedSession.scheduledDayId);
       if (targetDay) {
-        await updateCalendarDay(targetDay.id, 'strength', completedSession.planId, completedSession.planTitle);
-        await toggleCalendarDayCompleted(targetDay.id);
+        if (completedSession.scheduledActivityId) {
+          await toggleDayActivityCompleted(targetDay.id, completedSession.scheduledActivityId);
+        } else {
+          await updateCalendarDay(targetDay.id, 'strength', completedSession.planId, completedSession.planTitle);
+          await toggleCalendarDayCompleted(targetDay.id);
+        }
       }
     } else {
       const todayStr = getLocalDateStr();
@@ -1193,13 +1201,20 @@ export const WorkoutProvider: React.FC<{ children: React.ReactNode }> = ({ child
   // ──────────────────────────────────────────────
   // Regra canônica (R01 / R04 / Seção 5): A ativação de programa não deve atropelar
   // silenciosamente os dias disponíveis do usuário nem inflar a meta semanal de 2 para 3 sem consentimento.
-  const activateProgram = async (program: WorkoutProgram, customDays?: number[]) => {
+  const activateProgram = async (
+    program: WorkoutProgram,
+    customDays?: number[],
+    options?: { mode?: 'replace' | 'merge'; timeOfDay?: TimeOfDay }
+  ) => {
     setActiveProgram(program);
     setLocal('superacao_active_program', program);
 
     const availableDays = customDays && customDays.length > 0
       ? customDays
       : (profile.availableDays && profile.availableDays.length > 0 ? profile.availableDays : [1, 3, 5]);
+
+    const mode = options?.mode || 'replace';
+    const targetTimeOfDay = options?.timeOfDay || (program.objective === 'sono' ? 'noite' : 'manha');
 
     // Extrai rotinas do programa preservando a ordem dos treinos
     const scheduledRoutines = Object.entries(program.weeklySchedule)
@@ -1211,26 +1226,68 @@ export const WorkoutProvider: React.FC<{ children: React.ReactNode }> = ({ child
 
     let routineIdx = 0;
     const updatedCal = calendar.map((cDay) => {
-      const isAvailable = availableDays.includes(cDay.dayOfWeek);
-      if (isAvailable && uniqueRoutines.length > 0) {
+      const isTargetDay = availableDays.includes(cDay.dayOfWeek);
+
+      if (isTargetDay && uniqueRoutines.length > 0) {
         const routineId = uniqueRoutines[routineIdx % uniqueRoutines.length];
         routineIdx++;
         const foundRoutine = program.routines.find((r) => r.id === routineId) || plans.find((p) => p.id === routineId);
-        return {
-          ...cDay,
-          activityType: 'strength' as ActivityType,
-          planId: routineId,
-          planTitle: foundRoutine?.title || 'Treino do Programa',
-          isCompleted: false,
-        };
+        const planTitle = foundRoutine?.title || 'Treino do Programa';
+
+        if (mode === 'merge') {
+          // Se ja tem um treino primario agendado para o dia, adiciona como atividade complementar
+          if (cDay.activityType === 'strength' && cDay.planId) {
+            const newAct: ScheduledDayActivity = {
+              id: 'act_' + Date.now() + '_' + Math.random().toString(36).slice(2, 7),
+              planId: routineId,
+              planTitle,
+              timeOfDay: targetTimeOfDay,
+              activityType: 'strength',
+              isCompleted: false,
+              programId: program.id,
+              programTitle: program.title,
+            };
+            const existing = cDay.additionalActivities || [];
+            return {
+              ...cDay,
+              additionalActivities: [...existing, newAct],
+            };
+          } else {
+            return {
+              ...cDay,
+              activityType: 'strength' as ActivityType,
+              planId: routineId,
+              planTitle,
+              timeOfDay: targetTimeOfDay,
+              isCompleted: false,
+            };
+          }
+        } else {
+          // Modo replace: redefine
+          return {
+            ...cDay,
+            activityType: 'strength' as ActivityType,
+            planId: routineId,
+            planTitle,
+            timeOfDay: targetTimeOfDay,
+            isCompleted: false,
+            additionalActivities: [],
+          };
+        }
       } else {
-        return {
-          ...cDay,
-          activityType: 'rest' as ActivityType,
-          planId: undefined,
-          planTitle: undefined,
-          isCompleted: false,
-        };
+        if (mode === 'merge') {
+          // No modo merge, mantem intactos os outros dias da semana
+          return cDay;
+        } else {
+          return {
+            ...cDay,
+            activityType: 'rest' as ActivityType,
+            planId: undefined,
+            planTitle: undefined,
+            isCompleted: false,
+            additionalActivities: [],
+          };
+        }
       }
     });
 
@@ -1245,6 +1302,90 @@ export const WorkoutProvider: React.FC<{ children: React.ReactNode }> = ({ child
         console.warn('Erro ao salvar programa no Firestore:', err);
       }
     }
+  };
+
+  const addActivityToDay = async (
+    dayId: string,
+    planId: string,
+    timeOfDay: TimeOfDay = 'manha',
+    options?: { programId?: string; programTitle?: string }
+  ) => {
+    const plan = plans.find((p) => p.id === planId) || premadePrograms.flatMap(pr => pr.routines).find(r => r.id === planId);
+    const planTitle = plan?.title || 'Treino Adicionado';
+
+    const updated = calendar.map((c) => {
+      if (c.id !== dayId) return c;
+
+      if (!c.planId || c.activityType === 'rest' || c.activityType === 'unassigned') {
+        return {
+          ...c,
+          activityType: 'strength' as ActivityType,
+          planId,
+          planTitle,
+          timeOfDay,
+          isCompleted: false,
+        };
+      }
+
+      const newAct: ScheduledDayActivity = {
+        id: 'act_' + Date.now() + '_' + Math.random().toString(36).slice(2, 7),
+        planId,
+        planTitle,
+        timeOfDay,
+        activityType: 'strength',
+        isCompleted: false,
+        programId: options?.programId,
+        programTitle: options?.programTitle,
+      };
+
+      return {
+        ...c,
+        additionalActivities: [...(c.additionalActivities || []), newAct],
+      };
+    });
+
+    setCalendar(updated);
+    setLocal('superacao_calendar', updated);
+  };
+
+  const removeActivityFromDay = async (dayId: string, activityId: string) => {
+    const updated = calendar.map((c) => {
+      if (c.id !== dayId) return c;
+      const remaining = (c.additionalActivities || []).filter((a) => a.id !== activityId);
+      return {
+        ...c,
+        additionalActivities: remaining,
+      };
+    });
+
+    setCalendar(updated);
+    setLocal('superacao_calendar', updated);
+  };
+
+  const toggleDayActivityCompleted = async (dayId: string, activityId?: string) => {
+    if (!activityId) {
+      return toggleCalendarDayCompleted(dayId);
+    }
+
+    const updated = calendar.map((c) => {
+      if (c.id !== dayId) return c;
+      const nextActivities = (c.additionalActivities || []).map((act) => {
+        if (act.id !== activityId) return act;
+        const nextCompleted = !act.isCompleted;
+        return {
+          ...act,
+          isCompleted: nextCompleted,
+          completedAt: nextCompleted ? Date.now() : undefined,
+        };
+      });
+      return {
+        ...c,
+        additionalActivities: nextActivities,
+      };
+    });
+
+    setCalendar(updated);
+    setLocal('superacao_calendar', updated);
   };
 
   const advanceProgramWeek = () => {
@@ -1282,6 +1423,9 @@ export const WorkoutProvider: React.FC<{ children: React.ReactNode }> = ({ child
         activateProgram,
         advanceProgramWeek,
         startEmergencyWorkout,
+        addActivityToDay,
+        removeActivityFromDay,
+        toggleDayActivityCompleted,
         isResting,
         restSecondsRemaining,
         restDurationTotal,
