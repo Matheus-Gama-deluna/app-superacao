@@ -150,7 +150,7 @@ test.describe('Superação - Validação End-to-End Headless (Em Segundo Plano)'
     await expect(page.getByText(/Modo Foco/i)).toBeVisible();
   });
 
-  test('4. Estratégias de Motivação: Check-in de Sensação e Conclusão', async ({ page }) => {
+  test('4. Estratégias de Motivação: Check-in de Sensação e Conclusão Parcial', async ({ page }) => {
     await page.goto('/');
     await page.evaluate(() => {
       const today = new Date();
@@ -214,5 +214,374 @@ test.describe('Superação - Validação End-to-End Headless (Em Segundo Plano)'
 
     // Retorna para a Home com progresso computado
     await expect(page.getByText('Olá, Renata!')).toBeVisible();
+  });
+
+  test('5. Estratégia C: Micro-Desafio do Dia exibido na Home e destacado no Modo Foco', async ({ page }) => {
+    await page.goto('/');
+    await page.evaluate(() => {
+      const today = new Date();
+      const dayOfWeek = today.getDay();
+      const year = today.getFullYear();
+      const month = String(today.getMonth() + 1).padStart(2, '0');
+      const day = String(today.getDate()).padStart(2, '0');
+      const todayStr = `${year}-${month}-${day}`;
+
+      localStorage.setItem('superacao_access_choice', JSON.stringify('guest'));
+      localStorage.setItem(
+        'superacao_user_profile',
+        JSON.stringify({
+          uid: 'guest_user',
+          displayName: 'Juliana',
+          onboardingCompleted: true,
+          routineConfirmed: true,
+          availableDays: [dayOfWeek],
+          sessionDurationMinutes: 20,
+          equipments: ['peso_corporal'],
+        })
+      );
+
+      localStorage.setItem(
+        'superacao_calendar',
+        JSON.stringify([
+          {
+            id: `guest_day_${todayStr}`,
+            ownerUid: 'guest_user',
+            dateStr: todayStr,
+            dayOfWeek: dayOfWeek,
+            activityType: 'strength',
+            planId: 'template_forca_corpo_todo_casa',
+            planTitle: 'Corpo Inteiro Essencial (Sem Equipamentos)',
+            isCompleted: false,
+          },
+        ])
+      );
+    });
+    await page.reload();
+
+    // Valida o card do Micro-Desafio na Home (Estratégia C)
+    const challengeIcon = page.locator('text=🎯').first();
+    await expect(challengeIcon).toBeVisible();
+    await expect(page.getByText(/Missão de Estreia|Desafio de Hoje/i).first()).toBeVisible();
+
+    // Inicia o treino e valida que o micro-desafio ganha destaque dentro do exercício no Modo Foco
+    await page.getByRole('button', { name: /Iniciar Treino de Hoje/i }).click();
+    await expect(page.getByText(/Modo Foco/i)).toBeVisible();
+    await expect(page.locator('text=🎯').first()).toBeVisible();
+    await expect(page.getByText(/Missão de Estreia|Desafio de Hoje/i).first()).toBeVisible();
+  });
+
+  test('6. Estratégia E: Dia de Descanso oferece Cuidado Ativo e gera Elo de Vitalidade', async ({ page }) => {
+    await page.goto('/');
+    await page.evaluate(() => {
+      const today = new Date();
+      const dayOfWeek = today.getDay();
+      const year = today.getFullYear();
+      const month = String(today.getMonth() + 1).padStart(2, '0');
+      const day = String(today.getDate()).padStart(2, '0');
+      const todayStr = `${year}-${month}-${day}`;
+
+      localStorage.setItem('superacao_access_choice', JSON.stringify('guest'));
+      localStorage.setItem(
+        'superacao_user_profile',
+        JSON.stringify({
+          uid: 'guest_user',
+          displayName: 'Felipe',
+          onboardingCompleted: true,
+          routineConfirmed: true,
+          availableDays: [(dayOfWeek + 1) % 7], // Hoje é descanso!
+          sessionDurationMinutes: 20,
+          equipments: ['peso_corporal'],
+        })
+      );
+
+      localStorage.setItem(
+        'superacao_calendar',
+        JSON.stringify([
+          {
+            id: `guest_day_${todayStr}`,
+            ownerUid: 'guest_user',
+            dateStr: todayStr,
+            dayOfWeek: dayOfWeek,
+            activityType: 'rest',
+            planTitle: 'Descanso Ativo',
+            isCompleted: false,
+          },
+        ])
+      );
+    });
+    await page.reload();
+
+    // Valida Card de Descanso Planejado
+    await expect(page.getByText(/Dia de Descanso & Regeneração/i)).toBeVisible();
+    await expect(page.getByText(/O descanso é onde o corpo se regenera/i)).toBeVisible();
+
+    // Clica em Caminhada Regenerativa Livre
+    const walkBtn = page.getByRole('button', { name: /Caminhada Regenerativa Livre/i });
+    await expect(walkBtn).toBeVisible();
+    await walkBtn.click();
+
+    // Modal de registro de caminhada abre
+    await expect(page.getByText('Registrar Caminhada')).toBeVisible();
+    const durationInput = page.locator('#walk_duration_input');
+    await expect(durationInput).toBeVisible();
+    await durationInput.fill('25');
+    await page.getByRole('button', { name: /Confirmar Registro/i }).click();
+
+    // Retorna para a Home e valida que o Elo de Vitalidade foi reconhecido
+    await expect(page.getByText(/Elo Conquistado/i)).toBeVisible();
+
+    // Navega até a aba Progresso
+    await page.getByRole('button', { name: 'Progresso' }).click();
+
+    // Valida o card de Cuidado & Regeneração com 25 minutos acumulados
+    await expect(page.getByText(/Cuidado & Regeneração/i)).toBeVisible();
+    await expect(page.getByText(/25 minutos acumulados/i)).toBeVisible();
+    await expect(page.getByText(/1 elo de vitalidade/i)).toBeVisible();
+  });
+
+  test('7. Estratégias A e B: Moedas de Superação, Ponte para Amanhã e Agendamento em 1 clique', async ({ page }) => {
+    await page.goto('/');
+    await page.evaluate(() => {
+      const today = new Date();
+      const dayOfWeek = today.getDay();
+      const tomorrowDayOfWeek = (dayOfWeek + 1) % 7;
+      const year = today.getFullYear();
+      const month = String(today.getMonth() + 1).padStart(2, '0');
+      const day = String(today.getDate()).padStart(2, '0');
+      const todayStr = `${year}-${month}-${day}`;
+
+      const tomorrow = new Date(today);
+      tomorrow.setDate(today.getDate() + 1);
+      const tomYear = tomorrow.getFullYear();
+      const tomMonth = String(tomorrow.getMonth() + 1).padStart(2, '0');
+      const tomDay = String(tomorrow.getDate()).padStart(2, '0');
+      const tomorrowStr = `${tomYear}-${tomMonth}-${tomDay}`;
+
+      localStorage.setItem('superacao_access_choice', JSON.stringify('guest'));
+      localStorage.setItem(
+        'superacao_user_profile',
+        JSON.stringify({
+          uid: 'guest_user',
+          displayName: 'Beatriz',
+          onboardingCompleted: true,
+          routineConfirmed: true,
+          availableDays: [dayOfWeek],
+          sessionDurationMinutes: 15,
+          equipments: ['peso_corporal'],
+        })
+      );
+
+      // Treino personalizado de 1 única série de 5 repetições para completar o treino de ponta a ponta
+      const singleSetPlan = {
+        id: 'express_test_plan',
+        title: 'Superação Rápida Teste',
+        description: 'Plano rápido de teste',
+        category: 'forca',
+        difficulty: 'iniciante',
+        estimatedDurationMinutes: 5,
+        exercises: [
+          {
+            exerciseId: 'agachamento_livre',
+            exerciseName: 'Agachamento Livre',
+            targetSets: 1,
+            targetReps: 5,
+            targetDurationSeconds: 0,
+            restDurationSeconds: 5,
+          },
+        ],
+      };
+
+      localStorage.setItem('superacao_plans', JSON.stringify([singleSetPlan]));
+      localStorage.setItem(
+        'superacao_calendar',
+        JSON.stringify([
+          {
+            id: `guest_day_${todayStr}`,
+            ownerUid: 'guest_user',
+            dateStr: todayStr,
+            dayOfWeek: dayOfWeek,
+            activityType: 'strength',
+            planId: 'express_test_plan',
+            planTitle: 'Superação Rápida Teste',
+            isCompleted: false,
+          },
+          {
+            id: `guest_day_${tomorrowStr}`,
+            ownerUid: 'guest_user',
+            dateStr: tomorrowStr,
+            dayOfWeek: tomorrowDayOfWeek,
+            activityType: 'rest',
+            planTitle: 'Descanso Ativo',
+            isCompleted: false,
+          },
+        ])
+      );
+    });
+    await page.reload();
+
+    // Inicia treino
+    await page.getByRole('button', { name: /Iniciar Treino de Hoje/i }).click();
+
+    // Check-in inicial (Estratégia D)
+    const moodTenso = page.getByRole('button', { name: /Tenso/i });
+    if (await moodTenso.isVisible()) {
+      await moodTenso.click();
+    }
+
+    // Conclui a única série
+    await page.getByRole('button', { name: /Concluir Série/i }).click();
+    await page.getByRole('button', { name: /Salvar Registro & Iniciar Descanso/i }).click();
+
+    // Pula o descanso sensorial se estiver descansando
+    const skipBtn = page.getByRole('button', { name: /Iniciar Série Já/i });
+    if (await skipBtn.isVisible({ timeout: 1000 }).catch(() => false)) {
+      await skipBtn.click();
+    }
+
+    // Tela de Vitória de Sessão S10 deve abrir
+    await expect(page.getByText('Parabéns pela superação!')).toBeVisible();
+
+    // Valida Moedas de Superação (Estratégia A)
+    await expect(page.getByText(/Vitórias Reconhecidas Desta Sessão/i)).toBeVisible();
+    await expect(page.getByText(/Marca\(s\) Base estabelecida\(s\)|Vitória de Constância/i).first()).toBeVisible();
+
+    // Valida Termômetro Pós-Prática (Estratégia D) e seleciona 'Mais leve'
+    const postMoodBtn = page.getByRole('button', { name: /Mais leve/i });
+    await expect(postMoodBtn).toBeVisible();
+    await postMoodBtn.click();
+
+    // Valida Ponte de Continuidade para Amanhã (Estratégia B)
+    await expect(page.getByText(/Dia de Regeneração & Cuidado Leve/i)).toBeVisible();
+    const bridgeScheduleBtn = page.getByRole('button', { name: /Separar 6 min de alongamento leve para amanhã/i });
+    await expect(bridgeScheduleBtn).toBeVisible();
+    await bridgeScheduleBtn.click();
+
+    // Confirma que o agendamento em 1 clique respondeu imediatamente
+    await expect(page.getByText(/Alongamento leve separado na sua agenda!/i)).toBeVisible();
+
+    // Conclui e volta ao início
+    await page.getByRole('button', { name: /Concluir e Voltar ao Início/i }).click();
+    await expect(page.getByText('Olá, Beatriz!')).toBeVisible();
+  });
+
+  test('8. Estratégia D: Espelho de Bem-Estar na Home com memória de viradas anteriores', async ({ page }) => {
+    await page.goto('/');
+    await page.evaluate(() => {
+      const today = new Date();
+      const dayOfWeek = today.getDay();
+      const year = today.getFullYear();
+      const month = String(today.getMonth() + 1).padStart(2, '0');
+      const day = String(today.getDate()).padStart(2, '0');
+      const todayStr = `${year}-${month}-${day}`;
+
+      localStorage.setItem('superacao_access_choice', JSON.stringify('guest'));
+      localStorage.setItem(
+        'superacao_user_profile',
+        JSON.stringify({
+          uid: 'guest_user',
+          displayName: 'Camila',
+          onboardingCompleted: true,
+          routineConfirmed: true,
+          availableDays: [dayOfWeek],
+          sessionDurationMinutes: 20,
+          equipments: ['peso_corporal'],
+        })
+      );
+
+      // Simula uma sessão anterior onde a pessoa chegou 'cansado' e saiu 'renovado'
+      localStorage.setItem(
+        'superacao_sessions',
+        JSON.stringify([
+          {
+            id: 'session_turnaround_1',
+            ownerUid: 'guest_user',
+            planId: 'template_forca_corpo_todo_casa',
+            planTitle: 'Corpo Inteiro Essencial',
+            status: 'completed',
+            startedAt: Date.now() - 86400000,
+            completedAt: Date.now() - 86400000 + 900000,
+            durationSeconds: 900,
+            currentExerciseIndex: 1,
+            currentSetIndex: 2,
+            totalSetsPlanned: 4,
+            totalSetsCompleted: 4,
+            totalRepsCompleted: 40,
+            prsAchieved: 0,
+            originType: 'scheduled',
+            preMood: 'cansado',
+            postMood: 'renovado',
+            feedbackEffort: 3,
+            achievementCoins: ['rpe_efficiency'],
+            exercisesSnapshot: [],
+          },
+        ])
+      );
+
+      localStorage.setItem(
+        'superacao_calendar',
+        JSON.stringify([
+          {
+            id: `guest_day_${todayStr}`,
+            ownerUid: 'guest_user',
+            dateStr: todayStr,
+            dayOfWeek: dayOfWeek,
+            activityType: 'strength',
+            planId: 'template_forca_corpo_todo_casa',
+            planTitle: 'Corpo Inteiro Essencial (Sem Equipamentos)',
+            isCompleted: false,
+          },
+        ])
+      );
+    });
+    await page.reload();
+
+    // Valida o banner do Espelho de Bem-Estar & Sensação na Home
+    await expect(page.getByText(/Espelho de Bem-Estar & Sensação/i)).toBeVisible();
+    await expect(page.getByText(/Sem energia \/ Cansado/i)).toBeVisible();
+    await expect(page.getByText(/Com mais energia/i)).toBeVisible();
+  });
+
+  test('9. Perfil do Praticante: Ajuste Inline de Disponibilidade e Movimentos Evitados', async ({ page }) => {
+    await page.goto('/');
+    await page.evaluate(() => {
+      localStorage.setItem('superacao_access_choice', JSON.stringify('guest'));
+      localStorage.setItem(
+        'superacao_user_profile',
+        JSON.stringify({
+          uid: 'guest_user',
+          displayName: 'Thiago',
+          onboardingCompleted: true,
+          routineConfirmed: true,
+          availableDays: [1, 3, 5],
+          sessionDurationMinutes: 20,
+          equipments: ['peso_corporal'],
+          avoidedMovements: [],
+        })
+      );
+    });
+    await page.reload();
+
+    // Abre Perfil pelo botão do cabeçalho
+    const profileBtn = page.getByRole('button', { name: 'Perfil do usuário' });
+    await expect(profileBtn).toBeVisible();
+    await profileBtn.click();
+
+    // Valida título da seção
+    await expect(page.getByText('Sua Rotina de Superação')).toBeVisible();
+
+    // Clica para evitar impacto (saltos)
+    const avoidImpactBtn = page.getByRole('button', { name: /Impacto e saltos/i });
+    await expect(avoidImpactBtn).toBeVisible();
+    await avoidImpactBtn.scrollIntoViewIfNeeded();
+    await avoidImpactBtn.click();
+
+    // Salva alterações
+    const saveProfileBtn = page.getByRole('button', { name: /Salvar Alterações/i });
+    await expect(saveProfileBtn).toBeVisible();
+    await saveProfileBtn.scrollIntoViewIfNeeded();
+    await saveProfileBtn.click();
+
+    // Valida feedback de sucesso
+    await expect(page.getByText('Preferências Salvas!')).toBeVisible();
   });
 });

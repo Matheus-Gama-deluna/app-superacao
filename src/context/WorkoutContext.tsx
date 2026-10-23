@@ -787,6 +787,10 @@ export const WorkoutProvider: React.FC<{ children: React.ReactNode }> = ({ child
     const durationSec = Math.max(60, durationMinutes * 60);
     const title = distanceKm && distanceKm > 0 ? `Caminhada (${distanceKm} km)` : 'Caminhada Livre';
 
+    const todayStr = new Date().toISOString().split('T')[0];
+    const todayCal = calendar.find((c) => c.dateStr === todayStr);
+    const isTodayRest = todayCal?.activityType === 'rest';
+
     const walkSession: WorkoutSession = {
       id: `session_walk_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`,
       ownerUid: uid,
@@ -802,6 +806,8 @@ export const WorkoutProvider: React.FC<{ children: React.ReactNode }> = ({ child
       totalSetsCompleted: 1,
       totalRepsCompleted: 0,
       prsAchieved: 0,
+      originType: isTodayRest ? 'active_recovery' : 'ad_hoc',
+      achievementCoins: isTodayRest ? ['care_vitality'] : ['consistency_rhythm'],
       notes: notes || (distanceKm ? `${distanceKm} km percorridos sem necessidade de GPS.` : 'Caminhada confortável.'),
       exercisesSnapshot: [],
     };
@@ -810,11 +816,26 @@ export const WorkoutProvider: React.FC<{ children: React.ReactNode }> = ({ child
     setSessions(newSessions);
     setLocal('superacao_sessions', newSessions);
 
-    const todayStr = new Date().toISOString().split('T')[0];
-    const todayCal = calendar.find((c) => c.dateStr === todayStr);
     if (todayCal) {
-      await updateCalendarDay(todayCal.id, 'walk', 'walk_free', title);
-      await toggleCalendarDayCompleted(todayCal.id);
+      if (todayCal.activityType === 'rest') {
+        const updated = calendar.map((d) =>
+          d.id === todayCal.id
+            ? {
+                ...d,
+                vitalityBonusCompleted: true,
+                hasCareRoutine: true,
+                careRoutineTitle: title,
+                careMinutes: (d.careMinutes || 0) + durationMinutes,
+                notes: (d.notes ? `${d.notes} · ` : '') + `${title} (${durationMinutes} min)`,
+              }
+            : d
+        );
+        setCalendar(updated);
+        setLocal('superacao_calendar', updated);
+      } else {
+        await updateCalendarDay(todayCal.id, 'walk', 'walk_free', title);
+        await toggleCalendarDayCompleted(todayCal.id);
+      }
     }
 
     confetti({

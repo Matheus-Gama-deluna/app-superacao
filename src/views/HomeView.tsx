@@ -687,10 +687,11 @@ export const HomeView: React.FC<HomeViewProps> = ({
 
             <div className="space-y-3">
               <div>
-                <label className="block text-[11px] font-bold text-[#152A29] mb-1">
+                <label htmlFor="walk_duration_input" className="block text-[11px] font-bold text-[#152A29] mb-1">
                   Duração (minutos):
                 </label>
                 <input
+                  id="walk_duration_input"
                   type="number"
                   min="5"
                   max="300"
