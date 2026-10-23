@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { useWorkout } from '../context/WorkoutContext';
+import { useAuth } from '../context/AuthContext';
 import { calculateCanonicalMetrics } from '../lib/storage';
 import {
   Trophy,
@@ -30,6 +31,8 @@ export const ProgressView: React.FC = () => {
   const totalReps = setEvents.reduce((acc, curr) => acc + (curr.actualReps || 0), 0);
   const totalVolumeKg = metrics.totalVolumeKg;
   const recoveryDaysCompleted = calendar.filter((c) => c.activityType === 'active_recovery' && c.isCompleted).length;
+  const { profile } = useAuth();
+  const targetWeeklyGoal = metrics.weeklyCommittedCount > 0 ? metrics.weeklyCommittedCount : (profile?.availableDays?.length || 3);
   const completedThisWeek = metrics.weeklyCompletedCount;
 
   // Regras estritas e auditáveis de conquistas (E01, E02, Seção 5)
@@ -67,12 +70,12 @@ export const ProgressView: React.FC = () => {
       isUnlocked: personalRecords.some((p) => !p.isBaseline && (p.prCount || 0) > 0),
       icon: '🏆',
     },
-    {
+        {
       id: 'consistencia_ferro',
-      title: 'Consistência de Ferro',
-      desc: 'Concluir 3 ou mais treinos na semana',
-      isUnlocked: completedThisWeek >= 3,
-      icon: '🔥',
+      title: 'Consistência Semanal',
+      desc: `Concluir sua meta semanal de ${targetWeeklyGoal} ${targetWeeklyGoal === 1 ? 'treino' : 'treinos'}`,
+      isUnlocked: completedThisWeek >= targetWeeklyGoal,
+      icon: '🛡️',
     },
     {
       id: 'coluna_postura',

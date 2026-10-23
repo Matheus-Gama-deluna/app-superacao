@@ -12,3 +12,5 @@ coverage/
 
 .firebase/
 .claude/
+
+dev-dist

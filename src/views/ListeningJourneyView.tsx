@@ -17,6 +17,7 @@ import {
   FileCheck2,
   HelpCircle,
   Edit2,
+  X,
 } from 'lucide-react';
 import { UserProfile, OnboardingDraft } from '../types';
 import { getLocal, setLocal, STORAGE_KEYS, EQUIPMENT_LABELS, AVOIDANCE_LABELS } from '../lib/storage';
@@ -500,13 +501,13 @@ export const ListeningJourneyView: React.FC<ListeningJourneyViewProps> = ({
                       </div>
                     </div>
 
-                    {/* Botões Subir / Descer com touch target >= 44px */}
+                    {/* Botões Subir / Descer e Remover */}
                     <div className="flex items-center gap-1 shrink-0">
                       <button
                         onClick={() => handleMoveGoalUp(idx)}
                         disabled={idx === 0}
                         aria-label={`Mover ${goal} para cima`}
-                        className="w-11 h-11 rounded-xl flex items-center justify-center text-[#5B7170] hover:text-[#152A29] hover:bg-slate-100 disabled:opacity-20 cursor-pointer disabled:cursor-not-allowed"
+                        className="w-10 h-10 rounded-xl flex items-center justify-center text-[#5B7170] hover:text-[#152A29] hover:bg-slate-100 disabled:opacity-20 cursor-pointer disabled:cursor-not-allowed"
                       >
                         <ChevronUp className="w-5 h-5" />
                       </button>
@@ -514,10 +515,20 @@ export const ListeningJourneyView: React.FC<ListeningJourneyViewProps> = ({
                         onClick={() => handleMoveGoalDown(idx)}
                         disabled={idx === orderedGoals.length - 1}
                         aria-label={`Mover ${goal} para baixo`}
-                        className="w-11 h-11 rounded-xl flex items-center justify-center text-[#5B7170] hover:text-[#152A29] hover:bg-slate-100 disabled:opacity-20 cursor-pointer disabled:cursor-not-allowed"
+                        className="w-10 h-10 rounded-xl flex items-center justify-center text-[#5B7170] hover:text-[#152A29] hover:bg-slate-100 disabled:opacity-20 cursor-pointer disabled:cursor-not-allowed"
                       >
                         <ChevronDown className="w-5 h-5" />
                       </button>
+                      {orderedGoals.length > 1 && (
+                        <button
+                          onClick={() => handleToggleGoal(goal)}
+                          aria-label={`Remover ${goal}`}
+                          title="Remover objetivo"
+                          className="w-10 h-10 rounded-xl flex items-center justify-center text-[#5B7170] hover:text-[#B13D39] hover:bg-red-50 cursor-pointer"
+                        >
+                          <X className="w-4 h-4" />
+                        </button>
+                      )}
                     </div>
                   </div>
                 ))}

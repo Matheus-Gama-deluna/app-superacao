@@ -37,20 +37,52 @@ export const SmartWorkoutGeneratorModal: React.FC<SmartWorkoutGeneratorModalProp
   onSaveToProfile,
   initialFocus,
 }) => {
-  // Configurações do gerador
+    const { profile } = useAuth();
+
+  // Configurações do gerador calibradas com o perfil do praticante (Critérios C10, C12, C16)
   const [generationMode, setGenerationMode] = useState<'today' | 'weekly_split'>('today');
-  const [selectedEquipments, setSelectedEquipments] = useState<string[]>(['peso_corporal']);
-  const [durationPreset, setDurationPreset] = useState<'express' | 'padrao' | 'completo'>('padrao');
-  const [goal, setGoal] = useState<'habito' | 'postura' | 'vitalidade' | 'hipertrofia'>(
-    initialFocus === 'postura'
-      ? 'postura'
-      : initialFocus === 'vitalidade'
-      ? 'vitalidade'
-      : initialFocus === 'hipertrofia'
-      ? 'hipertrofia'
-      : 'habito'
-  );
-  const [level, setLevel] = useState<'iniciante' | 'intermediario' | 'avancado'>('iniciante');
+  const [selectedEquipments, setSelectedEquipments] = useState<string[]>(() => {
+    return profile.equipments && profile.equipments.length > 0
+      ? profile.equipments
+      : ['peso_corporal'];
+  });
+  const [durationPreset, setDurationPreset] = useState<'express' | 'padrao' | 'completo'>(() => {
+    if (profile.sessionDurationMinutes && profile.sessionDurationMinutes <= 15) return 'express';
+    if (profile.sessionDurationMinutes && profile.sessionDurationMinutes >= 35) return 'completo';
+    return 'padrao';
+  });
+  const [goal, setGoal] = useState<'habito' | 'postura' | 'vitalidade' | 'hipertrofia'>(() => {
+    if (initialFocus === 'postura') return 'postura';
+    if (initialFocus === 'vitalidade') return 'vitalidade';
+    if (initialFocus === 'hipertrofia') return 'hipertrofia';
+    const primary = (profile.primaryGoal || '').toLowerCase();
+    if (primary.includes('postura') || primary.includes('tensão') || primary.includes('tensões')) return 'postura';
+    if (primary.includes('força') || primary.includes('músculo') || primary.includes('hipertrofia')) return 'hipertrofia';
+    if (primary.includes('energia') || primary.includes('disposição') || primary.includes('vitalidade')) return 'vitalidade';
+    return 'habito';
+  });
+  const [level, setLevel] = useState<'iniciante' | 'intermediario' | 'avancado'>(() => {
+    if (profile.experienceLevel === 'pratica') return 'avancado';
+    if (profile.experienceLevel === 'retomando') return 'intermediario';
+    return 'iniciante';
+  });
+
+  // Re-sincroniza configurações ao reabrir o modal
+  React.useEffect(() => {
+    if (isOpen) {
+      if (profile.equipments && profile.equipments.length > 0) {
+        setSelectedEquipments(profile.equipments);
+      }
+      if (profile.sessionDurationMinutes && profile.sessionDurationMinutes <= 15) {
+        setDurationPreset('express');
+      } else if (profile.sessionDurationMinutes && profile.sessionDurationMinutes >= 35) {
+        setDurationPreset('completo');
+      }
+      if (profile.experienceLevel === 'pratica') setLevel('avancado');
+      else if (profile.experienceLevel === 'retomando') setLevel('intermediario');
+      else setLevel('iniciante');
+    }
+  }, [isOpen, profile]);
 
   // Treino gerado
   const [generatedPlan, setGeneratedPlan] = useState<WorkoutPlan | null>(null);

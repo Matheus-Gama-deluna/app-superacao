@@ -54,26 +54,22 @@ const MainAppContent: React.FC = () => {
 
   // Calcula o estado determinístico de fluxo (Seção 4, Critérios C01, C02, C09)
   const flowState: AppFlowState = (() => {
-    // 1. Usuário já possui perfil completo e rotina confirmada (ou está explorando livremente)
-    if (profile.onboardingCompleted && (profile.routineConfirmed || activeProgram || plans.length > 0)) {
-      return 'main';
-    }
-
-    // 2. Não houve escolha explícita de acesso e não está logado
+    // 1. Não houve escolha explícita de acesso e não está logado
     if (!user && !accessChoice) {
       return 'welcome';
     }
 
-    // 3. Proposta gerada aguardando confirmação explícita (Critério C09)
-    if (profile.onboardingCompleted && !profile.routineConfirmed && currentProposal) {
-      return 'proposal';
-    }
-
-    // 4. Onboarding / escuta em andamento
+    // 2. Onboarding / escuta em andamento
     if (!profile.onboardingCompleted) {
       return 'onboarding';
     }
 
+    // 3. Proposta gerada aguardando confirmação explícita ou aberta explicitamente para revisão (Critério C09)
+    if (currentProposal && (!profile.routineConfirmed || isViewingProposal)) {
+      return 'proposal';
+    }
+
+    // 4. Experiência principal (usuário com rotina confirmada ou explorando)
     return 'main';
   })();
 
@@ -124,6 +120,7 @@ const MainAppContent: React.FC = () => {
             const prop = generateExplainableProposal(profile, draft);
             setCurrentProposal(prop);
             setLocal(STORAGE_KEYS.PROPOSAL, prop);
+            setIsViewingProposal(true);
           } else if (nextAction === 'builder_pro') {
             handleOpenBuilder(undefined, true);
           } else if (nextAction === 'builder_manual') {
@@ -141,7 +138,7 @@ const MainAppContent: React.FC = () => {
       <ProposalView
         proposal={currentProposal}
         onConfirm={() => {
-          // Rotina ativada com sucesso
+          setIsViewingProposal(false);
         }}
         onAdjustAnswers={() => {
           // Retorna para a escuta inicial para ajustar respostas (Critério C05)
@@ -151,7 +148,11 @@ const MainAppContent: React.FC = () => {
           });
           window.location.reload();
         }}
+        onClose={() => {
+          setIsViewingProposal(false);
+        }}
         onChooseOtherOption={(option) => {
+          setIsViewingProposal(false);
           if (option === 'builder_pro') {
             handleOpenBuilder(undefined, true);
           } else {
@@ -199,8 +200,7 @@ const MainAppContent: React.FC = () => {
                 onReviewProposal={
                   currentProposal
                     ? () => {
-                        // Permite rever a proposta a qualquer momento
-                        setCurrentProposal({ ...currentProposal, isConfirmed: false });
+                        setIsViewingProposal(true);
                       }
                     : undefined
                 }

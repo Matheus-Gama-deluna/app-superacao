@@ -113,6 +113,11 @@ export const CalendarView: React.FC<CalendarViewProps> = ({ onStartPlanById }) =
                   <div className="flex items-center gap-2">
                     <span className="text-xs font-bold text-[#152A29]">
                       {daysLabels[day.dayOfWeek]}
+                      {day.dateStr && (
+                        <span className="text-[11px] font-normal text-[#5B7170] ml-1.5">
+                          ({formatDateLabel(day.dateStr)})
+                        </span>
+                      )}
                     </span>
                     <span
                       className="px-2 py-0.5 rounded-full text-[10px] font-bold flex items-center gap-1"
@@ -127,22 +132,29 @@ export const CalendarView: React.FC<CalendarViewProps> = ({ onStartPlanById }) =
                   </h4>
                 </div>
 
-                {/* Botão de Marcar como Feito */}
-                <button
-                  onClick={() => toggleCalendarDayCompleted(day.id)}
-                  className={`p-1.5 rounded-xl transition-all cursor-pointer ${
-                    day.isCompleted
-                      ? 'text-[#246747] bg-emerald-50'
-                      : 'text-[#5B7170] hover:text-[#125F55]'
-                  }`}
-                  title={day.isCompleted ? 'Desmarcar' : 'Marcar como concluído'}
-                >
-                  {day.isCompleted ? (
-                    <CheckCircle2 className="w-6 h-6 fill-emerald-100" />
-                  ) : (
-                    <Circle className="w-6 h-6" />
-                  )}
-                </button>
+                {/* Botão de Marcar como Feito (somente para treinos e recuperação ativa) */}
+                {day.activityType !== 'rest' && day.activityType !== 'unassigned' ? (
+                  <button
+                    onClick={() => toggleCalendarDayCompleted(day.id)}
+                    className={`p-1.5 rounded-xl transition-all cursor-pointer ${
+                      day.isCompleted
+                        ? 'text-[#246747] bg-emerald-50'
+                        : 'text-[#5B7170] hover:text-[#125F55]'
+                    }`}
+                    title={day.isCompleted ? 'Desmarcar' : 'Marcar como concluído'}
+                    aria-label={day.isCompleted ? 'Desmarcar' : 'Marcar como concluído'}
+                  >
+                    {day.isCompleted ? (
+                      <CheckCircle2 className="w-6 h-6 fill-emerald-100" />
+                    ) : (
+                      <Circle className="w-6 h-6" />
+                    )}
+                  </button>
+                ) : (
+                  <div className="p-1.5 text-[11px] font-medium text-[#5B7170] bg-[#F5F8F5] px-2 py-0.5 rounded-lg border border-[#C9DBD3]/50">
+                    Descanso
+                  </div>
+                )}
               </div>
 
               {/* Ações do dia */}
