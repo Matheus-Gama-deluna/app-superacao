@@ -8,13 +8,17 @@ import {
   calculateMovementLaddersProgress,
   MOVEMENT_LADDERS,
 } from '../src/lib/workoutEngine/progression';
-import { WorkoutPlan, WorkoutSession, UserPreferences } from '../src/types';
+import { WorkoutPlan, WorkoutSession, UserProfile, SetEvent } from '../src/types';
 
-describe('WorkoutEngine - Progressão e Adaptação Viva (Fase 4)', () => {
+describe('WorkoutEngine - Progressão e Adaptação Viva (Fase 4 & 5)', () => {
   const dummyPlan: WorkoutPlan = {
     id: 'plan_test_progression',
+    ownerUid: 'guest_user',
     title: 'Treino Teste de Progressão',
     description: 'Rotina de validação',
+    version: 1,
+    isProfessional: false,
+    estimatedDurationMinutes: 20,
     targetSets: 3,
     targetReps: 10,
     exercises: [
@@ -31,6 +35,7 @@ describe('WorkoutEngine - Progressão e Adaptação Viva (Fase 4)', () => {
         exerciseName: 'Prancha Frontal',
         targetSets: 3,
         targetReps: 30, // segundos
+        targetDurationSeconds: 30,
         restSeconds: 45,
         trackingMode: 'time',
       },
@@ -43,34 +48,93 @@ describe('WorkoutEngine - Progressão e Adaptação Viva (Fase 4)', () => {
         trackingMode: 'reps',
       },
     ],
+    createdAt: Date.now(),
+    updatedAt: Date.now(),
   };
 
   it('1. analyzeSessionProgression sugere subir degrau da escada biomecânica quando critério é cumprido', () => {
     const session: WorkoutSession = {
       id: 'sess_1',
-      date: '2026-10-23',
-      workoutPlanId: dummyPlan.id,
-      workoutTitle: dummyPlan.title,
-      durationMinutes: 20,
+      ownerUid: 'guest_user',
+      planId: dummyPlan.id,
+      planTitle: dummyPlan.title,
+      startedAt: Date.now() - 1200000,
+      completedAt: Date.now(),
+      durationSeconds: 1200,
+      currentExerciseIndex: 2,
+      currentSetIndex: 3,
+      totalSetsPlanned: 9,
+      totalSetsCompleted: 9,
+      totalRepsCompleted: 90,
+      prsAchieved: 1,
       status: 'completed',
-      preWorkoutMood: 'normal',
-      postWorkoutMood: 'renovado',
+      preMood: 'normal',
+      postMood: 'renovado',
       feedbackEffort: 2, // Leve / fluido
-      sets: {
-        wall_pushup_controlled: [
-          { completed: true, reps: 15 },
-          { completed: true, reps: 15 },
-          { completed: true, reps: 15 },
-        ],
-        plank: [
-          { completed: true, reps: 30 },
-          { completed: true, reps: 30 },
-          { completed: true, reps: 30 },
-        ],
-      },
+      exercisesSnapshot: dummyPlan.exercises,
     };
 
-    const analysis = analyzeSessionProgression(session, dummyPlan, []);
+    const setEvents: SetEvent[] = [
+      {
+        id: 'ev_1',
+        ownerUid: 'guest_user',
+        sessionId: 'sess_1',
+        exerciseId: 'wall_pushup_controlled',
+        exerciseName: 'Flexão na Parede',
+        setIndex: 1,
+        targetReps: 15,
+        actualReps: 15,
+        restDurationSeconds: 45,
+        isPR: false,
+        clientEventId: 'c1',
+        recordedAt: Date.now(),
+      },
+      {
+        id: 'ev_2',
+        ownerUid: 'guest_user',
+        sessionId: 'sess_1',
+        exerciseId: 'wall_pushup_controlled',
+        exerciseName: 'Flexão na Parede',
+        setIndex: 2,
+        targetReps: 15,
+        actualReps: 15,
+        restDurationSeconds: 45,
+        isPR: false,
+        clientEventId: 'c2',
+        recordedAt: Date.now(),
+      },
+      {
+        id: 'ev_3',
+        ownerUid: 'guest_user',
+        sessionId: 'sess_1',
+        exerciseId: 'wall_pushup_controlled',
+        exerciseName: 'Flexão na Parede',
+        setIndex: 3,
+        targetReps: 15,
+        actualReps: 15,
+        restDurationSeconds: 45,
+        isPR: false,
+        clientEventId: 'c3',
+        recordedAt: Date.now(),
+      },
+      {
+        id: 'ev_4',
+        ownerUid: 'guest_user',
+        sessionId: 'sess_1',
+        exerciseId: 'plank',
+        exerciseName: 'Prancha Frontal',
+        setIndex: 1,
+        targetReps: 30,
+        actualReps: 0,
+        actualDurationSeconds: 30,
+        restDurationSeconds: 45,
+        isPR: false,
+        clientEventId: 'c4',
+        recordedAt: Date.now(),
+      },
+    ];
+
+    const analysis = analyzeSessionProgression(session, dummyPlan, [], setEvents);
     expect(analysis.upgrades.length).toBeGreaterThan(0);
 
     const ladderUpgrade = analysis.upgrades.find(u => u.type === 'ladder_step_up');
@@ -124,6 +188,7 @@ describe('WorkoutEngine - Progressão e Adaptação Viva (Fase 4)', () => {
     // Snapshot adaptado
     const gentleSnapshot = createGentleReturnPlanSnapshot(dummyPlan);
     expect(gentleSnapshot.title).toContain('Retomada Gentil');
+    expect(gentleSnapshot.id).toBe(dummyPlan.id); // Mantém o ID original
     expect(gentleSnapshot.exercises[0].targetSets).toBe(2);
     expect(gentleSnapshot.exercises[0].targetReps).toBeLessThan(15);
     // Plano original intacto
@@ -131,18 +196,18 @@ describe('WorkoutEngine - Progressão e Adaptação Viva (Fase 4)', () => {
   });
 
   it('4. findSafeEquivalentExercises filtra exercícios com respeito estrito a limitações e equipamentos', () => {
-    const userPrefs: UserPreferences = {
-      availableEquipments: ['peso_corporal'],
+    const userProfile: Partial<UserProfile> = {
+      equipments: ['peso_corporal'],
       reportedLimitations: ['joelhos'], // Dor no joelho
       avoidedMovements: ['salto'],
       primaryGoal: 'habito',
       experienceLevel: 'iniciante',
-      daysPerWeek: 3,
-      sessionMinutes: 20,
+      availableDays: [1, 3, 5],
+      sessionDurationMinutes: 20,
     };
 
     // Procurar equivalentes para flexão na parede
-    const substitutes = findSafeEquivalentExercises('wall_pushup_controlled', userPrefs);
+    const substitutes = findSafeEquivalentExercises('wall_pushup_controlled', userProfile);
     expect(substitutes.length).toBeGreaterThan(0);
     for (const sub of substitutes) {
       expect(sub.id).not.toBe('wall_pushup_controlled');

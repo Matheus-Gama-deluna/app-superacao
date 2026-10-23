@@ -23,6 +23,7 @@ import {
   ShieldAlert,
   Pause,
   Target,
+  ArrowLeftRight,
 } from 'lucide-react';
 import { soundManager } from '../lib/audio';
 import { mediaSessionManager } from '../lib/backgroundWorkout';
@@ -70,6 +71,10 @@ export const ActiveWorkoutView: React.FC<ActiveWorkoutViewProps> = ({
     calendar,
     setSessionPreMood,
     scheduleOptionalMobilityForTomorrow,
+    setEvents,
+    swapExerciseInActiveSession,
+    updateActiveExerciseTarget,
+    applyPlanProgression,
   } = useWorkout();
 
   // Estados locais do modal de confirmação de série (S08)
@@ -88,6 +93,7 @@ export const ActiveWorkoutView: React.FC<ActiveWorkoutViewProps> = ({
   const [isMobilityScheduled, setIsMobilityScheduled] = useState<boolean>(false);
   // Fase 4: Adaptação Viva
   const [showSwapModal, setShowSwapModal] = useState<boolean>(false);
+  const [saveSwapToPlan, setSaveSwapToPlan] = useState<boolean>(false);
   const [progressionAnalysis, setProgressionAnalysis] = useState<SessionProgressionAnalysis | null>(null);
   const [selectedUpgrades, setSelectedUpgrades] = useState<Record<string, boolean>>({});
   const [progressionApplied, setProgressionApplied] = useState<boolean>(false);
@@ -105,7 +111,7 @@ export const ActiveWorkoutView: React.FC<ActiveWorkoutViewProps> = ({
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [showExerciseDetail, showConfirmSheet, showAbandonConfirm]);
+  }, [showSwapModal, showExerciseDetail, showConfirmSheet, showAbandonConfirm]);
 
   if (!activeSession) return null;
 
@@ -179,7 +185,8 @@ export const ActiveWorkoutView: React.FC<ActiveWorkoutViewProps> = ({
           const analysis = analyzeSessionProgression(
             { ...activeSession, feedbackEffort: effortScore },
             currentPlan,
-            personalRecords
+            personalRecords,
+            setEvents
           );
           setProgressionAnalysis(analysis);
           const initialSelected: Record<string, boolean> = {};
@@ -334,7 +341,21 @@ export const ActiveWorkoutView: React.FC<ActiveWorkoutViewProps> = ({
               ].map((item) => (
                 <button
                   key={item.score}
-                  onClick={() => setEffortScore(item.score)}
+                  onClick={() => {
+                    setEffortScore(item.score);
+                    if (currentPlan) {
+                      const analysis = analyzeSessionProgression(
+                        { ...activeSession, feedbackEffort: item.score },
+                        currentPlan,
+                        personalRecords,
+                        setEvents
+                      );
+                      setProgressionAnalysis(analysis);
+                      const initialSelected: Record<string, boolean> = {};
+                      analysis.upgrades.forEach(u => { initialSelected[u.exerciseId] = true; });
+                      setSelectedUpgrades(initialSelected);
+                    }
+                  }}
                   className={`py-2 rounded-xl text-center text-xs font-bold transition-all cursor-pointer ${
                     effortScore === item.score
                       ? 'bg-[#125F55] text-white shadow-xs'
@@ -347,6 +368,81 @@ export const ActiveWorkoutView: React.FC<ActiveWorkoutViewProps> = ({
               ))}
             </div>
           </div>
+
+          {/* Card de Evolução Consensual da Ficha (Fase 4 & 5 - Motor Adaptativo) */}
+          {progressionAnalysis && progressionAnalysis.upgrades.length > 0 && currentPlan && (
+            <div className="bg-emerald-50 rounded-2xl p-4 border border-emerald-300 text-left space-y-3 shadow-xs">
+              <div className="flex items-center gap-2">
+                <span className="text-lg">📈</span>
+                <div>
+                  <h4 className="text-xs font-black uppercase tracking-wider text-emerald-900">
+                    Evolução Sugerida para Sua Ficha
+                  </h4>
+                  <p className="text-[11px] text-emerald-800 font-medium">
+                    {progressionAnalysis.summaryMessage}
+                  </p>
+                </div>
+              </div>
+
+              <div className="space-y-2 pt-1">
+                {progressionAnalysis.upgrades.map((up) => (
+                  <label
+                    key={up.exerciseId}
+                    className="flex items-start gap-2.5 p-2.5 bg-white rounded-xl border border-emerald-200 cursor-pointer hover:border-emerald-400 transition-colors"
+                  >
+                    <input
+                      type="checkbox"
+                      checked={Boolean(selectedUpgrades[up.exerciseId])}
+                      onChange={(e) => {
+                        setSelectedUpgrades((prev) => ({
+                          ...prev,
+                          [up.exerciseId]: e.target.checked,
+                        }));
+                      }}
+                      className="mt-0.5 rounded text-emerald-700 focus:ring-emerald-500"
+                    />
+                    <div className="flex-1 text-xs">
+                      <div className="flex items-center justify-between font-bold text-slate-900">
+                        <span>{up.exerciseName}</span>
+                        <span className="text-emerald-700 bg-emerald-100 px-2 py-0.5 rounded-full text-[10px]">
+                          {up.type === 'ladder_step_up'
+                            ? `Subir para Degrau ${up.suggestedValue}`
+                            : `+${up.suggestedValue - up.currentValue} ${up.unit}`}
+                        </span>
+                      </div>
+                      <p className="text-[11px] text-slate-600 mt-0.5 leading-snug">
+                        {up.reason}
+                      </p>
+                    </div>
+                  </label>
+                ))}
+              </div>
+
+              <div className="pt-1">
+                {progressionApplied ? (
+                  <div className="py-2.5 px-3 bg-emerald-700 text-white rounded-xl text-xs font-bold text-center">
+                    ✓ Ficha oficial atualizada com sucesso para seus próximos treinos!
+                  </div>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={async () => {
+                      const approved = progressionAnalysis.upgrades.filter(
+                        (u) => selectedUpgrades[u.exerciseId]
+                      );
+                      if (approved.length > 0) {
+                        await applyPlanProgression(currentPlan.id, approved);
+                        setProgressionApplied(true);
+                      }
+                    }}
+                    className="w-full py-2.5 px-3 bg-emerald-800 text-white rounded-xl text-xs font-bold hover:bg-emerald-900 cursor-pointer shadow-xs transition-transform active:scale-[0.98]"
+                  >
+                    Atualizar Ficha Oficial com as Metas Acima
+                  </button>
+                )}
+              </div>
+            </div>
+          )}
 
           {/* Termômetro de Bem-Estar Após a Prática (Estratégia D) */}
           <div className="bg-white p-4 rounded-2xl border border-[#C9DBD3] shadow-xs space-y-2">
@@ -649,9 +745,20 @@ export const ActiveWorkoutView: React.FC<ActiveWorkoutViewProps> = ({
                   Série {activeSession.currentSetIndex} de {currentExerciseItem.targetSets}
                 </span>
               </div>
-              <h2 className="text-xl font-black text-[#152A29] mt-1">
-                {currentExerciseItem.exerciseName}
-              </h2>
+              <div className="flex items-center justify-between gap-2 mt-1">
+                <h2 className="text-xl font-black text-[#152A29]">
+                  {currentExerciseItem.exerciseName}
+                </h2>
+                <button
+                  type="button"
+                  onClick={() => setShowSwapModal(true)}
+                  className="px-2.5 py-1 rounded-xl bg-white border border-[#C9DBD3] text-xs font-bold text-[#125F55] hover:bg-[#EAF3EF] hover:border-[#125F55] flex items-center gap-1 transition-all shadow-2xs cursor-pointer shrink-0"
+                  title="Trocar este exercício por outro equivalente"
+                >
+                  <ArrowLeftRight className="w-3.5 h-3.5" />
+                  <span>Trocar</span>
+                </button>
+              </div>
             </div>
 
             {/* Dica de Micro-Superação (Última marca vs Meta de hoje) */}
@@ -865,12 +972,21 @@ export const ActiveWorkoutView: React.FC<ActiveWorkoutViewProps> = ({
               </button>
             </div>
 
+            <label className="flex items-center gap-2 p-2 bg-slate-50 rounded-xl border border-slate-200 text-xs font-semibold text-slate-700 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={saveSwapToPlan}
+                onChange={(e) => setSaveSwapToPlan(e.target.checked)}
+                className="rounded text-[#125F55]"
+              />
+              <span>Atualizar também na minha ficha oficial para os próximos treinos</span>
+            </label>
+
             <div className="space-y-2 max-h-72 overflow-y-auto">
               {(() => {
                 const candidates = findSafeEquivalentExercises(
                   currentExerciseItem.exerciseId,
-                  profile,
-                  []
+                  profile
                 );
 
                 if (candidates.length === 0) {
@@ -896,8 +1012,19 @@ export const ActiveWorkoutView: React.FC<ActiveWorkoutViewProps> = ({
                     </div>
                     <button
                       type="button"
-                      onClick={() => {
+                      onClick={async () => {
                         swapExerciseInActiveSession(activeSession.currentExerciseIndex, cand);
+                        if (saveSwapToPlan && currentPlan) {
+                          const updatedPlan = {
+                            ...currentPlan,
+                            exercises: currentPlan.exercises.map(ex =>
+                              ex.exerciseId === currentExerciseItem.exerciseId
+                                ? { ...ex, exerciseId: cand.id, exerciseName: cand.name_pt || cand.name_en || ex.exerciseName }
+                                : ex
+                            ),
+                          };
+                          await applyPlanProgression(currentPlan.id, []);
+                        }
                         setShowSwapModal(false);
                       }}
                       className="px-3 py-1.5 bg-[#125F55] text-white rounded-xl text-xs font-bold hover:bg-[#0C5148] cursor-pointer shrink-0"

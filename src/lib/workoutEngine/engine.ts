@@ -191,11 +191,14 @@ export function generateSmartWorkoutRoutine(
         const selected = sorted[0];
         usedExerciseIds.add(selected.id);
 
+        const normalizedExpLevel: 'iniciante' | 'intermediario' | 'avancado' =
+          experienceLevel === 'pratica' ? 'avancado' : experienceLevel === 'retomando' ? 'intermediario' : (experienceLevel || 'iniciante');
+
         const planItem = prescribeExerciseItem(
           selected,
           {
             sessionDurationMinutes: targetDuration,
-            experienceLevel,
+            experienceLevel: normalizedExpLevel,
             goalKey,
           },
           slot.rationale

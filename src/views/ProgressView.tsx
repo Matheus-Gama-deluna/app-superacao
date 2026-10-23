@@ -144,12 +144,12 @@ export const ProgressView: React.FC = () => {
         <div className="bg-white p-3.5 rounded-2xl border border-[#C9DBD3] shadow-xs text-center">
           <span className="text-[10px] text-[#5B7170] font-medium block">Recordes Reais (PRs)</span>
           <span className="text-xl font-black text-[#246747] tabular-nums mt-0.5 block">
-            {metrics.realPRCount}
+            {metrics.prsAchievedCount}
           </span>
-          {personalRecords.length > metrics.realPRCount && (
+          {personalRecords.length > metrics.prsAchievedCount && (
             <span className="text-[9px] text-[#5B7170] block font-normal">
-              {personalRecords.length - metrics.realPRCount}{' '}
-              {personalRecords.length - metrics.realPRCount === 1 ? 'marca inicial' : 'marcas iniciais'}
+              {personalRecords.length - metrics.prsAchievedCount}{' '}
+              {personalRecords.length - metrics.prsAchievedCount === 1 ? 'marca inicial' : 'marcas iniciais'}
             </span>
           )}
         </div>

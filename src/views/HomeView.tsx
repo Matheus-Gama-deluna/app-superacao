@@ -21,6 +21,7 @@ import {
   X,
   AlertCircle,
   Target,
+  Circle,
 } from 'lucide-react';
 import { WorkoutPlan } from '../types';
 import { premadeWorkouts } from '../data/premadeWorkouts';
@@ -92,9 +93,8 @@ export const HomeView: React.FC<HomeViewProps> = ({
   const recoveryPlan = plans.find((p) => p.category === 'mobilidade') || null;
 
   // Insights de Bem-Estar e Micro-Desafio do Dia (Estratégias C e D)
-  // Detecção de Retomada Gentil (Fase 4 - Ausência prolongada >= 7 dias)
-  const lastSessionDate = sessions.length > 0 ? sessions[0].date : null;
-  const gentleReturn = detectGentleReturn(lastSessionDate, todayStr);
+  // Detecção de Retomada Gentil (Fase 4 & 5 - Ausência prolongada >= 7 dias)
+  const gentleReturn = detectGentleReturn(sessions, todayStr);
 
     const wellbeingInsight = generateWellbeingInsight(sessions);
   const dailyChallenge = todayPlan ? generateDailyMicroChallenge(todayPlan, personalRecords) : null;
@@ -146,7 +146,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
             <button
               onClick={() => {
                 const adaptedPlan = createGentleReturnPlanSnapshot(todayPlan);
-                startWorkout(adaptedPlan, todaySchedule?.id, 'scheduled');
+                onStartWorkout(adaptedPlan, todaySchedule?.id, 'scheduled');
               }}
               className="flex-1 py-2.5 px-3 bg-amber-800 text-white rounded-xl text-xs font-bold shadow hover:bg-amber-900 flex items-center justify-center gap-1.5 cursor-pointer"
             >
@@ -154,7 +154,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
               Iniciar Treino Gentil (2 séries)
             </button>
             <button
-              onClick={() => startWorkout(todayPlan, todaySchedule?.id, 'scheduled')}
+              onClick={() => onStartWorkout(todayPlan, todaySchedule?.id, 'scheduled')}
               className="py-2.5 px-3 bg-white text-amber-900 border border-amber-300 rounded-xl text-xs font-bold hover:bg-amber-100 cursor-pointer"
             >
               Fazer Normal

@@ -686,4 +686,153 @@ test.describe('Superação - Validação End-to-End Headless (Em Segundo Plano)'
     // Deve avançar para a Série 2
     await expect(page.getByText(/Série 2 de 2/i)).toBeVisible();
   });
+  test('12. Fase 5: Retomada Gentil, Troca ao Vivo, Evolução Pós-Treino e Trilhas Biomecânicas', async ({ page }) => {
+    await page.goto('/');
+    const today = new Date();
+    const dayOfWeek = today.getDay();
+    const year = today.getFullYear();
+    const month = String(today.getMonth() + 1).padStart(2, '0');
+    const day = String(today.getDate()).padStart(2, '0');
+    const todayStr = `${year}-${month}-${day}`;
+
+    // Data de 10 dias atrás para simular Retomada Gentil
+    const tenDaysAgo = new Date(today);
+    tenDaysAgo.setDate(today.getDate() - 10);
+    const tenDaysAgoMs = tenDaysAgo.getTime();
+
+    await page.evaluate(({ todayStr, dayOfWeek, tenDaysAgoMs }) => {
+      localStorage.setItem('superacao_access_choice', JSON.stringify('guest'));
+      localStorage.setItem(
+        'superacao_user_profile',
+        JSON.stringify({
+          uid: 'guest_user',
+          displayName: 'Larissa',
+          onboardingCompleted: true,
+          routineConfirmed: true,
+          availableDays: [dayOfWeek],
+          sessionDurationMinutes: 15,
+          equipments: ['peso_corporal'],
+        })
+      );
+
+      // Sessão de 10 dias atrás para ativar o card de acolhimento
+      localStorage.setItem(
+        'superacao_sessions',
+        JSON.stringify([
+          {
+            id: 'old_session_10_days',
+            ownerUid: 'guest_user',
+            planId: 'plan_test_fase5',
+            planTitle: 'Treino de Força Fundamental',
+            startedAt: tenDaysAgoMs,
+            completedAt: tenDaysAgoMs + 900000,
+            durationSeconds: 900,
+            status: 'completed',
+            currentExerciseIndex: 0,
+            currentSetIndex: 1,
+            totalSetsPlanned: 1,
+            totalSetsCompleted: 1,
+            totalRepsCompleted: 10,
+            prsAchieved: 0,
+            exercisesSnapshot: [],
+          },
+        ])
+      );
+
+      // Ficha de 1 única série de Flexão na Parede
+      const quickPlan = {
+        id: 'plan_test_fase5',
+        ownerUid: 'guest_user',
+        title: 'Treino de Força Fundamental',
+        description: 'Plano com degrau biomecânico',
+        version: 1,
+        isProfessional: false,
+        estimatedDurationMinutes: 10,
+        exercises: [
+          {
+            exerciseId: 'wall_pushup_controlled',
+            exerciseName: 'Flexão na Parede',
+            targetSets: 1,
+            targetReps: 15,
+            restSeconds: 30,
+            trackingMode: 'reps',
+          },
+        ],
+      };
+
+      localStorage.setItem('superacao_plans', JSON.stringify([quickPlan]));
+      localStorage.setItem(
+        'superacao_calendar',
+        JSON.stringify([
+          {
+            id: `guest_day_${todayStr}`,
+            ownerUid: 'guest_user',
+            dateStr: todayStr,
+            dayOfWeek: dayOfWeek,
+            activityType: 'strength',
+            planId: 'plan_test_fase5',
+            planTitle: 'Treino de Força Fundamental',
+            isCompleted: false,
+          },
+        ])
+      );
+    }, { todayStr, dayOfWeek, tenDaysAgoMs });
+
+    await page.reload();
+
+    // 1. Valida o Card de Retomada Gentil (Fase 4 & 5)
+    await expect(page.getByText(/Sentimos sua falta há 10 dias/i)).toBeVisible();
+    await expect(page.getByText('Readaptação', { exact: true })).toBeVisible();
+
+    // 2. Inicia o Treino Gentil
+    const gentleStartBtn = page.getByRole('button', { name: /Iniciar Treino Gentil/i });
+    await expect(gentleStartBtn).toBeVisible();
+    await gentleStartBtn.click();
+
+    // 3. Valida tela de treino ativo e abre modal de Troca de Exercício
+    await expect(page.getByRole('heading', { name: 'Flexão na Parede', exact: true })).toBeVisible();
+    const swapBtn = page.getByRole('button', { name: /Trocar/i });
+    await expect(swapBtn).toBeVisible();
+    await swapBtn.click();
+
+    // Valida modal de substituição e fecha
+    await expect(page.getByText('Substituir Exercício')).toBeVisible();
+    await expect(page.getByText(/Substitutos seguros do mesmo padrão biomecânico/i)).toBeVisible();
+    await page.keyboard.press('Escape');
+    await expect(page.getByText('Substituir Exercício')).not.toBeVisible();
+
+    // 4. Executa a série
+    await page.getByRole('button', { name: /Concluir Série/i }).click();
+    await page.getByRole('button', { name: /Salvar Registro & Iniciar Descanso/i }).click();
+
+    // Pula descanso se necessário
+    const skipBtn = page.getByRole('button', { name: /Iniciar Série Já/i });
+    if (await skipBtn.isVisible({ timeout: 1000 }).catch(() => false)) {
+      await skipBtn.click();
+    }
+
+    // 5. Tela Final S10: Seleciona RPE 1 (Leve) e valida Card de Evolução
+    await expect(page.getByText('Parabéns pela superação!')).toBeVisible();
+    const rpe1Btn = page.getByRole('button', { name: '1 Leve' });
+    await expect(rpe1Btn).toBeVisible();
+    await rpe1Btn.click();
+
+    // Valida que o card "Evolução Sugerida para Sua Ficha" aparece
+    await expect(page.getByText(/Evolução Sugerida para Sua Ficha/i)).toBeVisible();
+    const updatePlanBtn = page.getByRole('button', { name: /Atualizar Ficha Oficial com as Metas Acima/i });
+    await expect(updatePlanBtn).toBeVisible();
+    await updatePlanBtn.click();
+    await expect(page.getByText(/✓ Ficha oficial atualizada com sucesso/i)).toBeVisible();
+
+    // Conclui e volta ao Início
+    await page.getByRole('button', { name: /Concluir e Voltar ao Início/i }).click();
+
+    // 6. Navega até a aba Progresso e valida Trilhas Biomecânicas
+    await page.getByRole('button', { name: 'Progresso' }).click();
+    await expect(page.getByText(/Trilhas de Evolução Biomecânica/i)).toBeVisible();
+    await expect(page.getByText(/Trilha de Empurrar/i)).toBeVisible();
+    // Valida que não existe o bug textual "undefined reps"
+    const bodyContent = await page.textContent('body');
+    expect(bodyContent).not.toContain('undefined reps');
+  });
 });

@@ -61,6 +61,7 @@ export const CalendarView: React.FC<CalendarViewProps> = ({ onStartPlanById }) =
     active_recovery: { label: 'Recuperação Ativa (Mobilidade)', icon: Sparkles, color: '#203826', bg: '#D9F277' },
     rest: { label: 'Descanso Total', icon: Heart, color: '#246747', bg: '#EAF3EF' },
     walk: { label: 'Caminhada & Respiração', icon: Footprints, color: '#125F55', bg: '#F5F8F5' },
+    mobility: { label: 'Mobilidade & Postura', icon: Sparkles, color: '#246747', bg: '#EAF3EF' },
     unassigned: { label: 'Livre / Não definido', icon: Circle, color: '#5B7170', bg: '#F5F8F5' },
   };
 

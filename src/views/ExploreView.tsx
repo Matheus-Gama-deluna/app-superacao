@@ -83,12 +83,12 @@ export const ExploreView: React.FC<ExploreViewProps> = ({
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
         if (inspectingExercise) setInspectingExercise(null);
-        else if (pendingProgramToActivate) setPendingProgramToActivate(null);
+        else if (activationModal) setActivationModal(null);
       }
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [inspectingExercise]);
+  }, [inspectingExercise, activationModal]);
 
   // Filtros de Equipamento para o catálogo (A04, A09)
   const equipmentOptions = [

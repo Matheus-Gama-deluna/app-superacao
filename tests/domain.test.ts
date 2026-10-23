@@ -1380,6 +1380,8 @@ describe('Superação v8 — Caso Obrigatório de Regressão e Homologação (Se
         id: 'plan_b',
         title: 'Treino B - Membros Superiores',
         description: 'Foco em peito e costas',
+        isProfessional: false,
+        estimatedDurationMinutes: 20,
         exercises: [
           {
             exerciseId: 'pushup',
@@ -1389,7 +1391,7 @@ describe('Superação v8 — Caso Obrigatório de Regressão e Homologação (Se
             restSeconds: 60,
           },
         ],
-        targetRepsRange: [8, 12],
+        targetReps: 10,
         isTemplate: false,
         category: 'forca',
         version: 1,
@@ -1440,6 +1442,8 @@ describe('Superação v8 — Caso Obrigatório de Regressão e Homologação (Se
         id: 'plan_squat',
         title: 'Ficha Pernas',
         description: 'Agachamento',
+        isProfessional: false,
+        estimatedDurationMinutes: 20,
         exercises: [
           {
             exerciseId: 'ex_squat',
@@ -1449,7 +1453,8 @@ describe('Superação v8 — Caso Obrigatório de Regressão e Homologação (Se
             restSeconds: 60,
           },
         ],
-        targetRepsRange: [8, 12],
+        targetReps: 10,
+        targetRepsRange: '8-12',
         isTemplate: false,
         category: 'forca',
         version: 1,
@@ -1484,6 +1489,8 @@ describe('Superação v8 — Caso Obrigatório de Regressão e Homologação (Se
         id: 'plan_mob',
         title: 'Mobilidade da Coluna e Quadril',
         description: 'Soltura',
+        isProfessional: false,
+        estimatedDurationMinutes: 10,
         exercises: [
           {
             exerciseId: 'ex_cat_cow',
@@ -1494,7 +1501,8 @@ describe('Superação v8 — Caso Obrigatório de Regressão e Homologação (Se
             restSeconds: 30,
           },
         ],
-        targetRepsRange: [1, 1],
+        targetReps: 1,
+        targetRepsRange: '1',
         isTemplate: false,
         category: 'mobilidade',
         version: 1,

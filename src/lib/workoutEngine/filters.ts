@@ -66,7 +66,7 @@ export function enrichExercise(ex: Exercise): Exercise {
   // Se tem saltos no texto ou cardio de impacto, eleva estresse de joelho para 2 (incompatível com dor de joelho)
   if (isHighImpactJump) {
     jointStress.knee = 2;
-    jointStress.lumbar = Math.max(jointStress.lumbar || 0, 1);
+    jointStress.lumbar = Math.max(jointStress.lumbar || 0, 1) as 0 | 1 | 2;
   }
 
   const floorTransition = text.includes('deite') || text.includes('chão') || text.includes('solo') || text.includes('bruços') || text.includes('costas no chão');

@@ -19,6 +19,7 @@ import {
   DailyMicroChallenge,
   TomorrowBridgeInfo,
   WellbeingInsight,
+  ActivityType,
 } from '../types';
 import { allTemplates, allExercises } from '../data/catalog';
 
@@ -352,7 +353,7 @@ export function checkAndRegisterPR(
   existingPRs: PersonalRecord[],
   sessionId: string,
   actualWeightKg?: number
-): { isPR: boolean; updatedPRs: PersonalRecord[]; prText?: string } {
+): { isPR: boolean; isNewBaseline?: boolean; updatedPRs: PersonalRecord[]; prText?: string } {
   const currentPR = existingPRs.find((p) => p.exerciseId === exerciseId);
 
   let isPR = false;
@@ -483,8 +484,10 @@ export function calculateCanonicalMetrics(
     completedWorkoutsCount,
     partialWorkoutsCount,
     totalWorkoutsCount,
+    prsAchievedCount: realPRCount,
     realPRCount,
     totalVolumeKg,
+    efficiencyImprovedCount: 0,
     weeklyCommittedCount,
     weeklyCompletedCount,
     baselineMarksCount,

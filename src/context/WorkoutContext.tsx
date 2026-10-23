@@ -15,6 +15,9 @@ import {
   PreWorkoutMood,
   PostWorkoutMood,
   AchievementCoinType,
+  TimeOfDay,
+  ScheduledDayActivity,
+  ProgressionItemUpgrade,
 } from '../types';
 import { useAuth } from './AuthContext';
 import {
@@ -122,6 +125,11 @@ interface WorkoutContextType {
   exportBackup: () => void;
   latestPRAnnouncement: string | null;
   clearPRAnnouncement: () => void;
+
+  // Fase 4 & 5: Adaptação Viva & Progressão
+  swapExerciseInActiveSession: (targetIndex: number, newExercise: any) => void;
+  updateActiveExerciseTarget: (targetIndex: number, newTargetReps: number) => void;
+  applyPlanProgression: (planId: string, approvedUpgrades: ProgressionItemUpgrade[]) => Promise<void>;
 }
 
 const WorkoutContext = createContext<WorkoutContextType | undefined>(undefined);
@@ -601,7 +609,20 @@ export const WorkoutProvider: React.FC<{ children: React.ReactNode }> = ({ child
 
     const updatedPlan = applyUpgradesToWorkoutPlan(existingPlan, approvedUpgrades);
     await savePlan(updatedPlan, planId);
-    confetti({ particleCount: 35, spread: 60, origin: { y: 0.8 } });
+
+    // Sinergia com Programa Ativo (Fase 5)
+    if (activeProgram && activeProgram.routines.some(r => r.id === planId)) {
+      const updatedRoutines = activeProgram.routines.map(r => r.id === planId ? updatedPlan : r);
+      const updatedProgram = {
+        ...activeProgram,
+        routines: updatedRoutines,
+        updatedAt: Date.now(),
+      };
+      setActiveProgram(updatedProgram);
+      setLocal('superacao_active_program', updatedProgram);
+    }
+
+    confetti({ particleCount: 45, spread: 70, origin: { y: 0.8 } });
   };
 
   const setSessionPreMood = (mood: PreWorkoutMood) => {
@@ -1501,6 +1522,9 @@ export const WorkoutProvider: React.FC<{ children: React.ReactNode }> = ({ child
         exportBackup,
         latestPRAnnouncement,
         clearPRAnnouncement,
+        swapExerciseInActiveSession,
+        updateActiveExerciseTarget,
+        applyPlanProgression,
       }}
     >
       {children}
