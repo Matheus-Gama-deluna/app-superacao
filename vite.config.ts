@@ -94,6 +94,9 @@ export default defineConfig(() => {
             if (id.includes('node_modules/firebase/')) {
               return 'vendor-firebase';
             }
+            if (id.includes('node_modules/@google/genai/')) {
+              return 'vendor-genai';
+            }
             if (id.includes('node_modules/react/') || id.includes('node_modules/react-dom/')) {
               return 'vendor-react';
             }

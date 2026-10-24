@@ -28,6 +28,8 @@ import { premadeWorkouts } from '../data/premadeWorkouts';
 import { calculateCanonicalMetrics, generateWellbeingInsight, generateDailyMicroChallenge } from '../lib/storage';
 import { detectGentleReturn, createGentleReturnPlanSnapshot } from '../lib/workoutEngine';
 import { OnboardingModal } from './OnboardingModal';
+import { AICoachCard } from '../components/AICoachCard';
+import { CoachContext } from '../lib/aiCoach';
 
 interface HomeViewProps {
   onStartWorkout: (
@@ -96,8 +98,17 @@ export const HomeView: React.FC<HomeViewProps> = ({
   // Detecção de Retomada Gentil (Fase 4 & 5 - Ausência prolongada >= 7 dias)
   const gentleReturn = detectGentleReturn(sessions, todayStr);
 
-    const wellbeingInsight = generateWellbeingInsight(sessions);
+  const wellbeingInsight = generateWellbeingInsight(sessions);
   const dailyChallenge = todayPlan ? generateDailyMicroChallenge(todayPlan, personalRecords) : null;
+
+  const coachContext: CoachContext = {
+    displayName: profile.displayName,
+    exerciseReason: profile.exerciseReason,
+    habitAnchor: profile.habitAnchor,
+    weeklyCompleted: calculateCanonicalMetrics(sessions, calendar, personalRecords).weeklyCompletedCount,
+    lastMood: sessions.find((s) => s.postMood)?.postMood,
+    todayPlanTitle: todayPlan?.title || (todaySchedule?.activityType === 'rest' ? 'Dia de Descanso' : undefined),
+  };
 
   // Estatísticas de consistência derivadas dos eventos canônicos reais (A07, R04, Seção 5)
   const canonical = calculateCanonicalMetrics(sessions, calendar, personalRecords);
@@ -410,6 +421,9 @@ export const HomeView: React.FC<HomeViewProps> = ({
           </div>
         </section>
       )}
+
+      {/* Pílula de Sabedoria do Coach IA (Sprint 5: Gemini 2.5 Flash Lite + Heurística Offline) */}
+      <AICoachCard context={coachContext} />
 
       {/* 2. CARD CONTEXTUAL DE HOJE (A06: reflete estritamente a atividade agendada) */}
       {activeSession ? (

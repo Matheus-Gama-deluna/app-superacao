@@ -1049,7 +1049,7 @@ test.describe('Superação - Validação End-to-End Headless (Em Segundo Plano)'
 
     // 1. Valida que o card do "Seu porquê" aparece na Home
     await expect(page.getByText(/Seu porqu/i)).toBeVisible();
-    await expect(page.getByText(/Brincar com meus filhos sem cansar/i)).toBeVisible();
+    await expect(page.getByText(/Brincar com meus filhos sem cansar/i).first()).toBeVisible();
 
     // 2. Abre o Perfil clicando no avatar do cabeçalho
     const profileBtn = page.getByRole('button', { name: /Perfil/i });
@@ -1084,7 +1084,44 @@ test.describe('Superação - Validação End-to-End Headless (Em Segundo Plano)'
     await backBtn.click();
 
     // 7. Valida que a Home refletiu a nova motivação
-    await expect(page.getByText(/Ter mais vitalidade e longevidade/i)).toBeVisible();
+    await expect(page.getByText(/Ter mais vitalidade e longevidade/i).first()).toBeVisible();
+  });
+
+  test('16. Coach IA Econômico: Pílula de Sabedoria do Dia e Perspectiva Acolhedora na Home (Sprint 5)', async ({ page }) => {
+    await page.goto('/');
+    await page.evaluate(() => {
+      localStorage.setItem('superacao_access_choice', JSON.stringify('guest'));
+      localStorage.setItem(
+        'superacao_user_profile',
+        JSON.stringify({
+          uid: 'guest_user',
+          displayName: 'Renato Coach',
+          onboardingCompleted: true,
+          routineConfirmed: true,
+          availableDays: [1, 3, 5],
+          exerciseReason: 'Viver com disposição e sem dores',
+          habitAnchor: 'Após o café da manhã',
+        })
+      );
+    });
+    await page.reload();
+
+    // 1. Valida a presença do card da Pílula de Sabedoria do Coach
+    const coachSection = page.getByRole('region', { name: /Pílula de Sabedoria do Coach/i });
+    await expect(coachSection).toBeVisible();
+    await expect(coachSection.getByText(/Coach de Constância/i)).toBeVisible();
+
+    // 2. Valida que o conteúdo cita o porquê do praticante no tom acolhedor dentro do card do Coach
+    await expect(coachSection.getByText(/Viver com disposição e sem dores/i)).toBeVisible();
+    await expect(coachSection.getByText(/Foco no progresso sustentável/i)).toBeVisible();
+
+    // 3. Testa o botão de renovar reflexão
+    const refreshBtn = coachSection.getByRole('button', { name: /Gerar nova reflexão do Coach/i });
+    await expect(refreshBtn).toBeVisible();
+    await refreshBtn.click();
+
+    // Continua visível e responsivo
+    await expect(coachSection).toBeVisible();
   });
 
 });
