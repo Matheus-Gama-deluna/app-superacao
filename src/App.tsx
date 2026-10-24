@@ -3,6 +3,8 @@ import { AuthProvider, useAuth } from './context/AuthContext';
 import { WorkoutProvider, useWorkout } from './context/WorkoutContext';
 import { TopStatusBar } from './components/TopStatusBar';
 import { BottomNav, TabDestination } from './components/BottomNav';
+import { SWUpdateBanner } from './components/SWUpdateBanner';
+import { syncAppBadge } from './lib/pwaNative';
 import { HomeView } from './views/HomeView';
 import { WelcomeView } from './views/WelcomeView';
 
@@ -44,6 +46,7 @@ const MainAppContent: React.FC = () => {
     plans,
     startWorkout,
     activeProgram,
+    calendar,
   } = useWorkout();
 
   // Controle de estado de jornada e fluxo (Seção 4)
@@ -100,11 +103,92 @@ const MainAppContent: React.FC = () => {
     if (p) startWorkout(p, scheduledDayId, scheduledDayId ? 'scheduled' : 'ad_hoc', false, false, scheduledActivityId);
   };
 
+  // Navegação suave com View Transitions API
+  const handleSelectTab = (nextTab: TabDestination) => {
+    if (typeof document !== 'undefined' && 'startViewTransition' in document) {
+      (document as any).startViewTransition(() => {
+        setCurrentTab(nextTab);
+      });
+    } else {
+      setCurrentTab(nextTab);
+    }
+    if (typeof window !== 'undefined') {
+      window.scrollTo({ top: 0, behavior: 'instant' });
+    }
+  };
+
+  const handleOpenProfile = () => {
+    if (typeof window !== 'undefined') {
+      window.history.pushState({ screen: 'profile' }, '');
+    }
+    setIsProfileOpen(true);
+  };
+
   const handleOpenBuilder = (existingId?: string, isPro: boolean = false) => {
+    if (typeof window !== 'undefined') {
+      window.history.pushState({ screen: 'builder' }, '');
+    }
     setEditingPlanId(existingId || null);
     setIsBuilderPro(isPro);
     setIsBuilderOpen(true);
   };
+
+  // Suporte nativo ao botão físico / gesto "Voltar" do celular (History API)
+  useEffect(() => {
+    const handlePopState = () => {
+      if (isProfileOpen) {
+        setIsProfileOpen(false);
+      } else if (isBuilderOpen) {
+        setIsBuilderOpen(false);
+        setEditingPlanId(null);
+        setIsBuilderPro(false);
+      } else if (isViewingProposal) {
+        setIsViewingProposal(false);
+      } else if (currentTab !== 'home') {
+        handleSelectTab('home');
+      }
+    };
+
+    window.addEventListener('popstate', handlePopState);
+    return () => window.removeEventListener('popstate', handlePopState);
+  }, [isProfileOpen, isBuilderOpen, isViewingProposal, currentTab]);
+
+  // Suporte a atalhos rápidos do ícone PWA (?shortcut=...) e remoção da splash screen inicial
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    
+    // Remove splash screen instantânea PWA com fade-out
+    const splash = document.getElementById('pwa-splash');
+    if (splash) {
+      splash.classList.add('hidden');
+      setTimeout(() => {
+        splash.remove();
+      }, 350);
+    }
+
+    const params = new URLSearchParams(window.location.search);
+    const shortcut = params.get('shortcut');
+    if (shortcut === 'progress') {
+      handleSelectTab('progress');
+    } else if (shortcut === 'express' || shortcut === 'today') {
+      handleSelectTab('home');
+    }
+    if (shortcut) {
+      window.history.replaceState({}, '', window.location.pathname);
+    }
+  }, []);
+
+  // Atualiza App Badge no ícone do aplicativo
+  useEffect(() => {
+    if (flowState === 'main' && calendar && calendar.length > 0) {
+      const today = new Date();
+      const dayOfWeek = today.getDay();
+      const todaySchedule = calendar.find((c) => c.dayOfWeek === dayOfWeek);
+      const isTodayDone = Boolean(todaySchedule?.isCompleted);
+      const hasPendingToday = Boolean(todaySchedule && todaySchedule.activityType !== 'rest' && !isTodayDone);
+      syncAppBadge(hasPendingToday);
+    }
+  }, [calendar, flowState]);
 
   // Se houver uma sessão ativa de treino e o modo foco estiver ativo, entra no MODO FOCO (Seção 10 / V8-03)
   if (activeSession && isFocusMode) {
@@ -187,7 +271,7 @@ const MainAppContent: React.FC = () => {
   return (
     <div className="min-h-screen bg-[#F5F8F5] text-[#152A29] flex flex-col justify-between font-sans">
       {/* Barra de Status e Cabeçalho Superior */}
-      <TopStatusBar onOpenProfile={() => setIsProfileOpen(true)} />
+      <TopStatusBar onOpenProfile={handleOpenProfile} />
 
       {/* Conteúdo Principal com Container Responsivo Mobile-First */}
       <main className="flex-1 max-w-xl mx-auto w-full px-4 pt-4">
@@ -216,7 +300,7 @@ const MainAppContent: React.FC = () => {
               <HomeView
                 onStartWorkout={handleStartPlan}
                 onResumeWorkout={() => setIsFocusMode(true)}
-                onNavigateTab={setCurrentTab}
+                onNavigateTab={handleSelectTab}
                 onOpenBuilder={(id) => handleOpenBuilder(id, false)}
                 onReviewProposal={
                   currentProposal
@@ -242,9 +326,12 @@ const MainAppContent: React.FC = () => {
       </React.Suspense>
       </main>
 
+      {/* Banner de Atualização Segura do Service Worker */}
+      <SWUpdateBanner isWorkoutActive={Boolean(activeSession && isFocusMode)} />
+
       {/* Barra de Navegação Inferior (oculta em modais e modo foco) */}
       {!isBuilderOpen && !isProfileOpen && (
-        <BottomNav currentTab={currentTab} onSelectTab={setCurrentTab} />
+        <BottomNav currentTab={currentTab} onSelectTab={handleSelectTab} />
       )}
     </div>
   );

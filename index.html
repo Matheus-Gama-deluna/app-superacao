@@ -1,18 +1,106 @@
 <!doctype html>
-<html lang="en">
+<html lang="pt-BR">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, user-scalable=no" />
     <title>Superação — Treino, Hábitos e Recuperação Ativa</title>
     <meta name="description" content="Aplicativo mobile-first para treino sustentável, superação de recordes pessoais e recuperação ativa com suporte offline." />
+
+    <!-- Meta Tags para PWA Nativo e Celular -->
+    <meta name="theme-color" content="#125F55" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+    <meta name="apple-mobile-web-app-title" content="Superação" />
+    <meta name="application-name" content="Superação" />
+    <meta name="format-detection" content="telephone=no" />
+
+    <!-- Ícones para iOS e Navegadores -->
+    <link rel="icon" type="image/svg+xml" href="/icon.svg" />
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+    <link rel="apple-touch-icon" sizes="192x192" href="/icon-192.png" />
+    <link rel="apple-touch-icon" sizes="512x512" href="/icon-512.png" />
+
+    <!-- Open Graph & Social -->
     <meta property="og:title" content="Superação — Treino, Hábitos e Recuperação Ativa" />
     <meta property="og:description" content="Aplicativo mobile-first para treino sustentável, superação de recordes pessoais e recuperação ativa com suporte offline." />
     <meta property="og:type" content="website" />
     <meta name="twitter:card" content="summary_large_image" />
+
+    <style>
+      /* Splash Screen instantânea em HTML inline para eliminar tela branca */
+      #pwa-splash {
+        position: fixed;
+        inset: 0;
+        z-index: 99999;
+        background: #125F55;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        color: #ffffff;
+        font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+        transition: opacity 0.35s ease, visibility 0.35s ease;
+      }
+      #pwa-splash.hidden {
+        opacity: 0;
+        visibility: hidden;
+        pointer-events: none;
+      }
+      .splash-logo {
+        width: 72px;
+        height: 72px;
+        background: #ffffff;
+        color: #125F55;
+        border-radius: 24px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 38px;
+        font-weight: 900;
+        box-shadow: 0 10px 25px rgba(0, 0, 0, 0.15);
+        margin-bottom: 16px;
+        animation: pulse 1.8s ease-in-out infinite;
+      }
+      .splash-title {
+        font-size: 22px;
+        font-weight: 800;
+        letter-spacing: -0.5px;
+        margin: 0;
+      }
+      .splash-subtitle {
+        font-size: 12px;
+        color: rgba(255, 255, 255, 0.8);
+        margin-top: 6px;
+      }
+      @keyframes pulse {
+        0%, 100% { transform: scale(1); }
+        50% { transform: scale(1.05); }
+      }
+    </style>
   </head>
   <body>
+    <!-- Splash Screen Instantânea -->
+    <div id="pwa-splash" aria-hidden="true">
+      <div class="splash-logo">S</div>
+      <h1 class="splash-title">Superação</h1>
+      <p class="splash-subtitle">Progresso possível & hábitos</p>
+    </div>
+
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
+
+    <script>
+      // Remove a Splash Screen assim que a aplicação estiver montada
+      window.addEventListener('DOMContentLoaded', () => {
+        const splash = document.getElementById('pwa-splash');
+        if (splash) {
+          setTimeout(() => {
+            splash.classList.add('hidden');
+            setTimeout(() => splash.remove(), 400);
+          }, 300);
+        }
+      });
+    </script>
   </body>
 </html>
-

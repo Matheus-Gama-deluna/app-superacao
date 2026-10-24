@@ -59,7 +59,7 @@ export const TopStatusBar: React.FC<TopStatusBarProps> = ({ onOpenProfile }) => 
           )}
 
           {/* Botão de Instalação PWA */}
-          <PWAInstallButton compact />
+          <PWAInstallButton variant="compact" />
 
           {/* Avatar / Perfil */}
           <button

@@ -3,6 +3,7 @@ import { useAuth } from '../context/AuthContext';
 import { Sparkles, Shield, User, LogIn, ArrowRight, AlertCircle, Mail } from 'lucide-react';
 import { setLocal, STORAGE_KEYS, APP_VERSION } from '../lib/storage';
 import { EmailAuthModal } from '../components/EmailAuthModal';
+import { PWAInstallButton } from '../components/PWAInstallButton';
 
 interface WelcomeViewProps {
   onSelectAccess: (choice: 'guest' | 'login' | 'signup') => void;
@@ -161,6 +162,9 @@ export const WelcomeView: React.FC<WelcomeViewProps> = ({ onSelectAccess }) => {
             Sem conta, seus treinos e evolução ficam salvos exclusivamente na memória deste navegador. Você poderá criar ou conectar sua conta a qualquer momento para sincronizar sem perder seu histórico.
           </p>
         </div>
+
+        {/* Convite Visual para Instalar o App logo na Entrada */}
+        <PWAInstallButton variant="banner" className="mt-4" />
       </div>
 
       {/* Modal de E-mail e Senha */}

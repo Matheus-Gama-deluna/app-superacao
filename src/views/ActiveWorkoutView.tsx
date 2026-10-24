@@ -31,6 +31,15 @@ import { PostWorkoutMood, PreWorkoutMood } from '../types';
 import { generateDailyMicroChallenge, generateTomorrowBridge } from '../lib/storage';
 import { findSafeEquivalentExercises, analyzeSessionProgression } from '../lib/workoutEngine';
 import { ProgressionItemUpgrade, SessionProgressionAnalysis } from '../types';
+import {
+  requestWorkoutWakeLock,
+  releaseWorkoutWakeLock,
+  updateWorkoutMediaSession,
+  clearWorkoutMediaSession,
+  speakWorkoutCue,
+  sendRestFinishedNotification,
+  shareWorkoutVictory,
+} from '../lib/pwaNative';
 
 interface ActiveWorkoutViewProps {
   onPauseAndReturnHome?: () => void;
@@ -113,6 +122,28 @@ export const ActiveWorkoutView: React.FC<ActiveWorkoutViewProps> = ({
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [showSwapModal, showExerciseDetail, showConfirmSheet, showAbandonConfirm]);
+
+  // Screen Wake Lock & Media Session Lifecycle
+  useEffect(() => {
+    requestWorkoutWakeLock();
+    return () => {
+      releaseWorkoutWakeLock();
+      clearWorkoutMediaSession();
+    };
+  }, []);
+
+  // Notificação e Guia de Voz ao Concluir o Descanso
+  useEffect(() => {
+    if (isResting && restSecondsRemaining === 0 && activeSession) {
+      const nextIdx = activeSession.currentExerciseIndex;
+      const nextItem = activeSession.exercisesSnapshot[nextIdx];
+      const cue = nextItem?.exerciseName
+        ? `Descanso finalizado! Próxima série de ${nextItem.exerciseName}.`
+        : 'Descanso finalizado!';
+      speakWorkoutCue(cue, profile.voiceGuideEnabled ?? true);
+      sendRestFinishedNotification(nextItem?.exerciseName || 'exercício');
+    }
+  }, [isResting, restSecondsRemaining, profile.voiceGuideEnabled]);
 
   if (!activeSession) return null;
 
@@ -207,20 +238,13 @@ export const ActiveWorkoutView: React.FC<ActiveWorkoutViewProps> = ({
 
   const handleShareWorkout = async () => {
     const shareText = `🔥 Mais um treino concluído no Superação!\n📋 ${activeSession.planTitle}\n⏱️ ${Math.ceil(activeSession.durationSeconds / 60)} minutos dedicados\n💪 ${activeSession.totalSetsCompleted} séries concluídas\n${activeSession.totalVolumeKg ? `🏋️ ${activeSession.totalVolumeKg} kg superados em volume\n` : ''}${activeSession.prsAchieved > 0 ? `🏆 ${activeSession.prsAchieved} novos recordes pessoais!\n` : ''}\nConstruindo minha melhor versão todos os dias!`;
-    if (navigator.share) {
-      try {
-        await navigator.share({ title: 'Superação Diária', text: shareText });
-        return;
-      } catch {
-        // Fallback para área de transferência
-      }
-    }
-    try {
-      await navigator.clipboard.writeText(shareText);
+    const status = await shareWorkoutVictory({
+      title: 'Superação Diária',
+      text: shareText,
+    });
+    if (status === 'copied' || status === 'shared') {
       setCopiedShare(true);
       setTimeout(() => setCopiedShare(false), 3000);
-    } catch {
-      // Ignorar falha silenciosa
     }
   };
 

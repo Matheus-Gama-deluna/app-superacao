@@ -315,6 +315,7 @@ export interface UserProfile {
   habitAnchor: string;
   soundEnabled: boolean;
   hapticEnabled: boolean;
+  voiceGuideEnabled?: boolean;
   exerciseReason?: string;
   preferredTime?: 'manha' | 'tarde' | 'noite' | 'flexivel';
   environmentPreference?: 'casa' | 'academia' | 'ar_livre' | 'qualquer';

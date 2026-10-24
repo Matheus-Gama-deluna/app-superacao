@@ -25,7 +25,7 @@ test.describe('Superação - Validação End-to-End Headless (Em Segundo Plano)'
     await page.goto('/');
     
     // Valida título da aplicação e boas-vindas
-    await expect(page.locator('h1')).toContainText('Superação');
+    await expect(page.getByRole('heading', { name: 'Superação' }).first()).toContainText('Superação');
     
     // Valida rodapé com versão dinâmica (V8-09)
     await expect(page.locator('footer')).toContainText('Versão 8.0.0');
@@ -1122,6 +1122,76 @@ test.describe('Superação - Validação End-to-End Headless (Em Segundo Plano)'
 
     // Continua visível e responsivo
     await expect(coachSection).toBeVisible();
+  });
+
+  test('17. PWA de Nível Nativo: Botões Visuais de Instalação, Modal Universal e Painel de Armazenamento Blindado (Sprint 5)', async ({ page }) => {
+    // 1. Testa a presença do banner visual de instalação na tela de Boas-Vindas
+    await page.goto('/');
+    await page.evaluate(() => {
+      localStorage.clear();
+      sessionStorage.clear();
+    });
+    await page.reload();
+
+    const welcomeInstallBanner = page.locator('section[aria-label="Instalar aplicativo Superação no celular"]');
+    await expect(welcomeInstallBanner).toBeVisible();
+    await expect(welcomeInstallBanner.getByRole('button', { name: /Instalar Aplicativo Agora/i })).toBeVisible();
+
+    // 2. Entra como convidado e valida o botão de instalação no Topo e o Banner na Home
+    await page.getByRole('button', { name: /Continuar sem conta/i }).click();
+
+    await page.evaluate(() => {
+      localStorage.setItem('superacao_access_choice', JSON.stringify('guest'));
+      localStorage.setItem(
+        'superacao_user_profile',
+        JSON.stringify({
+          uid: 'guest_user',
+          displayName: 'Lucas PWA',
+          onboardingCompleted: true,
+          routineConfirmed: true,
+          availableDays: [1, 3, 5],
+        })
+      );
+    });
+    await page.reload();
+
+    // Valida botão no topo
+    const topInstallBtn = page.getByRole('button', { name: /Instalar aplicativo Superação/i });
+    await expect(topInstallBtn).toBeVisible();
+
+    // Valida banner na Home
+    const homeInstallBanner = page.locator('section[aria-label="Instalar aplicativo Superação no celular"]');
+    await expect(homeInstallBanner).toBeVisible();
+
+    // 3. Clica no botão de instalação e valida o Modal Guia Universal
+    await topInstallBtn.click();
+    const installDialog = page.getByRole('dialog', { name: /Instalar o App Superação/i });
+    await expect(installDialog).toBeVisible();
+
+    // Alterna para instruções do iPhone e valida
+    await installDialog.getByRole('button', { name: /iPhone \/ iPad/i }).click({ force: true });
+    await expect(installDialog.getByText(/Safari do iPhone ou iPad/i)).toBeVisible();
+
+    // Alterna para instruções de Computador e valida
+    await installDialog.getByRole('button', { name: /Computador/i }).click({ force: true });
+    await expect(installDialog.getByText(/Chrome, Edge ou Brave/i)).toBeVisible();
+
+    // Fecha o modal
+    await installDialog.getByRole('button', { name: /Entendi, vou instalar/i }).click({ force: true });
+    await expect(installDialog).not.toBeVisible();
+
+    // 4. Abre Perfil e valida a seção "Aplicativo & Armazenamento Offline"
+    const profileBtn = page.getByRole('button', { name: /Perfil/i });
+    await profileBtn.click();
+
+    await expect(page.getByText('Aplicativo & Armazenamento Offline')).toBeVisible();
+    await expect(page.getByText('Memória Local do Celular')).toBeVisible();
+    await expect(page.getByText(/Guia de Voz Offline no Fim do Descanso/i)).toBeVisible();
+
+    // 5. Testa o botão Voltar do Perfil
+    const backBtn = page.getByRole('button', { name: /Voltar/i });
+    await backBtn.click();
+    await expect(page.getByText(/Olá, Lucas PWA!/i)).toBeVisible();
   });
 
 });

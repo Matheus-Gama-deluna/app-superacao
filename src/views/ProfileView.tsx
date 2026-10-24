@@ -18,7 +18,9 @@ import {
 import { soundManager } from '../lib/audio';
 import { APP_VERSION, APP_BUILD_DATE, AVOIDANCE_LABELS } from '../lib/storage';
 import { EmailAuthModal } from '../components/EmailAuthModal';
-import { Mail } from 'lucide-react';
+import { PWAInstallButton } from '../components/PWAInstallButton';
+import { ensurePersistentStorage, getStorageEstimate, StorageEstimateResult } from '../lib/pwaNative';
+import { Mail, HardDrive, Mic, Shield } from 'lucide-react';
 
 interface ProfileViewProps {
   onClose: () => void;
@@ -38,6 +40,25 @@ export const ProfileView: React.FC<ProfileViewProps> = ({ onClose }) => {
   const [avoidedMovements, setAvoidedMovements] = useState<string[]>(profile.avoidedMovements || []);
   const [isSaved, setIsSaved] = useState<boolean>(false);
   const [isEmailModalOpen, setIsEmailModalOpen] = useState<boolean>(false);
+  const [storageInfo, setStorageInfo] = useState<StorageEstimateResult | null>(null);
+  const [voiceGuideEnabled, setVoiceGuideEnabled] = useState<boolean>(profile.voiceGuideEnabled ?? true);
+
+  // Carrega estimativa de armazenamento local na montagem
+  React.useEffect(() => {
+    getStorageEstimate().then(setStorageInfo);
+  }, []);
+
+  const handlePersistStorage = async () => {
+    await ensurePersistentStorage();
+    const updated = await getStorageEstimate();
+    setStorageInfo(updated);
+  };
+
+  const toggleVoiceGuide = () => {
+    const next = !voiceGuideEnabled;
+    setVoiceGuideEnabled(next);
+    updateUserProfile({ voiceGuideEnabled: next });
+  };
 
   // Fecha no Escape com retorno de foco (Critério C38)
   React.useEffect(() => {
@@ -472,6 +493,57 @@ export const ProfileView: React.FC<ProfileViewProps> = ({ onClose }) => {
               {profile.hapticEnabled ? 'Ativado' : 'Desativado'}
             </span>
           </div>
+        </div>
+      </section>
+
+      {/* Aplicativo & Armazenamento Offline (Fase 7) */}
+      <section className="bg-white rounded-3xl p-5 border border-[#C9DBD3] shadow-xs space-y-3.5">
+        <h4 className="text-xs font-bold text-[#125F55] uppercase tracking-wider">
+          Aplicativo & Armazenamento Offline
+        </h4>
+
+        {/* Botão Visual / Status de Instalação do PWA */}
+        <PWAInstallButton variant="full" />
+
+        {/* Blindagem de Dados Locais (Persistent Storage API) */}
+        <div className="p-3.5 rounded-2xl bg-[#F5F8F5] border border-[#C9DBD3] space-y-2">
+          <div className="flex items-center justify-between text-xs">
+            <span className="font-bold text-[#152A29] flex items-center gap-2">
+              <HardDrive className="w-4 h-4 text-[#125F55]" />
+              <span>Memória Local do Celular</span>
+            </span>
+            <span className="font-semibold text-[#125F55] text-[11px]">
+              {storageInfo?.isPersisted ? 'Protegida (Não-Volátil)' : 'Padrão do Navegador'}
+            </span>
+          </div>
+
+          <div className="flex items-center justify-between text-[11px] text-[#5B7170]">
+            <span>Uso: {storageInfo?.usageMb || '0'} MB de {storageInfo?.quotaMb || 'Livre'} MB</span>
+            <span>{storageInfo?.isPersisted ? 'Blindado contra limpeza' : 'Pode ser limpo se o celular encher'}</span>
+          </div>
+
+          {!storageInfo?.isPersisted && (
+            <button
+              onClick={handlePersistStorage}
+              className="w-full mt-1 py-2 px-3 rounded-xl bg-white border border-[#C9DBD3] text-[#125F55] text-xs font-bold hover:bg-[#EAF3EF] transition-colors cursor-pointer"
+            >
+              Blindar Armazenamento dos Treinos
+            </button>
+          )}
+        </div>
+
+        {/* Guia de Voz Offline do Coach */}
+        <div
+          onClick={toggleVoiceGuide}
+          className="flex items-center justify-between p-3.5 rounded-2xl bg-[#F5F8F5] border border-[#C9DBD3] cursor-pointer"
+        >
+          <div className="flex items-center gap-2.5 text-xs font-medium text-[#152A29]">
+            <Mic className="w-4 h-4 text-[#125F55]" />
+            <span>Guia de Voz Offline no Fim do Descanso</span>
+          </div>
+          <span className="text-xs font-bold text-[#125F55]">
+            {voiceGuideEnabled ? 'Ativado' : 'Silencioso'}
+          </span>
         </div>
       </section>
 

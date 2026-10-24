@@ -20,8 +20,54 @@ export default defineConfig(() => {
           theme_color: '#125F55',
           background_color: '#F5F8F5',
           display: 'standalone',
+          orientation: 'portrait',
+          lang: 'pt-BR',
+          dir: 'ltr',
+          categories: ['fitness', 'health', 'lifestyle'],
           start_url: '/',
           scope: '/',
+          launch_handler: {
+            client_mode: 'navigate-existing',
+          },
+          shortcuts: [
+            {
+              name: 'Treino de Hoje',
+              short_name: 'Treino',
+              description: 'Acessar diretamente o treino planejado para hoje',
+              url: '/?shortcut=today',
+              icons: [{ src: '/icon-192.png', sizes: '192x192', type: 'image/png' }],
+            },
+            {
+              name: 'Treino Express (10 min)',
+              short_name: 'Express',
+              description: 'Versão curta para dias corridos sem perder o hábito',
+              url: '/?shortcut=express',
+              icons: [{ src: '/icon-192.png', sizes: '192x192', type: 'image/png' }],
+            },
+            {
+              name: 'Meu Progresso & Recordes',
+              short_name: 'Progresso',
+              description: 'Ver evolução, histórico e recordes conquistados',
+              url: '/?shortcut=progress',
+              icons: [{ src: '/icon-192.png', sizes: '192x192', type: 'image/png' }],
+            },
+          ],
+          screenshots: [
+            {
+              src: '/icon-512.png',
+              sizes: '512x512',
+              type: 'image/png',
+              form_factor: 'narrow',
+              label: 'Superação Mobile',
+            },
+            {
+              src: '/icon-512.png',
+              sizes: '512x512',
+              type: 'image/png',
+              form_factor: 'wide',
+              label: 'Superação Desktop',
+            },
+          ],
           icons: [
             {
               src: '/icon-192.png',

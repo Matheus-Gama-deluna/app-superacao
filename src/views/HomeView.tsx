@@ -30,6 +30,7 @@ import { detectGentleReturn, createGentleReturnPlanSnapshot } from '../lib/worko
 import { OnboardingModal } from './OnboardingModal';
 import { AICoachCard } from '../components/AICoachCard';
 import { CoachContext } from '../lib/aiCoach';
+import { PWAInstallButton } from '../components/PWAInstallButton';
 
 interface HomeViewProps {
   onStartWorkout: (
@@ -73,6 +74,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
   const [walkDistanceKm, setWalkDistanceKm] = useState<string>('');
   const [walkNotes, setWalkNotes] = useState<string>('');
   const [showReviewOnboarding, setShowReviewOnboarding] = useState<boolean>(false);
+  const [isInstallBannerDismissed, setIsInstallBannerDismissed] = useState<boolean>(false);
 
   // Dia de hoje e fuso local (A06)
   const today = new Date();
@@ -224,6 +226,14 @@ export const HomeView: React.FC<HomeViewProps> = ({
             <span>Retomar Treino</span>
           </button>
         </section>
+      )}
+
+      {/* Banner Visual Convidativo de Instalação do App */}
+      {!isInstallBannerDismissed && (
+        <PWAInstallButton
+          variant="banner"
+          onDismissBanner={() => setIsInstallBannerDismissed(true)}
+        />
       )}
 
       {/* 1. Header de Acolhimento & Âncora de Hábito */}
