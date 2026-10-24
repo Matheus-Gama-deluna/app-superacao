@@ -1310,7 +1310,7 @@ export const WorkoutProvider: React.FC<{ children: React.ReactNode }> = ({ child
     setLocal('superacao_active_program', program);
 
     // 4. Cria a agenda semanal com os dias de treino rigorosamente mapeados
-    const newCalendar = generateWeeklyCalendarFromProposal(uid, confirmedProposal);
+    const newCalendar = generateWeeklyCalendarFromProposal(uid, confirmedProposal, profile.preferredTime);
     setCalendar(newCalendar);
     setLocal('superacao_calendar', newCalendar);
 

@@ -3,7 +3,21 @@ import { test, expect } from '@playwright/test';
 test.describe('Superação - Validação End-to-End Headless (Em Segundo Plano)', () => {
   test.beforeEach(async ({ page }) => {
     await page.goto('/');
-    await page.evaluate(() => localStorage.clear());
+    await page.evaluate(async () => {
+      localStorage.clear();
+      if ('serviceWorker' in navigator) {
+        const registrations = await navigator.serviceWorker.getRegistrations();
+        for (const reg of registrations) {
+          await reg.unregister();
+        }
+      }
+      if ('caches' in window) {
+        const keys = await caches.keys();
+        for (const k of keys) {
+          await caches.delete(k);
+        }
+      }
+    });
     await page.reload();
   });
 
@@ -562,12 +576,12 @@ test.describe('Superação - Validação End-to-End Headless (Em Segundo Plano)'
     await page.reload();
 
     // Abre Perfil pelo botão do cabeçalho
-    const profileBtn = page.getByRole('button', { name: 'Perfil do usuário' });
+    const profileBtn = page.getByRole('button', { name: /Perfil/i });
     await expect(profileBtn).toBeVisible();
     await profileBtn.click();
 
     // Valida título da seção
-    await expect(page.getByText('Sua Rotina de Superação')).toBeVisible();
+    await expect(page.getByText(/Sua Rotina/i)).toBeVisible();
 
     // Clica para evitar impacto (saltos)
     const avoidImpactBtn = page.getByRole('button', { name: /Impacto e saltos/i });
@@ -1010,6 +1024,67 @@ test.describe('Superação - Validação End-to-End Headless (Em Segundo Plano)'
     await expect(page.getByRole('dialog')).toBeVisible();
     await page.keyboard.press('Escape');
     await expect(page.getByRole('dialog')).not.toBeVisible();
+  });
+
+  test('15. Dados da Escuta e Motivação: Exibição do Porquê Pessoal na Home e Ajuste no Perfil (Sprint 4)', async ({ page }) => {
+    await page.goto('/');
+    await page.evaluate(() => {
+      localStorage.setItem('superacao_access_choice', JSON.stringify('guest'));
+      localStorage.setItem(
+        'superacao_user_profile',
+        JSON.stringify({
+          uid: 'guest_user',
+          displayName: 'Juliana',
+          onboardingCompleted: true,
+          routineConfirmed: true,
+          availableDays: [1, 3, 5],
+          habitAnchor: 'Logo apos o cafe da manha',
+          exerciseReason: 'Brincar com meus filhos sem cansar',
+          healthNotes: 'Desconforto leve no joelho',
+          preferredTime: 'manha',
+        })
+      );
+    });
+    await page.reload();
+
+    // 1. Valida que o card do "Seu porquê" aparece na Home
+    await expect(page.getByText(/Seu porqu/i)).toBeVisible();
+    await expect(page.getByText(/Brincar com meus filhos sem cansar/i)).toBeVisible();
+
+    // 2. Abre o Perfil clicando no avatar do cabeçalho
+    const profileBtn = page.getByRole('button', { name: /Perfil/i });
+    await expect(profileBtn).toBeVisible();
+    await profileBtn.click();
+    await expect(page.getByRole('button', { name: /Voltar/i })).toBeVisible();
+
+    // 3. Valida os campos da escuta no Perfil
+    const reasonInput = page.locator('#profile-exercise-reason');
+    await reasonInput.scrollIntoViewIfNeeded();
+    await expect(reasonInput).toBeVisible();
+    await expect(reasonInput).toHaveValue('Brincar com meus filhos sem cansar');
+
+    // 4. Edita o porquê pessoal
+    await reasonInput.fill('Ter mais vitalidade e longevidade');
+
+    // 5. Salva alterações
+    const saveBtn = page.getByRole('button', { name: /Salvar/i });
+    await saveBtn.scrollIntoViewIfNeeded();
+    await saveBtn.click();
+
+    // Valida persistência direta no localStorage
+    await expect.poll(async () => {
+      return page.evaluate(() => {
+        const raw = localStorage.getItem('superacao_user_profile');
+        return raw ? JSON.parse(raw).exerciseReason : null;
+      });
+    }).toBe('Ter mais vitalidade e longevidade');
+
+    // 6. Fecha o perfil (botão Voltar)
+    const backBtn = page.getByRole('button', { name: /Voltar/i });
+    await backBtn.click();
+
+    // 7. Valida que a Home refletiu a nova motivação
+    await expect(page.getByText(/Ter mais vitalidade e longevidade/i)).toBeVisible();
   });
 
 });

@@ -46,9 +46,14 @@ export function generateSmartWorkoutRoutine(
   const reportedLimitations = draft?.reportedLimitations || profile.reportedLimitations || [];
   const rawGoal = draft?.orderedGoals?.[0] || profile.primaryGoal || 'Construir o hábito e me sentir melhor';
   const goalKey = normalizeGoalKey(rawGoal);
+  const secondaryGoals = draft?.orderedGoals?.slice(1) || profile.secondaryGoals || [];
+  const goalFocus = draft?.goalFocus || profile.goalFocus || 'foco_unico';
+  const practiceObstacles = draft?.practiceObstacles || profile.practiceObstacles || [];
+  const healthNotes = draft?.healthNotes || profile.healthNotes || '';
   const experienceLevel = draft?.experienceLevel || profile.experienceLevel || 'iniciante';
-  const environment = draft?.environmentPreference === 'academia' ? 'na academia' : 'em casa';
+  const environment = (draft?.environmentPreference || profile.environmentPreference) === 'academia' ? 'na academia' : 'em casa';
   const userSeed = `${options.seed || profile.uid || 'guest'}_${goalKey}_${experienceLevel}`;
+  const extraRestSeconds = (practiceObstacles.includes('dor') || practiceObstacles.includes('cansaco')) ? 15 : 0;
 
   // 1. Filtragem preliminar de todos os exercícios seguros
   const safeCatalog: Exercise[] = allExercises
@@ -200,6 +205,7 @@ export function generateSmartWorkoutRoutine(
             sessionDurationMinutes: targetDuration,
             experienceLevel: normalizedExpLevel,
             goalKey,
+            extraRestSeconds,
           },
           slot.rationale
         );
@@ -264,7 +270,15 @@ export function generateSmartWorkoutRoutine(
       ? ` com cuidado especial para ${reportedLimitations.join(', ')}`
       : '';
 
-  const justificationText = `Você informou ${daysText} por semana com ${targetDuration} minutos ${environment}, com foco em "${rawGoal}", utilizando apenas ${equipText}${avoidanceText}${limitationsText}. Esta proposta equilibra padrões de agachar, empurrar, puxar e core de forma 100% segura para você.`;
+  let justificationText = `Você informou ${daysText} por semana com ${targetDuration} minutos ${environment}, com foco em "${rawGoal}", utilizando apenas ${equipText}${avoidanceText}${limitationsText}. Esta proposta equilibra padrões de agachar, empurrar, puxar e core de forma 100% segura para você.`;
+  if (healthNotes && healthNotes.trim()) {
+    justificationText += ` Consideração de saúde: Levamos em conta suas observações ("${healthNotes.trim().slice(0, 70)}${healthNotes.length > 70 ? '...' : ''}"), priorizando movimentos articulares gentis.`;
+  }
+  if (practiceObstacles.length > 0) {
+    if (practiceObstacles.includes('dor') || practiceObstacles.includes('cansaco')) {
+      justificationText += ' Intervalos de descanso foram ampliados para garantir recuperação tranquila sem exaustão.';
+    }
+  }
 
   const totalExercises = planA.exercises.length;
   const timeBreakdownText = planB

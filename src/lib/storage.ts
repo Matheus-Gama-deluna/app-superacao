@@ -263,12 +263,20 @@ export function generateExplainableProposal(
 // Gera agenda semanal a partir de uma proposta confirmada
 export function generateWeeklyCalendarFromProposal(
   uid: string,
-  proposal: ExplainableProposal
+  proposal: ExplainableProposal,
+  preferredTime?: 'manha' | 'tarde' | 'noite' | 'flexivel' | string
 ): CalendarDay[] {
   const today = new Date();
   const currentDayOfWeek = today.getDay();
   const startOfWeek = new Date(today);
   startOfWeek.setDate(today.getDate() - currentDayOfWeek);
+
+  let mappedTimeOfDay: CalendarDay['timeOfDay'] = undefined;
+  if (preferredTime === 'manha' || preferredTime === 'tarde' || preferredTime === 'noite' || preferredTime === 'livre') {
+    mappedTimeOfDay = preferredTime as CalendarDay['timeOfDay'];
+  } else if (preferredTime === 'flexivel') {
+    mappedTimeOfDay = 'livre';
+  }
 
   const days: CalendarDay[] = [];
   for (let i = 0; i < 7; i++) {
@@ -298,6 +306,7 @@ export function generateWeeklyCalendarFromProposal(
       planId: plan?.id,
       planTitle,
       isCompleted: false,
+      timeOfDay: mappedTimeOfDay,
     });
   }
   return days;

@@ -246,6 +246,16 @@ export const HomeView: React.FC<HomeViewProps> = ({
           </div>
         )}
 
+        {/* Lembrete da Motivação Pessoal (Dados da Escuta) */}
+        {profile.exerciseReason && (
+          <div className="mt-2 flex items-center gap-2 text-xs text-[#5B7170] bg-[#EAF3EF]/70 px-3 py-2 rounded-xl border border-[#C9DBD3]/50">
+            <Heart className="w-3.5 h-3.5 text-[#125F55] shrink-0" />
+            <span>
+              Seu porquê: <em>«{profile.exerciseReason}»</em>
+            </span>
+          </div>
+        )}
+
         {/* Programa Ativo Confirmado */}
         {activeProgram && (
           <div className="mt-3 bg-[#EAF3EF] p-3.5 rounded-2xl border border-[#C9DBD3] space-y-2">

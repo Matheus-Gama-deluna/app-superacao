@@ -30,6 +30,9 @@ export const ProfileView: React.FC<ProfileViewProps> = ({ onClose }) => {
 
   const [displayName, setDisplayName] = useState<string>(profile.displayName || '');
   const [habitAnchor, setHabitAnchor] = useState<string>(profile.habitAnchor || '');
+  const [exerciseReason, setExerciseReason] = useState<string>(profile.exerciseReason || '');
+  const [healthNotes, setHealthNotes] = useState<string>(profile.healthNotes || '');
+  const [preferredTime, setPreferredTime] = useState<string>(profile.preferredTime || 'manha');
   const [availableDays, setAvailableDays] = useState<number[]>(profile.availableDays || [1, 3, 5]);
   const [sessionDurationMinutes, setSessionDurationMinutes] = useState<number>(profile.sessionDurationMinutes || 20);
   const [avoidedMovements, setAvoidedMovements] = useState<string[]>(profile.avoidedMovements || []);
@@ -85,6 +88,9 @@ export const ProfileView: React.FC<ProfileViewProps> = ({ onClose }) => {
     await updateUserProfile({
       displayName: displayName.trim(),
       habitAnchor: habitAnchor.trim(),
+      exerciseReason: exerciseReason.trim(),
+      healthNotes: healthNotes.trim(),
+      preferredTime: preferredTime as 'manha' | 'tarde' | 'noite' | 'flexivel',
       availableDays,
       sessionDurationMinutes,
       avoidedMovements,
@@ -240,10 +246,11 @@ export const ProfileView: React.FC<ProfileViewProps> = ({ onClose }) => {
         </div>
 
         <div>
-          <label className="block text-xs font-bold text-[#152A29] mb-1">
+          <label htmlFor="profile-habit-anchor" className="block text-xs font-bold text-[#152A29] mb-1">
             Sua Âncora de Hábito (Quando você treina?)
           </label>
           <input
+            id="profile-habit-anchor"
             type="text"
             value={habitAnchor}
             onChange={(e) => setHabitAnchor(e.target.value)}
@@ -253,6 +260,61 @@ export const ProfileView: React.FC<ProfileViewProps> = ({ onClose }) => {
           <p className="text-[10px] text-[#5B7170] mt-1">
             Vincular seu treino a uma rotina existente ajuda a manter a prática suave e consistente.
           </p>
+        </div>
+
+        <div>
+          <label htmlFor="profile-exercise-reason" className="block text-xs font-bold text-[#152A29] mb-1">
+            Seu Porquê Pessoal (O que te inspira a treinar?)
+          </label>
+          <input
+            id="profile-exercise-reason"
+            type="text"
+            value={exerciseReason}
+            onChange={(e) => setExerciseReason(e.target.value)}
+            placeholder="Ex: Ter disposição para brincar com meus filhos"
+            className="w-full h-10 px-3.5 rounded-xl border border-[#C9DBD3] text-xs text-[#152A29] focus:outline-none focus:border-[#125F55]"
+          />
+        </div>
+
+        <div>
+          <label htmlFor="profile-health-notes" className="block text-xs font-bold text-[#152A29] mb-1">
+            Observações de Saúde e Articulações (Opcional)
+          </label>
+          <input
+            id="profile-health-notes"
+            type="text"
+            value={healthNotes}
+            onChange={(e) => setHealthNotes(e.target.value)}
+            placeholder="Ex: Desconforto leve no joelho esquerdo"
+            className="w-full h-10 px-3.5 rounded-xl border border-[#C9DBD3] text-xs text-[#152A29] focus:outline-none focus:border-[#125F55]"
+          />
+        </div>
+
+        <div>
+          <label className="block text-xs font-bold text-[#152A29] mb-1.5">
+            Turno Preferido para Treinar
+          </label>
+          <div className="grid grid-cols-4 gap-2">
+            {[
+              { id: 'manha', label: 'Manhã' },
+              { id: 'tarde', label: 'Tarde' },
+              { id: 'noite', label: 'Noite' },
+              { id: 'flexivel', label: 'Flexível' },
+            ].map((t) => (
+              <button
+                key={t.id}
+                type="button"
+                onClick={() => setPreferredTime(t.id)}
+                className={`py-2 rounded-xl text-xs font-bold border transition-colors cursor-pointer ${
+                  preferredTime === t.id
+                    ? 'bg-[#125F55] text-white border-[#125F55]'
+                    : 'bg-white text-[#152A29] border-[#C9DBD3] hover:bg-slate-50'
+                }`}
+              >
+                {t.label}
+              </button>
+            ))}
+          </div>
         </div>
 
         {/* Dias Disponíveis para Treino */}

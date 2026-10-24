@@ -4,6 +4,7 @@ export interface PrescriptionOptions {
   sessionDurationMinutes?: number;
   experienceLevel?: 'iniciante' | 'intermediario' | 'avancado';
   goalKey?: string;
+  extraRestSeconds?: number;
 }
 
 /**
@@ -78,6 +79,10 @@ export function prescribeExerciseItem(
   }
 
   // 4. Justificativa honesta (reason)
+  if (options.extraRestSeconds) {
+    restSeconds += options.extraRestSeconds;
+  }
+
   let reason = slotRationale || ex.caution_pt || 'Movimento selecionado para compor o equilíbrio articular da rotina.';
 
   return {
