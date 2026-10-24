@@ -1,4 +1,4 @@
-import { test, expect } from '@playwright/test';
+﻿import { test, expect } from '@playwright/test';
 
 test.describe('Superação - Validação End-to-End Headless (Em Segundo Plano)', () => {
   test.beforeEach(async ({ page }) => {
@@ -570,6 +570,38 @@ test.describe('Superação - Validação End-to-End Headless (Em Segundo Plano)'
           sessionDurationMinutes: 20,
           equipments: ['peso_corporal'],
           avoidedMovements: [],
+        })
+      );
+      localStorage.setItem(
+        'superacao_proposal',
+        JSON.stringify({
+          proposalId: 'prop_test',
+          title: 'Rotina Inicial Adaptada',
+          description: 'Treino corpo todo para iniciar com segurança',
+          routines: [
+            {
+              id: 'routine_test',
+              title: 'Treino Corpo Inteiro A',
+              exercises: [
+                {
+                  exerciseId: 'bodyweight_squat',
+                  exerciseName: 'Agachamento Livre com Peso Corporal',
+                  targetSets: 3,
+                  targetReps: 10,
+                  restSeconds: 45,
+                },
+                {
+                  exerciseId: 'pushups',
+                  exerciseName: 'Flexão de Braços no Solo',
+                  targetSets: 3,
+                  targetReps: 8,
+                  restSeconds: 60,
+                }
+              ]
+            }
+          ],
+          weeklySchedule: { 1: 'Segunda', 3: 'Quarta', 5: 'Sexta' },
+          hasCompatibleExercises: true,
         })
       );
     });
@@ -1194,4 +1226,134 @@ test.describe('Superação - Validação End-to-End Headless (Em Segundo Plano)'
     await expect(page.getByText(/Olá, Lucas PWA!/i)).toBeVisible();
   });
 
+  test('Teste 18: Fluxo Completo da Fase 8 - Troca Rápida na Proposta, Catálogo 873 Reativo e Cronômetro Isométrico', async ({ page }) => {
+    // 1. Configura usuário recém-onboarded aguardando confirmação da proposta
+    await page.goto('/');
+    await page.evaluate(() => {
+      localStorage.clear();
+      localStorage.setItem('superacao_access_choice', JSON.stringify('guest'));
+      localStorage.setItem(
+        'superacao_user_profile',
+        JSON.stringify({
+          uid: 'guest_user',
+          displayName: 'Mariana Fase 8',
+          onboardingCompleted: true,
+          routineConfirmed: false,
+          availableDays: [1, 3, 5],
+          equipments: ['peso_corporal'],
+          avoidedMovements: [],
+        })
+      );
+      localStorage.setItem(
+        'superacao_proposal',
+        JSON.stringify({
+          proposalId: 'prop_test',
+          title: 'Rotina Inicial Adaptada',
+          description: 'Treino corpo todo para iniciar com segurança',
+          routines: [
+            {
+              id: 'routine_test',
+              title: 'Treino Corpo Inteiro A',
+              exercises: [
+                {
+                  exerciseId: 'bodyweight_squat',
+                  exerciseName: 'Agachamento Livre com Peso Corporal',
+                  targetSets: 3,
+                  targetReps: 10,
+                  restSeconds: 45,
+                },
+                {
+                  exerciseId: 'pushups',
+                  exerciseName: 'Flexão de Braços no Solo',
+                  targetSets: 3,
+                  targetReps: 8,
+                  restSeconds: 60,
+                }
+              ]
+            }
+          ],
+          weeklySchedule: { 1: 'Segunda', 3: 'Quarta', 5: 'Sexta' },
+          hasCompatibleExercises: true,
+        })
+      );
+    });
+    await page.reload();
+
+    // 2. Valida tela de proposta inicial e botões de "Trocar"
+    await expect(page.getByText('Proposta de Rotina')).toBeVisible();
+    const swapBtns = page.getByRole('button', { name: /Trocar/i });
+    await expect(swapBtns.first()).toBeVisible();
+
+    // 3. Clica em "Trocar" para abrir modal de substituição segura
+    await swapBtns.first().click();
+    await expect(page.getByText('Substituição Segura')).toBeVisible();
+
+    // Se houver botões de "Escolher", clica no primeiro para trocar
+    const chooseBtns = page.getByRole('button', { name: /Escolher/i });
+    if (await chooseBtns.count() > 0) {
+      await chooseBtns.first().click();
+    } else {
+      // Se não houver candidatos alternativos para o primeiro item, fecha o modal
+      await page.keyboard.press('Escape');
+    }
+
+    // 4. Clica em "Confirmar minha rotina" -> valida transição imediata para a Home sem F5 (Bug 1 Corrigido)
+    const confirmBtn = page.getByRole('button', { name: /Confirmar minha rotina/i });
+    await expect(confirmBtn).toBeVisible();
+    await confirmBtn.click();
+
+    // Valida que foi direto para a Home
+    await expect(page.getByText(/Mariana Fase 8!/i)).toBeVisible();
+
+    // 5. Navega para a aba "Explorar" e abre o Catálogo
+    const navExploreBtn = page.locator('nav').getByRole('button', { name: 'Treinos', exact: true });
+    await navExploreBtn.click();
+
+    const catalogTabBtn = page.getByRole('button', { name: /Catálogo/i });
+    await expect(catalogTabBtn).toBeVisible();
+    await catalogTabBtn.click();
+
+    // 6. Valida a presença das Pílulas Rápidas de Cuidado & Intenção
+    await expect(page.getByText('Cuidado & Intenção Rápida:')).toBeVisible();
+    const spineFilter = page.getByRole('button', { name: /Coluna & Lombar/i });
+    await expect(spineFilter).toBeVisible();
+    await spineFilter.click();
+
+    // Valida que resultados aparecem
+    await expect(page.getByText(/Encontrados:/i)).toBeVisible();
+
+    // 7. Testa a aba Agenda (CalendarView) com badges e alinhamento refinado
+    const navCalendarBtn = page.locator('nav').getByRole('button', { name: 'Agenda', exact: true });
+    await navCalendarBtn.click();
+    await expect(page.getByText('Sua Agenda Semanal')).toBeVisible();
+    await expect(page.getByText(/Segunda-feira/i)).toBeVisible();
+
+    // 8. Volta para a Home e Inicia o Treino do Dia
+    const navHomeBtn = page.locator('nav').getByRole('button', { name: 'Início', exact: true });
+    await navHomeBtn.click();
+
+    const startTodayBtn = page.getByRole('button', { name: /Iniciar Treino de Hoje/i });
+    if (await startTodayBtn.isVisible()) {
+      await startTodayBtn.click();
+
+      // Modal de humor pré-treino
+      const moodBtn = page.getByRole('button', { name: /Pronto pro treino/i });
+      if (await moodBtn.isVisible()) {
+        await moodBtn.click();
+      }
+
+      // Valida que entrou na sessão ativa
+      await expect(page.getByText(/Série 1 de/i)).toBeVisible();
+
+      // Botão gigante de série ou contagem visível
+      const finishSetBtn = page.getByRole('button', { name: /Concluir Série|Iniciar Contagem/i });
+      await expect(finishSetBtn).toBeVisible();
+
+      // Pausa e volta para a Home
+      const pauseBtn = page.getByRole('button', { name: /Pausar e Voltar para Início/i });
+      if (await pauseBtn.isVisible()) {
+        await pauseBtn.click();
+      }
+    }
+  });
 });

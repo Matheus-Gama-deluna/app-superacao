@@ -61,6 +61,7 @@ import {
   backgroundTimer,
   workoutNotifications,
 } from '../lib/backgroundWorkout';
+import { speakWorkoutCue, sendRestFinishedNotification } from '../lib/pwaNative';
 import { allTemplates, getExerciseById } from '../data/catalog';
 import { applyUpgradesToWorkoutPlan } from '../lib/workoutEngine';
 import { premadePrograms } from '../data/premadePrograms';
@@ -143,7 +144,7 @@ interface WorkoutContextType {
 const WorkoutContext = createContext<WorkoutContextType | undefined>(undefined);
 
 export const WorkoutProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const { user, profile, isGuest } = useAuth();
+  const { user, profile, isGuest, updateUserProfile } = useAuth();
   const uid = user ? user.uid : 'guest_user';
 
   // Programas de Longo Prazo
@@ -304,7 +305,7 @@ export const WorkoutProvider: React.FC<{ children: React.ReactNode }> = ({ child
     // 3. Eventos de Séries (Otimizados com orderBy e limit 300)
     const setEventsQuery = query(
       collection(db, 'users', currentUid, 'setEvents'),
-      orderBy('completedAt', 'desc'),
+      orderBy('recordedAt', 'desc'),
       limit(300)
     );
     const stopSetEvents = onSnapshot(
@@ -394,42 +395,34 @@ export const WorkoutProvider: React.FC<{ children: React.ReactNode }> = ({ child
     };
   }, [user, isGuest]);
 
-  // Recalcula Recordes Pessoais (PRs) a partir dos eventos de séries confirmadas
+  // Reconstrói Recordes Pessoais (PRs) a partir dos eventos apenas se a lista estiver vazia
   useEffect(() => {
-    const prMap = new Map<string, PersonalRecord>();
-    setEvents.forEach((ev) => {
-      const existing = prMap.get(ev.exerciseId);
-      const reps = ev.actualReps || 0;
-      const duration = ev.actualDurationSeconds || 0;
+    if (personalRecords.length > 0 || setEvents.length === 0) return;
 
-      if (!existing) {
-        if (reps > 0 || duration > 0) {
-          prMap.set(ev.exerciseId, {
-            exerciseId: ev.exerciseId,
-            exerciseName: ev.exerciseName,
-            bestReps: reps,
-            bestDurationSeconds: duration,
-            recordedAt: ev.recordedAt,
-            sessionId: ev.sessionId,
-          });
-        }
-      } else {
-        if (reps > existing.bestReps || duration > existing.bestDurationSeconds) {
-          prMap.set(ev.exerciseId, {
-            ...existing,
-            bestReps: Math.max(existing.bestReps, reps),
-            bestDurationSeconds: Math.max(existing.bestDurationSeconds, duration),
-            recordedAt: ev.recordedAt,
-            sessionId: ev.sessionId,
-          });
-        }
+    // Processa eventos em ordem cronológica para recriar baselines e PRs fielmente com carga
+    const sortedEvents = [...setEvents].sort((a, b) => a.recordedAt - b.recordedAt);
+    let reconstructed: PersonalRecord[] = [];
+
+    for (const ev of sortedEvents) {
+      const res = checkAndRegisterPR(
+        ev.exerciseId,
+        ev.exerciseName,
+        ev.actualReps,
+        ev.actualDurationSeconds,
+        reconstructed,
+        ev.sessionId,
+        ev.actualWeightKg
+      );
+      if (res.updatedPRs) {
+        reconstructed = res.updatedPRs;
       }
-    });
+    }
 
-    const calculatedPRs = Array.from(prMap.values());
-    setPersonalRecords(calculatedPRs);
-    setLocal('superacao_personal_records', calculatedPRs);
-  }, [setEvents]);
+    if (reconstructed.length > 0) {
+      setPersonalRecords(reconstructed);
+      setLocal('superacao_personal_records', reconstructed);
+    }
+  }, [setEvents, personalRecords.length]);
 
   // Loop do timer de descanso (resistente a bloqueio de tela via Date.now())
   useEffect(() => {
@@ -456,9 +449,14 @@ export const WorkoutProvider: React.FC<{ children: React.ReactNode }> = ({ child
         backgroundTimer.stop();
         triggerHaptic([80, 50, 80], profile.hapticEnabled);
 
-        // Notificação de segundo plano se o praticante estiver com tela bloqueada
+        // Notificação e Guia de Voz Offline ao terminar o descanso
         if (activeSession) {
           const currentItem = activeSession.exercisesSnapshot[activeSession.currentExerciseIndex];
+          const cue = currentItem?.exerciseName
+            ? `Descanso finalizado! Próxima série de ${currentItem.exerciseName}.`
+            : 'Descanso finalizado! Hora da próxima série.';
+          speakWorkoutCue(cue, profile.voiceGuideEnabled ?? true);
+          sendRestFinishedNotification(currentItem?.exerciseName || 'exercício');
           workoutNotifications.notifyRestFinished(
             currentItem?.exerciseName || 'Próximo exercício',
             activeSession.currentSetIndex
@@ -596,7 +594,8 @@ export const WorkoutProvider: React.FC<{ children: React.ReactNode }> = ({ child
     scheduledDayId?: string,
     originType: 'scheduled' | 'program_session' | 'ad_hoc' | 'express' = 'ad_hoc',
     isExpress = false,
-    wasPlannedHabit = false
+    wasPlannedHabit = false,
+    scheduledActivityId?: string
   ) => {
     setIsFocusMode(true);
     const totalSets = plan.exercises.reduce((acc, curr) => acc + curr.targetSets, 0);
@@ -620,6 +619,7 @@ export const WorkoutProvider: React.FC<{ children: React.ReactNode }> = ({ child
       originType,
       isExpress,
       wasPlannedHabit,
+      scheduledActivityId,
     };
 
     setActiveSession(session);
@@ -1067,6 +1067,18 @@ export const WorkoutProvider: React.FC<{ children: React.ReactNode }> = ({ child
         );
         setCalendar(updated);
         setLocal('superacao_calendar', updated);
+        if (user && !isGuest) {
+          void persistCalendarDays(user.uid, updated);
+        }
+      }
+    }
+
+    if (user && !isGuest) {
+      try {
+        const docRef = doc(db, 'users', user.uid, 'sessions', partialSession.id);
+        void setDoc(docRef, partialSession);
+      } catch (err) {
+        handleFirestoreError(err, OperationType.CREATE, `users/${user.uid}/sessions/${partialSession.id}`);
       }
     }
   };
@@ -1128,9 +1140,21 @@ export const WorkoutProvider: React.FC<{ children: React.ReactNode }> = ({ child
         );
         setCalendar(updated);
         setLocal('superacao_calendar', updated);
+        if (user && !isGuest) {
+          void persistCalendarDays(user.uid, updated);
+        }
       } else {
         await updateCalendarDay(todayCal.id, 'walk', 'walk_free', title);
         await toggleCalendarDayCompleted(todayCal.id);
+      }
+    }
+
+    if (user && !isGuest) {
+      try {
+        const docRef = doc(db, 'users', user.uid, 'sessions', walkSession.id);
+        void setDoc(docRef, walkSession);
+      } catch (err) {
+        handleFirestoreError(err, OperationType.CREATE, `users/${user.uid}/sessions/${walkSession.id}`);
       }
     }
 
@@ -1192,9 +1216,21 @@ export const WorkoutProvider: React.FC<{ children: React.ReactNode }> = ({ child
         );
         setCalendar(updated);
         setLocal('superacao_calendar', updated);
+        if (user && !isGuest) {
+          void persistCalendarDays(user.uid, updated);
+        }
       } else {
         await updateCalendarDay(todayCal.id, 'mobility', `care_${category}`, title);
         await toggleCalendarDayCompleted(todayCal.id);
+      }
+    }
+
+    if (user && !isGuest) {
+      try {
+        const docRef = doc(db, 'users', user.uid, 'sessions', careSession.id);
+        void setDoc(docRef, careSession);
+      } catch (err) {
+        handleFirestoreError(err, OperationType.CREATE, `users/${user.uid}/sessions/${careSession.id}`);
       }
     }
 
@@ -1252,15 +1288,7 @@ export const WorkoutProvider: React.FC<{ children: React.ReactNode }> = ({ child
   };
 
   const confirmLegacyRoutine = async () => {
-    if (user && !isGuest) {
-      try {
-        await persistUserProfile(user.uid, { needsReviewPrompt: false });
-      } catch (e) {
-        console.warn('Erro ao atualizar perfil no Firestore:', e);
-      }
-    }
-    const updatedProfile = { ...profile, needsReviewPrompt: false };
-    setLocal('superacao_user_profile', updatedProfile);
+    await updateUserProfile({ needsReviewPrompt: false });
   };
 
   const confirmProposal = async (proposal: ExplainableProposal) => {
@@ -1314,7 +1342,7 @@ export const WorkoutProvider: React.FC<{ children: React.ReactNode }> = ({ child
     setCalendar(newCalendar);
     setLocal('superacao_calendar', newCalendar);
 
-    // 5. Atualiza o perfil para registrar rotina confirmada
+    // 5. Atualiza o perfil para registrar rotina confirmada (sincronizando estado React e Firestore)
     const updatedProfile: UserProfile = {
       ...profile,
       routineConfirmed: true,
@@ -1325,9 +1353,9 @@ export const WorkoutProvider: React.FC<{ children: React.ReactNode }> = ({ child
       avoidedMovements: proposal.avoidedMovements,
       updatedAt: Date.now(),
     };
-    setLocal('superacao_user_profile', updatedProfile);
+    await updateUserProfile(updatedProfile);
 
-    // 6. Se logado com conta real, persiste no Firestore de forma protegida
+    // 6. Se logado com conta real, persiste rotinas, programa e calendário no Firestore
     if (user && !isGuest) {
       try {
         const progDocRef = doc(db, 'users', user.uid, 'programs', 'active_program');
@@ -1525,6 +1553,7 @@ export const WorkoutProvider: React.FC<{ children: React.ReactNode }> = ({ child
       try {
         const progDocRef = doc(db, 'users', user.uid, 'programs', 'active_program');
         await setDoc(progDocRef, program);
+        await persistCalendarDays(user.uid, updatedCal);
       } catch (err) {
         console.warn('Erro ao salvar programa no Firestore:', err);
       }

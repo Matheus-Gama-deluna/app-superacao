@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useWorkout } from '../context/WorkoutContext';
 import { useAuth } from '../context/AuthContext';
 import { ExerciseIllustration } from '../components/ExerciseIllustration';
-import { getExerciseById } from '../data/catalog';
+import { getExerciseById, useFullCatalog } from '../data/catalog';
 import {
   X,
   Check,
@@ -24,6 +24,9 @@ import {
   Pause,
   Target,
   ArrowLeftRight,
+  Play,
+  Square,
+  Timer,
 } from 'lucide-react';
 import { soundManager } from '../lib/audio';
 import { mediaSessionManager } from '../lib/backgroundWorkout';
@@ -86,12 +89,14 @@ export const ActiveWorkoutView: React.FC<ActiveWorkoutViewProps> = ({
     updateActiveExerciseTarget,
     applyPlanProgression,
   } = useWorkout();
+  useFullCatalog();
 
   // Estados locais do modal de confirmação de série (S08)
   const [showConfirmSheet, setShowConfirmSheet] = useState<boolean>(false);
   const [actualRepsInput, setActualRepsInput] = useState<number>(10);
   const [actualDurationInput, setActualDurationInput] = useState<number>(30);
   const [actualWeightInput, setActualWeightInput] = useState<number>(0);
+  const [showExtraWeightInput, setShowExtraWeightInput] = useState<boolean>(false);
   const [confirmRestSeconds, setConfirmRestSeconds] = useState<number>(60);
   const [showAbandonConfirm, setShowAbandonConfirm] = useState<boolean>(false);
   const [showFinishScreen, setShowFinishScreen] = useState<boolean>(false);
@@ -107,6 +112,12 @@ export const ActiveWorkoutView: React.FC<ActiveWorkoutViewProps> = ({
   const [progressionAnalysis, setProgressionAnalysis] = useState<SessionProgressionAnalysis | null>(null);
   const [selectedUpgrades, setSelectedUpgrades] = useState<Record<string, boolean>>({});
   const [progressionApplied, setProgressionApplied] = useState<boolean>(false);
+
+  // Cronômetro Isométrico Ao Vivo para exercícios medidos por tempo (Fase 8)
+  const [isoTimerActive, setIsoTimerActive] = useState<boolean>(false);
+  const [isoTimerPaused, setIsoTimerPaused] = useState<boolean>(false);
+  const [isoTimeRemaining, setIsoTimeRemaining] = useState<number>(0);
+  const [isoTargetSeconds, setIsoTargetSeconds] = useState<number>(30);
 
 
   // Tecla Escape para fechar qualquer modal aberto
@@ -132,19 +143,6 @@ export const ActiveWorkoutView: React.FC<ActiveWorkoutViewProps> = ({
     };
   }, []);
 
-  // Notificação e Guia de Voz ao Concluir o Descanso
-  useEffect(() => {
-    if (isResting && restSecondsRemaining === 0 && activeSession) {
-      const nextIdx = activeSession.currentExerciseIndex;
-      const nextItem = activeSession.exercisesSnapshot[nextIdx];
-      const cue = nextItem?.exerciseName
-        ? `Descanso finalizado! Próxima série de ${nextItem.exerciseName}.`
-        : 'Descanso finalizado!';
-      speakWorkoutCue(cue, profile.voiceGuideEnabled ?? true);
-      sendRestFinishedNotification(nextItem?.exerciseName || 'exercício');
-    }
-  }, [isResting, restSecondsRemaining, profile.voiceGuideEnabled]);
-
   if (!activeSession) return null;
 
   const currentExerciseItem = activeSession.exercisesSnapshot[activeSession.currentExerciseIndex];
@@ -165,16 +163,81 @@ export const ActiveWorkoutView: React.FC<ActiveWorkoutViewProps> = ({
   const nextExItem = activeSession.exercisesSnapshot[activeSession.currentExerciseIndex] || currentExerciseItem;
   const nextSetNum = activeSession.currentSetIndex;
 
-  const handleOpenConfirm = () => {
+  const handleOpenConfirm = (overrideDuration?: number) => {
     if (isTimeTracking) {
-      setActualDurationInput(currentExerciseItem?.targetDurationSeconds || 30);
+      setActualDurationInput(overrideDuration || currentExerciseItem?.targetDurationSeconds || 30);
     } else {
       setActualRepsInput(currentExerciseItem?.targetReps || 10);
     }
-    setActualWeightInput(previousPR?.bestWeightKg || 0);
+    const initialWeight = previousPR?.bestWeightKg || 0;
+    setActualWeightInput(initialWeight);
+    setShowExtraWeightInput(initialWeight > 0);
     setConfirmRestSeconds(currentExerciseItem?.restSeconds || 60);
     setShowConfirmSheet(true);
   };
+
+  const handleStartIsoTimer = (targetSec: number) => {
+    setIsoTargetSeconds(targetSec);
+    setIsoTimeRemaining(targetSec);
+    setIsoTimerPaused(false);
+    setIsoTimerActive(true);
+    if (profile.voiceGuideEnabled !== false) {
+      speakWorkoutCue('Começou! Sustente a postura e respire.');
+    }
+  };
+
+  const handleStopIsoTimerEarly = () => {
+    const elapsed = Math.max(1, isoTargetSeconds - isoTimeRemaining);
+    setIsoTimerActive(false);
+    setIsoTimerPaused(false);
+    soundManager.playSetCompleted();
+    handleOpenConfirm(elapsed);
+  };
+
+  const handleCancelIsoTimer = () => {
+    setIsoTimerActive(false);
+    setIsoTimerPaused(false);
+    setIsoTimeRemaining(0);
+  };
+
+  // Efeito do Cronômetro Isométrico com avisos sonoros e voz offline
+  useEffect(() => {
+    let interval: any = null;
+    if (isoTimerActive && !isoTimerPaused) {
+      interval = setInterval(() => {
+        setIsoTimeRemaining((prev) => {
+          if (prev <= 1) {
+            clearInterval(interval);
+            setIsoTimerActive(false);
+            setIsoTimerPaused(false);
+            soundManager.playRestFinished();
+            if (profile.voiceGuideEnabled !== false) {
+              speakWorkoutCue('Tempo concluído! Excelente sustentação.');
+            }
+            setTimeout(() => {
+              handleOpenConfirm(isoTargetSeconds);
+            }, 300);
+            return 0;
+          }
+          const next = prev - 1;
+          if (next <= 3 && next > 0) {
+            soundManager.playCountdownTick();
+          }
+          return next;
+        });
+      }, 1000);
+    }
+    return () => {
+      if (interval) clearInterval(interval);
+    };
+  }, [isoTimerActive, isoTimerPaused, isoTargetSeconds, profile.voiceGuideEnabled]);
+
+  // Se trocar de exercício enquanto o cronômetro estiver rodando, cancela o timer
+  useEffect(() => {
+    setIsoTimerActive(false);
+    setIsoTimerPaused(false);
+    setIsoTimeRemaining(0);
+  }, [activeSession?.currentExerciseIndex]);
 
   // Atualiza controles e informações na tela de bloqueio do celular (Media Session)
   useEffect(() => {
@@ -850,14 +913,91 @@ export const ActiveWorkoutView: React.FC<ActiveWorkoutViewProps> = ({
               </button>
             </div>
 
-            {/* BOTÃO PRINCIPAL GIGANTE (56px) - CONCLUIR SÉRIE */}
-            <button
-              onClick={handleOpenConfirm}
-              className="w-full h-14 bg-[#125F55] text-white font-bold text-base rounded-2xl flex items-center justify-center gap-2 hover:bg-[#0C5148] active:scale-[0.98] transition-all shadow-md cursor-pointer"
-            >
-              <Check className="w-6 h-6 stroke-[3]" />
-              <span>Concluir Série</span>
-            </button>
+            {/* BOTÃO PRINCIPAL GIGANTE (56px) / CRONÔMETRO ISOMÉTRICO AO VIVO (Fase 8) */}
+            {isTimeTracking ? (
+              isoTimerActive ? (
+                <div className="bg-[#125F55] text-white p-4 rounded-3xl shadow-md space-y-3 animate-in fade-in duration-200">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <Timer className="w-5 h-5 text-[#D9F277] animate-pulse" />
+                      <span className="text-xs font-bold uppercase tracking-wider text-[#D9F277]">
+                        {isoTimerPaused ? 'Cronômetro Pausado' : 'Sustente a Postura!'}
+                      </span>
+                    </div>
+                    <span className="text-2xl font-black tabular-nums text-white">
+                      {isoTimeRemaining}s
+                    </span>
+                  </div>
+
+                  {/* Barra de Progresso Isométrica */}
+                  <div className="w-full h-2.5 bg-white/20 rounded-full overflow-hidden">
+                    <div
+                      className="h-full bg-[#D9F277] transition-all duration-300 rounded-full"
+                      style={{
+                        width: `${Math.min(100, Math.max(0, ((isoTargetSeconds - isoTimeRemaining) / (isoTargetSeconds || 1)) * 100))}%`,
+                      }}
+                    />
+                  </div>
+
+                  <div className="flex items-center gap-2 pt-1">
+                    <button
+                      type="button"
+                      onClick={() => setIsoTimerPaused((prev) => !prev)}
+                      className="flex-1 py-2.5 bg-white/15 hover:bg-white/25 text-white font-bold text-xs rounded-xl flex items-center justify-center gap-1.5 cursor-pointer transition-colors"
+                    >
+                      {isoTimerPaused ? <Play className="w-3.5 h-3.5 fill-current" /> : <Pause className="w-3.5 h-3.5 fill-current" />}
+                      <span>{isoTimerPaused ? 'Retomar' : 'Pausar'}</span>
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={handleStopIsoTimerEarly}
+                      className="flex-1 py-2.5 bg-[#D9F277] hover:bg-[#cbe65b] text-[#203826] font-black text-xs rounded-xl flex items-center justify-center gap-1.5 cursor-pointer shadow-xs transition-colors"
+                    >
+                      <Check className="w-4 h-4 stroke-[3]" />
+                      <span>Concluir ({isoTargetSeconds - isoTimeRemaining}s)</span>
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={handleCancelIsoTimer}
+                      className="p-2.5 bg-white/10 hover:bg-white/20 text-white/80 rounded-xl cursor-pointer transition-colors"
+                      title="Cancelar cronômetro"
+                      aria-label="Cancelar cronômetro"
+                    >
+                      <X className="w-4 h-4" />
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  <button
+                    type="button"
+                    onClick={() => handleStartIsoTimer(currentExerciseItem?.targetDurationSeconds || 30)}
+                    className="w-full h-14 bg-[#125F55] text-white font-bold text-base rounded-2xl flex items-center justify-center gap-2 hover:bg-[#0C5148] active:scale-[0.98] transition-all shadow-md cursor-pointer"
+                  >
+                    <Timer className="w-5 h-5 text-[#D9F277]" />
+                    <span>Iniciar Contagem ({currentExerciseItem?.targetDurationSeconds || 30}s)</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleOpenConfirm()}
+                    className="w-full py-2 text-xs font-semibold text-[#5B7170] hover:text-[#125F55] cursor-pointer text-center"
+                  >
+                    Ou registrar série manualmente sem cronômetro
+                  </button>
+                </div>
+              )
+            ) : (
+              <button
+                type="button"
+                onClick={() => handleOpenConfirm()}
+                className="w-full h-14 bg-[#125F55] text-white font-bold text-base rounded-2xl flex items-center justify-center gap-2 hover:bg-[#0C5148] active:scale-[0.98] transition-all shadow-md cursor-pointer"
+              >
+                <Check className="w-6 h-6 stroke-[3]" />
+                <span>Concluir Série</span>
+              </button>
+            )}
           </div>
         </main>
       )}
@@ -1144,67 +1284,91 @@ export const ActiveWorkoutView: React.FC<ActiveWorkoutViewProps> = ({
               </div>
             </div>
 
-            {/* Ajuste de Carga / Peso (kg) para Sobrecarga Progressiva (E06) */}
+            {/* Ajuste de Carga / Peso (kg) para Sobrecarga Progressiva (E06, Fase 8) */}
             {supportsExternalWeight(exerciseDetails) ? (
-              <div className="bg-[#F5F8F5] p-3.5 rounded-2xl text-center space-y-2">
-                <div className="flex items-center justify-between px-1">
-                  <label className="text-xs font-bold text-[#5B7170] uppercase tracking-wider block">
-                    Carga Utilizada (kg)
-                  </label>
-                  {previousPR?.bestWeightKg ? (
-                    <span className="text-[10px] text-[#125F55] font-bold">
-                      Última marca: {previousPR.bestWeightKg} kg
-                    </span>
-                  ) : (
-                    <span className="text-[10px] text-[#5B7170]">
-                      Peso corporal ou halteres
-                    </span>
-                  )}
-                </div>
+              (() => {
+                const isMainlyBodyweight = !exerciseDetails?.equipment?.some((eq: string) =>
+                  ['halteres', 'kettlebell', 'barra', 'anilhas', 'maquina', 'cabo', 'polia', 'caneleira'].includes(eq.toLowerCase())
+                );
+                const shouldCollapse = isMainlyBodyweight && actualWeightInput === 0 && !showExtraWeightInput;
 
-                <div className="flex items-center justify-center gap-4">
-                  <button
-                    type="button"
-                    onClick={() => setActualWeightInput((prev) => Math.max(0, prev - 2))}
-                    className="w-10 h-10 rounded-xl bg-white border border-[#C9DBD3] flex items-center justify-center font-bold text-xs text-[#125F55] active:scale-95 shadow-xs cursor-pointer"
-                  >
-                    -2
-                  </button>
-                  <div className="w-24">
-                    <span className="text-3xl font-black text-[#125F55] tabular-nums">
-                      {actualWeightInput}
-                    </span>
-                    <span className="block text-[10px] text-[#5B7170] font-semibold mt-0.5">
-                      {actualWeightInput > 0 ? 'kg utilizados' : 'peso do corpo'}
-                    </span>
+                if (shouldCollapse) {
+                  return (
+                    <div className="text-center py-1">
+                      <button
+                        type="button"
+                        onClick={() => setShowExtraWeightInput(true)}
+                        className="text-[11px] font-bold text-[#125F55] bg-[#EAF3EF] hover:bg-[#dbeee4] border border-[#125F55]/20 px-3 py-1.5 rounded-xl transition-all cursor-pointer inline-flex items-center gap-1.5 shadow-xs"
+                      >
+                        <Plus className="w-3.5 h-3.5" />
+                        <span>Adicionar carga extra (opcional)</span>
+                      </button>
+                    </div>
+                  );
+                }
+
+                return (
+                  <div className="bg-[#F5F8F5] p-3.5 rounded-2xl text-center space-y-2">
+                    <div className="flex items-center justify-between px-1">
+                      <label className="text-xs font-bold text-[#5B7170] uppercase tracking-wider block">
+                        Carga Utilizada (kg)
+                      </label>
+                      {previousPR?.bestWeightKg ? (
+                        <span className="text-[10px] text-[#125F55] font-bold">
+                          Última marca: {previousPR.bestWeightKg} kg
+                        </span>
+                      ) : (
+                        <span className="text-[10px] text-[#5B7170]">
+                          Peso corporal ou halteres
+                        </span>
+                      )}
+                    </div>
+
+                    <div className="flex items-center justify-center gap-4">
+                      <button
+                        type="button"
+                        onClick={() => setActualWeightInput((prev) => Math.max(0, prev - 2))}
+                        className="w-10 h-10 rounded-xl bg-white border border-[#C9DBD3] flex items-center justify-center font-bold text-xs text-[#125F55] active:scale-95 shadow-xs cursor-pointer"
+                      >
+                        -2
+                      </button>
+                      <div className="w-24">
+                        <span className="text-3xl font-black text-[#125F55] tabular-nums">
+                          {actualWeightInput}
+                        </span>
+                        <span className="block text-[10px] text-[#5B7170] font-semibold mt-0.5">
+                          {actualWeightInput > 0 ? 'kg utilizados' : 'peso do corpo'}
+                        </span>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => setActualWeightInput((prev) => prev + 2)}
+                        className="w-10 h-10 rounded-xl bg-white border border-[#C9DBD3] flex items-center justify-center font-bold text-xs text-[#125F55] active:scale-95 shadow-xs cursor-pointer"
+                      >
+                        +2
+                      </button>
+                    </div>
+
+                    {/* Atalhos rápidos de carga */}
+                    <div className="flex items-center justify-center gap-1.5 pt-0.5 flex-wrap">
+                      {[0, 4, 8, 12, 16, 20, 30].map((w) => (
+                        <button
+                          key={w}
+                          type="button"
+                          onClick={() => setActualWeightInput(w)}
+                          className={`px-2 py-0.5 text-[11px] font-bold rounded-lg border cursor-pointer transition-colors ${
+                            actualWeightInput === w
+                              ? 'bg-[#125F55] text-white border-[#125F55]'
+                              : 'bg-white border-[#C9DBD3] text-[#5B7170] hover:border-[#125F55]'
+                          }`}
+                        >
+                          {w === 0 ? 'Livre' : `${w}k`}
+                        </button>
+                      ))}
+                    </div>
                   </div>
-                  <button
-                    type="button"
-                    onClick={() => setActualWeightInput((prev) => prev + 2)}
-                    className="w-10 h-10 rounded-xl bg-white border border-[#C9DBD3] flex items-center justify-center font-bold text-xs text-[#125F55] active:scale-95 shadow-xs cursor-pointer"
-                  >
-                    +2
-                  </button>
-                </div>
-
-                {/* Atalhos rápidos de carga */}
-                <div className="flex items-center justify-center gap-1.5 pt-0.5 flex-wrap">
-                  {[0, 4, 8, 12, 16, 20, 30].map((w) => (
-                    <button
-                      key={w}
-                      type="button"
-                      onClick={() => setActualWeightInput(w)}
-                      className={`px-2 py-0.5 text-[11px] font-bold rounded-lg border cursor-pointer transition-colors ${
-                        actualWeightInput === w
-                          ? 'bg-[#125F55] text-white border-[#125F55]'
-                          : 'bg-white border-[#C9DBD3] text-[#5B7170] hover:border-[#125F55]'
-                      }`}
-                    >
-                      {w === 0 ? 'Livre' : `${w}k`}
-                    </button>
-                  ))}
-                </div>
-              </div>
+                );
+              })()
             ) : (
               <div className="bg-[#F5F8F5] p-3 rounded-2xl text-center space-y-1">
                 <span className="text-xs font-bold text-[#125F55] uppercase tracking-wider block">

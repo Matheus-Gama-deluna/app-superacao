@@ -2,7 +2,7 @@ import React, { useState, useMemo, useEffect } from 'react';
 import { useWorkout } from '../context/WorkoutContext';
 import { useAuth } from '../context/AuthContext';
 import { Exercise, WorkoutPlan, WorkoutProgram, TimeOfDay } from '../types';
-import { allExercises, searchExercises } from '../data/catalog';
+import { allExercises, searchExercises, useFullCatalog } from '../data/catalog';
 import { ExerciseIllustration } from '../components/ExerciseIllustration';
 import {
   Search,
@@ -34,6 +34,7 @@ export const ExploreView: React.FC<ExploreViewProps> = ({
   onOpenBuilder,
 }) => {
   const { profile, updateUserProfile } = useAuth();
+  const { isReady: catalogReady, totalCount: catalogTotal } = useFullCatalog();
   const {
     plans,
     programs,
@@ -49,6 +50,9 @@ export const ExploreView: React.FC<ExploreViewProps> = ({
   const [programFilter, setProgramFilter] = useState<string>('todos');
   const [planFilter, setPlanFilter] = useState<'todos' | 'classicas' | 'casa' | 'express' | 'mobilidade' | 'meus'>('todos');
   const [searchQuery, setSearchQuery] = useState<string>('');
+  const [selectedCareFilter, setSelectedCareFilter] = useState<
+    'todos' | 'coluna' | 'impacto' | 'peso_corpo' | 'gluteos' | 'alongamento'
+  >('todos');
   const [selectedEquipment, setSelectedEquipment] = useState<string>('todos');
   const [selectedMuscle, setSelectedMuscle] = useState<string>('todos');
   const [inspectingExercise, setInspectingExercise] = useState<Exercise | null>(null);
@@ -153,15 +157,93 @@ export const ExploreView: React.FC<ExploreViewProps> = ({
     });
   }, [plans, planFilter]);
 
-  // Filtra catálogo de 876 exercícios
+  // Filtra catálogo de exercícios com reatividade à camada assíncrona (A12) e pílulas de cuidado (Fase 8)
   const filteredExercises = useMemo(() => {
-    return searchExercises(
+    const base = searchExercises(
       searchQuery,
       selectedEquipment,
       selectedMuscle,
       undefined
     );
-  }, [searchQuery, selectedEquipment, selectedMuscle]);
+
+    if (selectedCareFilter === 'todos') return base;
+
+    return base.filter((ex) => {
+      const pattern = (ex.movement_pattern || '').toLowerCase();
+      const name = (ex.name_pt || '').toLowerCase();
+      const caution = (ex.caution_pt || '').toLowerCase();
+      const target = (ex.target_muscle || '').toLowerCase();
+      const primaries = (ex.primary_muscles || []).map((m) => m.toLowerCase()).join(' ');
+
+      if (selectedCareFilter === 'coluna') {
+        return (
+          pattern.includes('coluna') ||
+          pattern.includes('lombar') ||
+          pattern.includes('postura') ||
+          pattern.includes('descompressao') ||
+          primaries.includes('lombar') ||
+          primaries.includes('coluna') ||
+          primaries.includes('ereto') ||
+          caution.includes('lombar') ||
+          caution.includes('coluna') ||
+          caution.includes('ciático') ||
+          target.includes('lombar') ||
+          target.includes('coluna') ||
+          name.includes('coluna') ||
+          name.includes('lombar')
+        );
+      }
+
+      if (selectedCareFilter === 'impacto') {
+        const hasImpact =
+          name.includes('salto') ||
+          name.includes('pular') ||
+          name.includes('burpee') ||
+          name.includes('jumping') ||
+          name.includes('tuck jump') ||
+          pattern.includes('salto') ||
+          pattern.includes('plyo');
+        return !hasImpact;
+      }
+
+      if (selectedCareFilter === 'peso_corpo') {
+        const isBodyweight = ex.equipment.includes('peso_corporal');
+        const hasHeavyGear = ex.equipment.some((eq) =>
+          ['halteres', 'barra', 'maquina', 'kettlebell'].includes(eq)
+        );
+        return isBodyweight && !hasHeavyGear;
+      }
+
+      if (selectedCareFilter === 'gluteos') {
+        return (
+          primaries.includes('glúteo') ||
+          primaries.includes('gluteo') ||
+          primaries.includes('quadril') ||
+          target.includes('glúteo') ||
+          target.includes('gluteo') ||
+          target.includes('quadril') ||
+          name.includes('glúteo') ||
+          name.includes('gluteo') ||
+          name.includes('quadril') ||
+          name.includes('pelve')
+        );
+      }
+
+      if (selectedCareFilter === 'alongamento') {
+        return (
+          ex.modality === 'alongamento' ||
+          ex.modality === 'mobilidade' ||
+          pattern.includes('alongamento') ||
+          pattern.includes('mobilidade') ||
+          pattern.includes('soltura') ||
+          name.includes('alongamento') ||
+          name.includes('mobilidade')
+        );
+      }
+
+      return true;
+    });
+  }, [searchQuery, selectedEquipment, selectedMuscle, selectedCareFilter, catalogReady, catalogTotal]);
 
   const paginatedExercises = useMemo(() => {
     return filteredExercises.slice(0, visibleCount);
@@ -246,7 +328,7 @@ export const ExploreView: React.FC<ExploreViewProps> = ({
               : 'text-[#5B7170] hover:text-[#152A29]'
           }`}
         >
-          Catálogo ({allExercises.length})
+          Catálogo ({catalogTotal || allExercises.length})
         </button>
       </div>
 
@@ -559,9 +641,43 @@ export const ExploreView: React.FC<ExploreViewProps> = ({
                 setSearchQuery(e.target.value);
                 setVisibleCount(24);
               }}
-              placeholder="Buscar em 876 exercícios por nome, músculo..."
+              placeholder={`Buscar em ${catalogTotal || allExercises.length} exercícios por nome, músculo...`}
               className="w-full pl-10 pr-4 py-3 bg-white rounded-2xl border border-[#C9DBD3] text-xs text-[#152A29] placeholder-[#5B7170] focus:outline-none focus:border-[#125F55] shadow-xs"
             />
+          </div>
+
+          {/* Pílulas Rápidas de Cuidado & Intenção */}
+          <div className="space-y-1.5">
+            <div className="flex items-center gap-1.5 text-[11px] font-bold text-[#5B7170]">
+              <ShieldAlert className="w-3.5 h-3.5 text-[#125F55]" />
+              <span>Cuidado & Intenção Rápida:</span>
+            </div>
+            <div className="flex items-center gap-1.5 overflow-x-auto pb-1 no-scrollbar">
+              {[
+                { id: 'todos', label: 'Todos' },
+                { id: 'coluna', label: '🧘 Coluna & Lombar' },
+                { id: 'impacto', label: '🦵 Sem Impacto' },
+                { id: 'peso_corpo', label: '🏠 Só Peso do Corpo' },
+                { id: 'gluteos', label: '🍑 Glúteos & Quadril' },
+                { id: 'alongamento', label: '🪑 Alongamento & Mobilidade' },
+              ].map((f) => (
+                <button
+                  key={f.id}
+                  type="button"
+                  onClick={() => {
+                    setSelectedCareFilter(f.id as any);
+                    setVisibleCount(24);
+                  }}
+                  className={`px-3 py-1.5 text-xs rounded-xl whitespace-nowrap transition-colors cursor-pointer shrink-0 ${
+                    selectedCareFilter === f.id
+                      ? 'bg-[#125F55] text-[#D9F277] shadow-xs font-bold'
+                      : 'bg-white border border-[#C9DBD3] text-[#5B7170] hover:border-[#125F55]'
+                  }`}
+                >
+                  {f.label}
+                </button>
+              ))}
+            </div>
           </div>
 
           {/* Filtros de Equipamento */}

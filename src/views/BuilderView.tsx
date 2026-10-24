@@ -1,7 +1,7 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { useWorkout } from '../context/WorkoutContext';
 import { WorkoutPlan, ExercisePlanItem, Exercise } from '../types';
-import { allExercises, searchExercises } from '../data/catalog';
+import { allExercises, searchExercises, useFullCatalog } from '../data/catalog';
 import {
   ArrowLeft,
   Plus,
@@ -33,6 +33,7 @@ export const BuilderView: React.FC<BuilderViewProps> = ({
   onStartWorkout,
 }) => {
   const { plans, savePlan } = useWorkout();
+  const { isReady: catalogReady, totalCount: catalogTotal } = useFullCatalog();
   const existingPlan = plans.find((p) => p.id === existingPlanId);
 
   const [title, setTitle] = useState<string>(existingPlan?.title || 'Novo Treino');
@@ -181,11 +182,11 @@ export const BuilderView: React.FC<BuilderViewProps> = ({
   };
 
   // Exercícios para o modal seletor utilizando os mesmos filtros canônicos do catálogo (A10)
-  const filteredAvailableExercises = searchExercises(
+  const filteredAvailableExercises = useMemo(() => searchExercises(
     exerciseSearch,
     selectedEquipment,
     selectedMuscle
-  ).slice(0, 60);
+  ).slice(0, 60), [exerciseSearch, selectedEquipment, selectedMuscle, catalogReady, catalogTotal]);
 
   return (
     <div className="space-y-5 pb-28">
@@ -447,7 +448,7 @@ export const BuilderView: React.FC<BuilderViewProps> = ({
               <Search className="w-3.5 h-3.5 text-[#5B7170] absolute left-3 top-1/2 -translate-y-1/2" />
               <input
                 type="text"
-                placeholder="Buscar por nome, músculo, mini band..."
+                placeholder={`Buscar em ${catalogTotal || allExercises.length} exercícios...`}
                 value={exerciseSearch}
                 onChange={(e) => setExerciseSearch(e.target.value)}
                 className="w-full h-9 pl-9 pr-3 rounded-xl border border-[#C9DBD3] text-xs text-[#152A29]"

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+﻿import React, { useState, useMemo, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useWorkout } from '../context/WorkoutContext';
 import {
@@ -16,8 +16,13 @@ import {
   Layers,
   Heart,
   AlertCircle,
+  ArrowLeftRight,
+  X,
 } from 'lucide-react';
-import { ExplainableProposal, WorkoutPlan } from '../types';
+import { ExplainableProposal, WorkoutPlan, Exercise } from '../types';
+import { allExercises, useFullCatalog } from '../data/catalog';
+import { ExerciseIllustration } from '../components/ExerciseIllustration';
+import { findSafeEquivalentExercises } from '../lib/workoutEngine';
 import { EQUIPMENT_LABELS, AVOIDANCE_LABELS } from '../lib/storage';
 
 interface ProposalViewProps {
@@ -37,17 +42,20 @@ export const ProposalView: React.FC<ProposalViewProps> = ({
 }) => {
   const { profile } = useAuth();
   const { confirmProposal } = useWorkout();
+  const { isReady: catalogReady } = useFullCatalog();
+  const [currentProposal, setCurrentProposal] = useState<ExplainableProposal>(proposal);
+  const [swappingExerciseIndex, setSwappingExerciseIndex] = useState<number | null>(null);
   const [isConfirming, setIsConfirming] = useState<boolean>(false);
   const [showExercisesDetail, setShowExercisesDetail] = useState<boolean>(true);
   const [showOtherOptionsModal, setShowOtherOptionsModal] = useState<boolean>(false);
 
   const daysLabels = ['Domingo', 'Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado'];
-  const scheduledDaysIndices = Object.keys(proposal.weeklySchedule).map(Number);
+  const scheduledDaysIndices = Object.keys(currentProposal.weeklySchedule).map(Number);
 
   const handleConfirmRoutine = async () => {
     setIsConfirming(true);
     try {
-      await confirmProposal(proposal);
+      await confirmProposal(currentProposal);
       onConfirm();
     } catch (err) {
       console.error('Erro ao confirmar proposta:', err);
@@ -56,7 +64,52 @@ export const ProposalView: React.FC<ProposalViewProps> = ({
     }
   };
 
-  const primaryPlan = proposal.routines[0];
+  const primaryPlan = currentProposal.routines[0];
+  const selectedItemToSwap = swappingExerciseIndex !== null ? primaryPlan?.exercises[swappingExerciseIndex] : null;
+
+  useEffect(() => {
+    setCurrentProposal(proposal);
+  }, [proposal]);
+
+  // Fecha modais com a tecla Escape
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        if (swappingExerciseIndex !== null) setSwappingExerciseIndex(null);
+        else if (showOtherOptionsModal) setShowOtherOptionsModal(false);
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [swappingExerciseIndex, showOtherOptionsModal]);
+
+  const swapCandidates = useMemo(() => {
+    if (!selectedItemToSwap) return [];
+    return findSafeEquivalentExercises(selectedItemToSwap.exerciseId, profile, allExercises);
+  }, [selectedItemToSwap, profile, catalogReady]);
+
+  const handleSwapExercise = (newEx: Exercise) => {
+    if (swappingExerciseIndex === null || !primaryPlan) return;
+    const updatedExercises = [...primaryPlan.exercises];
+    const prevItem = updatedExercises[swappingExerciseIndex];
+    updatedExercises[swappingExerciseIndex] = {
+      ...prevItem,
+      exerciseId: newEx.id,
+      exerciseName: newEx.name_pt,
+      targetReps: newEx.tracking === 'time' ? 0 : (prevItem.targetReps || 10),
+      targetDurationSeconds: newEx.tracking === 'time' ? 30 : undefined,
+    };
+
+    const updatedRoutines = currentProposal.routines.map((r, i) =>
+      i === 0 ? { ...r, exercises: updatedExercises } : r
+    );
+
+    setCurrentProposal({
+      ...currentProposal,
+      routines: updatedRoutines,
+    });
+    setSwappingExerciseIndex(null);
+  };
 
   return (
     <div className="min-h-screen bg-[#F5F8F5] text-[#152A29] flex flex-col justify-between font-sans">
@@ -221,11 +274,22 @@ export const ProposalView: React.FC<ProposalViewProps> = ({
                         </span>
                       </div>
                     </div>
-                    {ex.notes && (
+                    <div className="flex items-center gap-2 shrink-0">
+                      {ex.notes && (
                       <span className="text-[10px] text-[#91610D] font-medium shrink-0 bg-amber-50 px-2 py-0.5 rounded-md border border-amber-200">
                         Atenção
                       </span>
-                    )}
+                      )}
+                      <button
+                        type="button"
+                        onClick={() => setSwappingExerciseIndex(idx)}
+                        className="px-2.5 py-1.5 rounded-xl bg-white border border-[#C9DBD3] text-[#125F55] hover:border-[#125F55] hover:bg-[#EAF3EF] text-[11px] font-bold flex items-center gap-1 cursor-pointer transition-all active:scale-95 shadow-2xs"
+                        title="Trocar por exercício equivalente seguro"
+                      >
+                        <ArrowLeftRight className="w-3 h-3" />
+                        <span>Trocar</span>
+                      </button>
+                    </div>
                   </div>
                 ))}
               </div>
@@ -330,6 +394,84 @@ export const ProposalView: React.FC<ProposalViewProps> = ({
               >
                 Cancelar
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL DE TROCA RAPIDA DE EXERCICIO NA PROPOSTA INICIAL (Fase 8) */}
+      {swappingExerciseIndex !== null && selectedItemToSwap && (
+        <div
+          onClick={() => setSwappingExerciseIndex(null)}
+          className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/60 p-3 sm:p-4 backdrop-blur-xs cursor-pointer animate-in fade-in duration-200"
+          role="dialog"
+          aria-modal="true"
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            className="w-full max-w-lg max-h-[85vh] flex flex-col rounded-3xl bg-white shadow-2xl border border-[#C9DBD3] text-[#152A29] relative overflow-hidden cursor-default animate-in fade-in slide-in-from-bottom duration-200"
+          >
+            <div className="p-4 border-b border-[#C9DBD3] flex items-center justify-between">
+              <div>
+                <span className="text-[10px] font-bold uppercase tracking-wider text-[#125F55]">
+                  Substituição Segura
+                </span>
+                <h3 className="text-sm font-bold text-[#152A29]">
+                  Trocar: {selectedItemToSwap.exerciseName}
+                </h3>
+              </div>
+              <button
+                type="button"
+                onClick={() => setSwappingExerciseIndex(null)}
+                className="w-8 h-8 rounded-full bg-[#F5F8F5] hover:bg-slate-200 text-[#5B7170] flex items-center justify-center cursor-pointer transition-colors"
+                title="Fechar"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <div className="p-4 overflow-y-auto space-y-2.5 flex-1">
+              <p className="text-xs text-[#5B7170]">
+                Exercícios com o mesmo foco biomecânico e adaptados aos seus cuidados e equipamentos:
+              </p>
+
+              {swapCandidates.length === 0 ? (
+                <div className="p-6 text-center text-xs text-[#5B7170] bg-[#F5F8F5] rounded-2xl">
+                  Nenhuma alternativa equivalente adicional encontrada para a combinação atual de equipamentos.
+                </div>
+              ) : (
+                swapCandidates.map((cand) => (
+                  <div
+                    key={cand.id}
+                    onClick={() => handleSwapExercise(cand)}
+                    className="p-3 rounded-2xl bg-white border border-[#C9DBD3] hover:border-[#125F55] transition-all cursor-pointer flex items-center justify-between gap-3 shadow-xs hover:shadow-sm"
+                  >
+                    <div className="flex items-center gap-3 min-w-0">
+                      <ExerciseIllustration
+                        movementPattern={cand.movement_pattern}
+                        modality={cand.modality}
+                        images={cand.images}
+                        exerciseName={cand.name_pt}
+                        className="w-14 h-14 rounded-xl shrink-0"
+                      />
+                      <div className="min-w-0">
+                        <h4 className="text-xs font-bold text-[#152A29] truncate">
+                          {cand.name_pt}
+                        </h4>
+                        <p className="text-[11px] text-[#5B7170] truncate mt-0.5">
+                          {cand.target_muscle} · {cand.equipment.join(', ')}
+                        </p>
+                      </div>
+                    </div>
+                    <button
+                      type="button"
+                      className="px-3 py-1.5 rounded-xl bg-[#EAF3EF] text-[#125F55] text-xs font-bold shrink-0 hover:bg-[#125F55] hover:text-white transition-colors cursor-pointer"
+                    >
+                      Escolher
+                    </button>
+                  </div>
+                ))
+              )}
             </div>
           </div>
         </div>

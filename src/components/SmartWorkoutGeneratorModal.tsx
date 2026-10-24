@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Exercise, WorkoutPlan, ExercisePlanItem } from '../types';
-import { allExercises } from '../data/catalog';
+import { allExercises, useFullCatalog } from '../data/catalog';
 import { useAuth } from '../context/AuthContext';
 import { isExerciseCompatibleWithUser } from '../lib/storage';
 import {
@@ -44,6 +44,7 @@ export const SmartWorkoutGeneratorModal: React.FC<SmartWorkoutGeneratorModalProp
   initialFocus,
 }) => {
     const { profile } = useAuth();
+    const { totalCount: catalogTotal } = useFullCatalog();
 
   // Configurações do gerador calibradas com o perfil do praticante (Critérios C10, C12, C16)
   const [generationMode, setGenerationMode] = useState<'today' | 'weekly_split'>('today');
@@ -282,7 +283,7 @@ export const SmartWorkoutGeneratorModal: React.FC<SmartWorkoutGeneratorModalProp
                 Montador Inteligente de Treino
               </h2>
               <p className="text-xs text-[#5B7170]">
-                Sugestão adaptada baseada em {allExercises.length} exercícios ilustrados do catálogo
+                Sugestão adaptada baseada em {catalogTotal || allExercises.length} exercícios ilustrados do catálogo
               </p>
             </div>
           </div>

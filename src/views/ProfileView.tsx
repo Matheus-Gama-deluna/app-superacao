@@ -172,13 +172,13 @@ export const ProfileView: React.FC<ProfileViewProps> = ({ onClose }) => {
   };
 
   const toggleSound = () => {
-    const next = !profile.soundEnabled;
+    const next = !(profile.soundEnabled !== false);
     soundManager.setMuted(!next);
     updateUserProfile({ soundEnabled: next });
   };
 
   const toggleHaptic = () => {
-    updateUserProfile({ hapticEnabled: !profile.hapticEnabled });
+    updateUserProfile({ hapticEnabled: !(profile.hapticEnabled !== false) });
   };
 
   return (
@@ -377,8 +377,8 @@ export const ProfileView: React.FC<ProfileViewProps> = ({ onClose }) => {
           <label className="block text-xs font-bold text-[#152A29] mb-1.5">
             Tempo Dedicado por Treino
           </label>
-          <div className="grid grid-cols-4 gap-1.5">
-            {[15, 20, 30, 45].map((mins) => (
+          <div className="grid grid-cols-5 gap-1.5">
+            {[15, 20, 25, 30, 45].map((mins) => (
               <button
                 key={mins}
                 type="button"
@@ -428,7 +428,7 @@ export const ProfileView: React.FC<ProfileViewProps> = ({ onClose }) => {
 
         <button
           onClick={handleSaveProfile}
-          className="w-full py-2.5 rounded-xl bg-[#EAF3EF] text-[#125F55] text-xs font-bold flex items-center justify-center gap-1.5 hover:bg-[#D9F277] hover:text-[#203826] transition-colors cursor-pointer"
+          className="w-full py-3 rounded-xl bg-[#125F55] text-white text-xs font-bold flex items-center justify-center gap-1.5 hover:bg-[#0C5148] shadow-sm transition-all cursor-pointer active:scale-[0.99]"
         >
           {isSaved ? <Check className="w-4 h-4 text-[#246747]" /> : null}
           <span>{isSaved ? 'Preferências Salvas!' : 'Salvar Alterações'}</span>
@@ -473,11 +473,11 @@ export const ProfileView: React.FC<ProfileViewProps> = ({ onClose }) => {
             className="flex items-center justify-between p-3 rounded-xl bg-[#F5F8F5] border border-[#C9DBD3] cursor-pointer"
           >
             <div className="flex items-center gap-2 text-xs font-medium text-[#152A29]">
-              {profile.soundEnabled ? <Volume2 className="w-4 h-4 text-[#125F55]" /> : <VolumeX className="w-4 h-4 text-[#5B7170]" />}
+              {profile.soundEnabled !== false ? <Volume2 className="w-4 h-4 text-[#125F55]" /> : <VolumeX className="w-4 h-4 text-[#5B7170]" />}
               <span>Sinais Sonoros Sutis no Descanso</span>
             </div>
             <span className="text-xs font-bold text-[#125F55]">
-              {profile.soundEnabled ? 'Ativado' : 'Silencioso'}
+              {profile.soundEnabled !== false ? 'Ativado' : 'Silencioso'}
             </span>
           </div>
 
@@ -490,7 +490,7 @@ export const ProfileView: React.FC<ProfileViewProps> = ({ onClose }) => {
               <span>Vibração Háptica no Celular</span>
             </div>
             <span className="text-xs font-bold text-[#125F55]">
-              {profile.hapticEnabled ? 'Ativado' : 'Desativado'}
+              {profile.hapticEnabled !== false ? 'Ativado' : 'Desativado'}
             </span>
           </div>
         </div>

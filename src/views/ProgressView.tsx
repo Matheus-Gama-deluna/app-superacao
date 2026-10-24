@@ -315,8 +315,8 @@ export const ProgressView: React.FC = () => {
                     Degrau Atual: <strong className="text-[#152A29]">{ladder.currentStepName}</strong>
                   </p>
                 </div>
-                <div className="text-right">
-                  <span className="text-[10px] font-bold text-[#125F55] bg-[#D9F277]/40 border border-[#125F55]/20 px-2 py-0.5 rounded-md">
+                <div className="text-right shrink-0">
+                  <span className="text-[10px] font-bold text-[#125F55] bg-[#D9F277]/40 border border-[#125F55]/20 px-2 py-0.5 rounded-md whitespace-nowrap inline-block">
                     {ladder.bestMarkText}
                   </span>
                 </div>
@@ -342,9 +342,9 @@ export const ProgressView: React.FC = () => {
                     >
                       <div className="flex items-center justify-between text-[10px] font-bold">
                         <span>Degrau {st.stepIndex}</span>
-                        <span>{isCompleted ? '✓ Feito' : isCurrent ? '🎯 Atual' : '🔒 Trava'}</span>
+                        <span className="shrink-0">{isCompleted ? '✓ Feito' : isCurrent ? '🎯 Atual' : '🔒'}</span>
                       </div>
-                      <p className={`text-xs font-bold mt-1 leading-snug truncate ${
+                      <p className={`text-xs font-bold mt-1 leading-snug line-clamp-2 min-h-[2rem] ${
                         isCurrent ? 'text-white' : isCompleted ? 'text-emerald-900' : 'text-slate-600'
                       }`}>
                         {st.name}

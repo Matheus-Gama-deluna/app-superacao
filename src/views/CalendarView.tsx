@@ -80,7 +80,11 @@ export const CalendarView: React.FC<CalendarViewProps> = ({ onStartPlanById }) =
         ? 'Descanso Total (Recuperação)'
         : type === 'active_recovery'
         ? 'Recuperação Ativa: Alongamento & Mobilidade'
-        : plan?.title || 'Treino Personalizado'
+        : type === 'walk'
+        ? 'Caminhada & Respiração'
+        : type === 'mobility'
+        ? 'Mobilidade & Postura'
+        : plan?.title || (type === 'unassigned' ? 'Dia Livre' : 'Treino Personalizado')
     );
     setEditingDay(null);
   };
@@ -124,8 +128,8 @@ export const CalendarView: React.FC<CalendarViewProps> = ({ onStartPlanById }) =
             >
               <div className="flex items-start justify-between gap-2">
                 <div className="space-y-1">
-                  <div className="flex items-center gap-2">
-                    <span className="text-xs font-bold text-[#152A29]">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <span className="text-xs font-bold text-[#152A29] shrink-0">
                       {daysLabels[day.dayOfWeek]}
                       {day.dateStr && (
                         <span className="text-[11px] font-normal text-[#5B7170] ml-1.5">
@@ -134,19 +138,21 @@ export const CalendarView: React.FC<CalendarViewProps> = ({ onStartPlanById }) =
                       )}
                     </span>
                     <span
-                      className="px-2 py-0.5 rounded-full text-[10px] font-bold flex items-center gap-1"
+                      className="px-2 py-0.5 rounded-full text-[10px] font-bold flex items-center gap-1 shrink-0 whitespace-nowrap"
                       style={{ backgroundColor: cfg.bg, color: cfg.color }}
                     >
-                      <Icon className="w-3 h-3" />
+                      <Icon className="w-3 h-3 shrink-0" />
                       {cfg.label}
                     </span>
                   </div>
                   <h4 className="text-sm font-semibold text-[#152A29]">
-                    {day.planTitle || cfg.label}
+                    {day.activityType === 'unassigned'
+                      ? (day.planTitle && day.planTitle !== 'Livre / Não definido' ? day.planTitle : 'Dia livre para descanso ou atividade leve')
+                      : (day.planTitle || cfg.label)}
                   </h4>
                 </div>
 
-                {/* Botão de Marcar como Feito (somente para treinos e recuperação ativa) */}
+                {/* Botão de Marcar como Feito ou Estado do Dia */}
                 {day.activityType !== 'rest' && day.activityType !== 'unassigned' ? (
                   <button
                     onClick={() => toggleCalendarDayCompleted(day.id)}
@@ -165,8 +171,8 @@ export const CalendarView: React.FC<CalendarViewProps> = ({ onStartPlanById }) =
                     )}
                   </button>
                 ) : (
-                  <div className="p-1.5 text-[11px] font-medium text-[#5B7170] bg-[#F5F8F5] px-2 py-0.5 rounded-lg border border-[#C9DBD3]/50">
-                    Descanso
+                  <div className="p-1.5 text-[11px] font-medium text-[#5B7170] bg-[#F5F8F5] px-2 py-0.5 rounded-lg border border-[#C9DBD3]/50 shrink-0">
+                    {day.activityType === 'rest' ? 'Descanso' : 'Livre'}
                   </div>
                 )}
               </div>
@@ -175,18 +181,18 @@ export const CalendarView: React.FC<CalendarViewProps> = ({ onStartPlanById }) =
               <div className="mt-3 pt-2.5 border-t border-[#C9DBD3]/40 flex items-center justify-between text-xs">
                 <button
                   onClick={() => setEditingDay(day)}
-                  className="text-[#5B7170] hover:text-[#125F55] font-semibold flex items-center gap-1"
+                  className="text-[#5B7170] hover:text-[#125F55] font-semibold flex items-center gap-1 cursor-pointer"
                 >
                   <Edit2 className="w-3 h-3" />
                   <span>Ajustar atividade</span>
                 </button>
 
-                {day.activityType === 'strength' && day.planId && (
+                {(day.activityType === 'strength' || day.activityType === 'mobility' || day.activityType === 'active_recovery') && day.planId && (
                   <button
                     onClick={() => onStartPlanById(day.planId!, day.id)}
                     className="text-[#125F55] font-bold hover:underline flex items-center gap-0.5 cursor-pointer"
                   >
-                    <span>Iniciar treino principal</span>
+                    <span>Iniciar rotina do dia</span>
                     <ChevronRight className="w-3.5 h-3.5" />
                   </button>
                 )}
