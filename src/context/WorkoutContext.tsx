@@ -24,6 +24,7 @@ import {
   persistActiveProgram,
   persistCalendarDays,
   persistUserProfile,
+  persistPersonalRecords,
 } from '../lib/persistence';
 import { useAuth } from './AuthContext';
 import {
@@ -281,28 +282,40 @@ export const WorkoutProvider: React.FC<{ children: React.ReactNode }> = ({ child
       (error) => handleFirestoreError(error, OperationType.LIST, `users/${currentUid}/plans`)
     );
 
-    // 2. Sessões
-    const sessionsRef = collection(db, 'users', currentUid, 'sessions');
+    // 2. Sessões (Otimizadas com orderBy e limit 100 para economia de banda)
+    const sessionsQuery = query(
+      collection(db, 'users', currentUid, 'sessions'),
+      orderBy('startedAt', 'desc'),
+      limit(100)
+    );
     const stopSessions = onSnapshot(
-      sessionsRef,
+      sessionsQuery,
       { includeMetadataChanges: true },
       (snapshot) => {
-        const loadedSessions = snapshot.docs.map((d) => d.data() as WorkoutSession);
-        setSessions(loadedSessions);
-        setLocal('superacao_sessions', loadedSessions);
+        if (!snapshot.empty) {
+          const loadedSessions = snapshot.docs.map((d) => d.data() as WorkoutSession);
+          setSessions(loadedSessions);
+          setLocal('superacao_sessions', loadedSessions);
+        }
       },
       (error) => handleFirestoreError(error, OperationType.LIST, `users/${currentUid}/sessions`)
     );
 
-    // 3. Eventos de Séries (SetEvents)
-    const setEventsRef = collection(db, 'users', currentUid, 'setEvents');
+    // 3. Eventos de Séries (Otimizados com orderBy e limit 300)
+    const setEventsQuery = query(
+      collection(db, 'users', currentUid, 'setEvents'),
+      orderBy('completedAt', 'desc'),
+      limit(300)
+    );
     const stopSetEvents = onSnapshot(
-      setEventsRef,
+      setEventsQuery,
       { includeMetadataChanges: true },
       (snapshot) => {
-        const loadedEvents = snapshot.docs.map((d) => d.data() as SetEvent);
-        setSetEvents(loadedEvents);
-        setLocal('superacao_set_events', loadedEvents);
+        if (!snapshot.empty) {
+          const loadedEvents = snapshot.docs.map((d) => d.data() as SetEvent);
+          setSetEvents(loadedEvents);
+          setLocal('superacao_set_events', loadedEvents);
+        }
       },
       (error) => handleFirestoreError(error, OperationType.LIST, `users/${currentUid}/setEvents`)
     );
@@ -351,12 +364,33 @@ export const WorkoutProvider: React.FC<{ children: React.ReactNode }> = ({ child
       (error) => handleFirestoreError(error, OperationType.GET, `users/${currentUid}/programs/active_program`)
     );
 
+    // 6. Recordes Pessoais Consolidados (PRs)
+    const recordsDocRef = doc(db, 'users', currentUid, 'stats', 'records');
+    const stopRecords = onSnapshot(
+      recordsDocRef,
+      { includeMetadataChanges: true },
+      (snapshot) => {
+        if (snapshot.exists()) {
+          const data = snapshot.data();
+          if (data && data.records) {
+            const remotePrs = Object.values(data.records) as PersonalRecord[];
+            if (remotePrs.length > 0) {
+              setPersonalRecords(remotePrs);
+              setLocal('superacao_personal_records', remotePrs);
+            }
+          }
+        }
+      },
+      (error) => handleFirestoreError(error, OperationType.GET, `users/${currentUid}/stats/records`)
+    );
+
     return () => {
       stopPlans();
       stopSessions();
       stopSetEvents();
       stopCalendar();
       stopActiveProgram();
+      stopRecords();
     };
   }, [user, isGuest]);
 
@@ -825,6 +859,9 @@ export const WorkoutProvider: React.FC<{ children: React.ReactNode }> = ({ child
     if (prCheck.updatedPRs !== personalRecords) {
       setPersonalRecords(prCheck.updatedPRs);
       setLocal('superacao_personal_records', prCheck.updatedPRs);
+      if (user && !isGuest) {
+        void persistPersonalRecords(user.uid, prCheck.updatedPRs);
+      }
     }
 
     // Persiste no Firestore com gravação otimista local

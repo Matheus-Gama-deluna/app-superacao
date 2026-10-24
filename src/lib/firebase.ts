@@ -6,6 +6,10 @@ import {
   signOut as firebaseSignOut,
   onAuthStateChanged,
   User as FirebaseUser,
+  createUserWithEmailAndPassword,
+  signInWithEmailAndPassword,
+  sendPasswordResetEmail,
+  updateProfile,
 } from 'firebase/auth';
 import {
   initializeFirestore,
@@ -111,6 +115,63 @@ export async function signInWithGoogle() {
     return result.user;
   } catch (error) {
     console.error('Erro ao autenticar com Google:', error);
+    throw error;
+  }
+}
+
+
+export function translateFirebaseAuthError(error: any): string {
+  const code = error?.code || '';
+  switch (code) {
+    case 'auth/email-already-in-use':
+      return 'Este e-mail já está cadastrado. Você pode entrar ou redefinir sua senha.';
+    case 'auth/invalid-email':
+      return 'O endereço de e-mail informado não parece ser válido.';
+    case 'auth/user-not-found':
+    case 'auth/wrong-password':
+    case 'auth/invalid-credential':
+      return 'E-mail ou senha incorretos. Por favor, verifique os dados digitados.';
+    case 'auth/weak-password':
+      return 'A senha precisa ter no mínimo 6 caracteres.';
+    case 'auth/network-request-failed':
+      return 'Sem conexão com a internet. Verifique sua rede para autenticar ou continue como convidado.';
+    case 'auth/too-many-requests':
+      return 'Muitas tentativas em pouco tempo. Aguarde alguns instantes e tente novamente.';
+    case 'auth/popup-closed-by-user':
+      return 'Login com Google cancelado. Seus dados locais continuam seguros neste aparelho.';
+    default:
+      return error?.message || 'Ocorreu um erro ao processar sua solicitação. Tente novamente.';
+  }
+}
+
+export async function createUserWithEmail(email: string, pass: string, displayName?: string) {
+  try {
+    const res = await createUserWithEmailAndPassword(auth, email.trim(), pass);
+    if (displayName && displayName.trim()) {
+      await updateProfile(res.user, { displayName: displayName.trim() });
+    }
+    return res.user;
+  } catch (error) {
+    console.error('Erro ao cadastrar com e-mail:', error);
+    throw error;
+  }
+}
+
+export async function signInWithEmail(email: string, pass: string) {
+  try {
+    const res = await signInWithEmailAndPassword(auth, email.trim(), pass);
+    return res.user;
+  } catch (error) {
+    console.error('Erro ao autenticar com e-mail:', error);
+    throw error;
+  }
+}
+
+export async function sendPasswordReset(email: string) {
+  try {
+    await sendPasswordResetEmail(auth, email.trim());
+  } catch (error) {
+    console.error('Erro ao enviar recuperação de senha:', error);
     throw error;
   }
 }

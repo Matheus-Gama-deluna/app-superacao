@@ -936,4 +936,80 @@ test.describe('Superação - Validação End-to-End Headless (Em Segundo Plano)'
     expect(updatedPlan.version).toBeGreaterThan(1);
     expect(updatedPlan.exercises[0].exerciseId).not.toBe('wall_pushup_controlled');
   });
+
+  test('14. Autenticação Completa: Modal de E-mail/Senha e Acolhimento na Tela de Boas-Vindas e Perfil (Sprint 3)', async ({ page }) => {
+    // 1. Limpa storage para cair na WelcomeView
+    await page.goto('/');
+    await page.evaluate(() => localStorage.clear());
+    await page.reload();
+
+    // 2. Valida opções na WelcomeView
+    await expect(page.getByRole('button', { name: /Continuar sem conta/i })).toBeVisible();
+    await expect(page.getByRole('button', { name: /Criar conta com Google/i })).toBeVisible();
+    const emailSignupBtn = page.getByRole('button', { name: /Criar conta com E-mail/i });
+    await expect(emailSignupBtn).toBeVisible();
+
+    // 3. Abre modal de autenticação por e-mail
+    await emailSignupBtn.click();
+    const authDialog = page.getByRole('dialog');
+    await expect(authDialog).toBeVisible();
+    await expect(page.getByRole('heading', { name: /Criar Conta no Superação/i })).toBeVisible();
+    await expect(page.getByLabel(/Endereço de E-mail/i)).toBeVisible();
+    await expect(page.getByLabel(/Senha/i)).toBeVisible();
+
+    // 4. Alterna para aba de Login
+    const loginTabBtn = page.getByRole('button', { name: 'Entrar', exact: true });
+    await loginTabBtn.click();
+    await expect(page.getByRole('heading', { name: /Entrar na sua Conta/i })).toBeVisible();
+
+    // 5. Testa fluxo de recuperação de senha
+    const forgotPassBtn = page.getByRole('button', { name: /Esqueceu?/i });
+    await expect(forgotPassBtn).toBeVisible();
+    await forgotPassBtn.click();
+    await expect(page.getByRole('heading', { name: /Recuperar Senha/i })).toBeVisible();
+    await expect(page.getByRole('button', { name: /Enviar Link de Redefinição/i })).toBeVisible();
+
+    // 6. Fecha o modal com Escape
+    await page.keyboard.press('Escape');
+    await expect(authDialog).not.toBeVisible();
+
+    // 7. Entra como convidado e valida perfil
+    const guestBtn = page.getByRole('button', { name: /Continuar sem conta/i });
+    await guestBtn.click();
+
+    // Na WelcomeView -> Jornada de Escuta ou Home. Se for WelcomeView -> 'guest', pode ir para onboarding ou home.
+    // Vamos garantir estado configurado e ir para Home
+    await page.evaluate(() => {
+      localStorage.setItem('superacao_access_choice', JSON.stringify('guest'));
+      localStorage.setItem(
+        'superacao_user_profile',
+        JSON.stringify({
+          uid: 'guest_user',
+          displayName: 'Mariana Teste',
+          onboardingCompleted: true,
+          routineConfirmed: true,
+          availableDays: [1, 3, 5],
+        })
+      );
+    });
+    await page.reload();
+
+    // 8. Abre Perfil do Usuário
+    const profileBtn = page.getByRole('button', { name: /Perfil/i });
+    await expect(profileBtn).toBeVisible();
+    await profileBtn.click();
+
+    // 9. Valida opções de vinculação de conta no Perfil
+    await expect(page.getByText('Modo Convidado Local')).toBeVisible();
+    await expect(page.getByRole('button', { name: /Conectar com Conta Google/i })).toBeVisible();
+    const profileEmailAuthBtn = page.getByRole('button', { name: /Entrar ou Criar com E-mail/i });
+    await expect(profileEmailAuthBtn).toBeVisible();
+
+    // 10. Abre modal a partir do perfil e fecha
+    await profileEmailAuthBtn.click();
+    await expect(page.getByRole('dialog')).toBeVisible();
+    await page.keyboard.press('Escape');
+    await expect(page.getByRole('dialog')).not.toBeVisible();
+  });
+
 });

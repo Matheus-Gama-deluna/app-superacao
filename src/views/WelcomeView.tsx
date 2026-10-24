@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
 import { useAuth } from '../context/AuthContext';
-import { Sparkles, Shield, User, LogIn, ArrowRight, AlertCircle, Smartphone } from 'lucide-react';
+import { Sparkles, Shield, User, LogIn, ArrowRight, AlertCircle, Mail } from 'lucide-react';
 import { setLocal, STORAGE_KEYS, APP_VERSION } from '../lib/storage';
+import { EmailAuthModal } from '../components/EmailAuthModal';
 
 interface WelcomeViewProps {
   onSelectAccess: (choice: 'guest' | 'login' | 'signup') => void;
@@ -10,6 +11,8 @@ interface WelcomeViewProps {
 export const WelcomeView: React.FC<WelcomeViewProps> = ({ onSelectAccess }) => {
   const { loginGoogle, loginError, clearLoginError, setGuestMode } = useAuth();
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
+  const [isEmailModalOpen, setIsEmailModalOpen] = useState<boolean>(false);
+  const [emailModalMode, setEmailModalMode] = useState<'login' | 'register'>('login');
 
   const handleContinueAsGuest = () => {
     setGuestMode();
@@ -17,7 +20,7 @@ export const WelcomeView: React.FC<WelcomeViewProps> = ({ onSelectAccess }) => {
     onSelectAccess('guest');
   };
 
-  const handleLogin = async (isNewAccount: boolean = false) => {
+  const handleGoogleLogin = async (isNewAccount: boolean = false) => {
     setIsSubmitting(true);
     clearLoginError();
     try {
@@ -31,6 +34,11 @@ export const WelcomeView: React.FC<WelcomeViewProps> = ({ onSelectAccess }) => {
     } finally {
       setIsSubmitting(false);
     }
+  };
+
+  const handleOpenEmailAuth = (mode: 'login' | 'register') => {
+    setEmailModalMode(mode);
+    setIsEmailModalOpen(true);
   };
 
   return (
@@ -70,9 +78,9 @@ export const WelcomeView: React.FC<WelcomeViewProps> = ({ onSelectAccess }) => {
           </div>
         )}
 
-        {/* 3 Escolhas Transparentes de Acesso (C01, C02, C03) */}
+        {/* Opções de Acesso Transparentes (C01, C02, C03) */}
         <div className="space-y-3 pt-2">
-          {/* 1. Continuar sem conta (Convidado Local) */}
+          {/* 1. Continuar sem conta (Convidado Local - Fricção Zero) */}
           <button
             onClick={handleContinueAsGuest}
             disabled={isSubmitting}
@@ -92,9 +100,9 @@ export const WelcomeView: React.FC<WelcomeViewProps> = ({ onSelectAccess }) => {
             <ArrowRight className="w-5 h-5 text-white/70 group-hover:translate-x-0.5 transition-transform" />
           </button>
 
-          {/* 2. Criar conta */}
+          {/* 2. Conectar com Google */}
           <button
-            onClick={() => handleLogin(true)}
+            onClick={() => handleGoogleLogin(true)}
             disabled={isSubmitting}
             className="w-full min-h-[52px] p-3.5 bg-white border border-[#C9DBD3] text-[#152A29] rounded-2xl flex items-center justify-between font-bold text-xs sm:text-sm hover:bg-slate-50 active:scale-[0.99] transition-all cursor-pointer shadow-xs"
           >
@@ -105,16 +113,36 @@ export const WelcomeView: React.FC<WelcomeViewProps> = ({ onSelectAccess }) => {
               <div>
                 <div>Criar conta com Google</div>
                 <div className="text-[11px] font-normal text-[#5B7170]">
-                  Sincronização e recuperação em nuvem
+                  Sincronização instantânea em nuvem
                 </div>
               </div>
             </div>
             <ArrowRight className="w-4 h-4 text-[#5B7170]" />
           </button>
 
-          {/* 3. Já tenho uma conta (Entrar) */}
+          {/* 3. Conectar com E-mail e Senha */}
           <button
-            onClick={() => handleLogin(false)}
+            onClick={() => handleOpenEmailAuth('register')}
+            disabled={isSubmitting}
+            className="w-full min-h-[52px] p-3.5 bg-white border border-[#C9DBD3] text-[#152A29] rounded-2xl flex items-center justify-between font-bold text-xs sm:text-sm hover:bg-slate-50 active:scale-[0.99] transition-all cursor-pointer shadow-xs"
+          >
+            <div className="flex items-center gap-3 text-left">
+              <div className="w-9 h-9 rounded-xl bg-[#EAF3EF] flex items-center justify-center text-[#125F55] shrink-0">
+                <Mail className="w-4 h-4" />
+              </div>
+              <div>
+                <div>Criar conta com E-mail</div>
+                <div className="text-[11px] font-normal text-[#5B7170]">
+                  Use seu endereço de e-mail e senha
+                </div>
+              </div>
+            </div>
+            <ArrowRight className="w-4 h-4 text-[#5B7170]" />
+          </button>
+
+          {/* 4. Já tenho uma conta (Entrar) */}
+          <button
+            onClick={() => handleOpenEmailAuth('login')}
             disabled={isSubmitting}
             className="w-full min-h-[48px] p-3 border border-transparent text-[#5B7170] rounded-2xl flex items-center justify-center gap-2 font-semibold text-xs hover:text-[#152A29] hover:bg-black/5 transition-all cursor-pointer"
           >
@@ -130,10 +158,21 @@ export const WelcomeView: React.FC<WelcomeViewProps> = ({ onSelectAccess }) => {
             <span>Seus dados são 100% seus</span>
           </div>
           <p className="leading-relaxed text-[11px]">
-            Sem conta, seus treinos e evolução ficam salvos exclusivamente na memória deste navegador. Você poderá criar ou conectar uma conta Google a qualquer momento para sincronizar sem perder seu histórico.
+            Sem conta, seus treinos e evolução ficam salvos exclusivamente na memória deste navegador. Você poderá criar ou conectar sua conta a qualquer momento para sincronizar sem perder seu histórico.
           </p>
         </div>
       </div>
+
+      {/* Modal de E-mail e Senha */}
+      <EmailAuthModal
+        isOpen={isEmailModalOpen}
+        initialMode={emailModalMode}
+        onClose={() => setIsEmailModalOpen(false)}
+        onSuccess={() => {
+          setLocal(STORAGE_KEYS.ACCESS_CHOICE, emailModalMode === 'register' ? 'signup' : 'login');
+          onSelectAccess(emailModalMode === 'register' ? 'signup' : 'login');
+        }}
+      />
 
       {/* Rodapé sutil */}
       <footer className="text-center py-4 text-[11px] text-[#5B7170]">

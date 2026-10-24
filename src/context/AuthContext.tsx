@@ -2,6 +2,10 @@ import React, { createContext, useContext, useEffect, useState } from 'react';
 import {
   auth,
   signInWithGoogle,
+  createUserWithEmail,
+  signInWithEmail,
+  sendPasswordReset,
+  translateFirebaseAuthError,
   signOutUser,
   onAuthStateChanged,
   FirebaseUser,
@@ -12,6 +16,7 @@ import {
 import { doc, getDoc, setDoc, onSnapshot } from 'firebase/firestore';
 import { UserProfile } from '../types';
 import { defaultGuestProfile, getLocal, setLocal } from '../lib/storage';
+import { migrateGuestDataToFirestore } from '../lib/persistence';
 
 interface ConflictState {
   remoteProfile: UserProfile;
@@ -26,6 +31,9 @@ interface AuthContextType {
   loginError: string | null;
   pendingConflict: ConflictState | null;
   loginGoogle: () => Promise<boolean>;
+  loginEmail: (email: string, pass: string) => Promise<boolean>;
+  registerEmail: (email: string, pass: string, displayName?: string) => Promise<boolean>;
+  resetPassword: (email: string) => Promise<{ success: boolean; message: string }>;
   logout: () => Promise<void>;
   setGuestMode: () => void;
   updateUserProfile: (partial: Partial<UserProfile>) => Promise<void>;
@@ -55,6 +63,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         setIsGuest(false);
         setLocal('superacao_is_guest', false);
 
+        // Migra dados de convidado se existirem no aparelho
+        try {
+          await migrateGuestDataToFirestore(firebaseUser.uid);
+        } catch (migErr) {
+          console.warn('Superação: Aviso durante migração de convidado:', migErr);
+        }
         const userRef = doc(db, 'users', firebaseUser.uid);
         try {
           const userSnap = await getDoc(userRef);
@@ -108,6 +122,55 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     return () => unsubscribe();
   }, []);
+
+  const loginEmail = async (email: string, pass: string): Promise<boolean> => {
+    setIsLoading(true);
+    setLoginError(null);
+    try {
+      await signInWithEmail(email, pass);
+      return true;
+    } catch (err: any) {
+      console.warn('Erro ao autenticar com e-mail:', err);
+      setLoginError(translateFirebaseAuthError(err));
+      return false;
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const registerEmail = async (email: string, pass: string, displayName?: string): Promise<boolean> => {
+    setIsLoading(true);
+    setLoginError(null);
+    try {
+      await createUserWithEmail(email, pass, displayName);
+      return true;
+    } catch (err: any) {
+      console.warn('Erro ao registrar conta com e-mail:', err);
+      setLoginError(translateFirebaseAuthError(err));
+      return false;
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const resetPassword = async (email: string): Promise<{ success: boolean; message: string }> => {
+    setIsLoading(true);
+    setLoginError(null);
+    try {
+      await sendPasswordReset(email);
+      return {
+        success: true,
+        message: 'Link de redefinição de senha enviado para seu e-mail! Verifique sua caixa de entrada.',
+      };
+    } catch (err: any) {
+      console.warn('Erro ao solicitar redefinição de senha:', err);
+      const msg = translateFirebaseAuthError(err);
+      setLoginError(msg);
+      return { success: false, message: msg };
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   const loginGoogle = async (): Promise<boolean> => {
     setIsLoading(true);
@@ -204,6 +267,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         loginError,
         pendingConflict,
         loginGoogle,
+        loginEmail,
+        registerEmail,
+        resetPassword,
         logout,
         setGuestMode,
         updateUserProfile,

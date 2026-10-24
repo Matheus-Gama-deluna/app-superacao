@@ -17,6 +17,8 @@ import {
 } from 'lucide-react';
 import { soundManager } from '../lib/audio';
 import { APP_VERSION, APP_BUILD_DATE, AVOIDANCE_LABELS } from '../lib/storage';
+import { EmailAuthModal } from '../components/EmailAuthModal';
+import { Mail } from 'lucide-react';
 
 interface ProfileViewProps {
   onClose: () => void;
@@ -32,6 +34,7 @@ export const ProfileView: React.FC<ProfileViewProps> = ({ onClose }) => {
   const [sessionDurationMinutes, setSessionDurationMinutes] = useState<number>(profile.sessionDurationMinutes || 20);
   const [avoidedMovements, setAvoidedMovements] = useState<string[]>(profile.avoidedMovements || []);
   const [isSaved, setIsSaved] = useState<boolean>(false);
+  const [isEmailModalOpen, setIsEmailModalOpen] = useState<boolean>(false);
 
   // Fecha no Escape com retorno de foco (Critério C38)
   React.useEffect(() => {
@@ -198,13 +201,25 @@ export const ProfileView: React.FC<ProfileViewProps> = ({ onClose }) => {
             <span>Desconectar da Conta</span>
           </button>
         ) : (
-          <button
-            onClick={loginGoogle}
-            className="w-full py-3 rounded-xl bg-[#125F55] text-white text-xs font-bold flex items-center justify-center gap-2 hover:bg-[#0C5148] shadow-xs cursor-pointer"
-          >
-            <LogIn className="w-4 h-4" />
-            <span>Conectar com Conta Google</span>
-          </button>
+          <div className="space-y-2 pt-1">
+            <p className="text-[11px] text-[#5B7170] leading-relaxed">
+              Deseja salvar seu progresso na nuvem? Conecte sua conta para sincronizar entre aparelhos sem perder seus treinos locais.
+            </p>
+            <button
+              onClick={loginGoogle}
+              className="w-full py-2.5 rounded-xl bg-[#125F55] text-white text-xs font-bold flex items-center justify-center gap-2 hover:bg-[#0C5148] shadow-xs cursor-pointer"
+            >
+              <LogIn className="w-4 h-4" />
+              <span>Conectar com Conta Google</span>
+            </button>
+            <button
+              onClick={() => setIsEmailModalOpen(true)}
+              className="w-full py-2.5 rounded-xl border border-[#C9DBD3] bg-white text-[#152A29] text-xs font-bold flex items-center justify-center gap-2 hover:bg-slate-50 transition-colors cursor-pointer"
+            >
+              <Mail className="w-4 h-4 text-[#125F55]" />
+              <span>Entrar ou Criar com E-mail</span>
+            </button>
+          </div>
         )}
       </section>
 
@@ -444,6 +459,12 @@ export const ProfileView: React.FC<ProfileViewProps> = ({ onClose }) => {
           Versão local v{APP_VERSION} em execução. Dados e recordes preservados com segurança neste dispositivo.
         </p>
       </footer>
+
+      {/* Modal de Autenticação por E-mail */}
+      <EmailAuthModal
+        isOpen={isEmailModalOpen}
+        onClose={() => setIsEmailModalOpen(false)}
+      />
 
       {/* Modal de Resolução de Conflito de Conta (Critério C34) */}
       {pendingConflict && (
