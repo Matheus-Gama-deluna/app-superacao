@@ -1,4 +1,5 @@
-import catalogFullJson from '../../data/catalog_full_pt.json';
+import { essentialProgramExercises } from './essentialProgramExercises';
+import { useState, useEffect } from 'react';
 import exercisesSeedJson from '../../data/exercicios_seed.json';
 import templatesJson from '../../data/templates_seed.json';
 import { Exercise, WorkoutPlan } from '../types';
@@ -93,20 +94,17 @@ export const specializedRecoveryExercises: Exercise[] = [
   },
 ];
 
-// Mapeamento e unificação de todo o catálogo completo (876+ exercícios públicos)
-const rawFullList: Exercise[] = (catalogFullJson as any[]).map((item) => {
+export function normalizeFullCatalogItem(item: any): Exercise {
   let eq: string[] = Array.isArray(item.equipment) ? [...item.equipment] : ['peso_corporal'];
 
   const namePt = item.name_pt || item.name_en || '';
   const nameLower = (namePt + ' ' + (item.name_en || '') + ' ' + (item.instructions_pt || '')).toLowerCase();
 
-  // Correção de inconsistências taxonômicas: exercícios com "Halteres" marcados como kettlebell ou peso_corporal
   if (nameLower.includes('halter') && !eq.includes('halteres')) {
     eq = eq.filter((e) => e !== 'kettlebell' && e !== 'peso_corporal');
     eq.push('halteres');
   }
 
-  // Identificação e distinção estrita de mini_band, faixa_longa e tubos_elasticos (A04, A09)
   const isMiniBand =
     nameLower.includes('mini band') ||
     nameLower.includes('miniband') ||
@@ -132,17 +130,10 @@ const rawFullList: Exercise[] = (catalogFullJson as any[]).map((item) => {
       !isMiniBand &&
       !isTubos);
 
-  if (isMiniBand && !eq.includes('mini_band')) {
-    eq.push('mini_band');
-  }
-  if (isFaixaLonga && !eq.includes('faixa_longa')) {
-    eq.push('faixa_longa');
-  }
-  if (isTubos && !eq.includes('tubos_elasticos')) {
-    eq.push('tubos_elasticos');
-  }
+  if (isMiniBand && !eq.includes('mini_band')) eq.push('mini_band');
+  if (isFaixaLonga && !eq.includes('faixa_longa')) eq.push('faixa_longa');
+  if (isTubos && !eq.includes('tubos_elasticos')) eq.push('tubos_elasticos');
 
-  // 1. Identificação estrita de Barra Fixa / Barra Suspensa (Critérios 13, 14, 32)
   const isPullUpBar =
     item.id === 'wind_sprints' ||
     nameLower.includes('barra suspensa') ||
@@ -161,7 +152,6 @@ const rawFullList: Exercise[] = (catalogFullJson as any[]).map((item) => {
     requiresSupports.push('barra_fixa');
   }
 
-  // 2. Identificação de Barras Paralelas
   const isParallelBars =
     nameLower.includes('paralela') ||
     nameLower.includes('parallel bar') ||
@@ -171,7 +161,6 @@ const rawFullList: Exercise[] = (catalogFullJson as any[]).map((item) => {
     requiresSupports.push('paralelas');
   }
 
-  // 3. Identificação de Banco, Cadeira e Parede
   if (nameLower.includes('banco') || nameLower.includes('bench')) {
     if (!eq.includes('banco')) eq.push('banco');
     requiresSupports.push('banco');
@@ -185,7 +174,6 @@ const rawFullList: Exercise[] = (catalogFullJson as any[]).map((item) => {
     requiresSupports.push('parede');
   }
 
-  // Correção de nomes e traduções confusas (Critérios 13, 32)
   let cleanNamePt = namePt;
   if (item.id === 'wind_sprints') {
     cleanNamePt = 'Elevação de Joelhos na Barra Suspensa (Wind Sprints)';
@@ -197,7 +185,6 @@ const rawFullList: Exercise[] = (catalogFullJson as any[]).map((item) => {
     cleanNamePt = 'Elevação Escapular na Barra Fixa';
   }
 
-  // Correção de frases inadequadas como 'Amasse o mais alto que puder' (Critério 32)
   let cleanInstructions = (item.instructions_pt || '')
     .replace(/Amasse o mais alto que puder/gi, 'Eleve o tronco na amplitude máxima confortável')
     .replace(/Amasse o tronco/gi, 'Eleve e flexione suavemente o tronco');
@@ -207,7 +194,6 @@ const rawFullList: Exercise[] = (catalogFullJson as any[]).map((item) => {
      .replace(/Amasse o tronco/gi, 'Eleve e flexione suavemente o tronco')
   );
 
-  // Elegibilidade para proposta automática curada
   const isCurated =
     item.review_status === 'catalogo_publico_verificado' ||
     item.review_status === 'revisado' ||
@@ -238,13 +224,13 @@ const rawFullList: Exercise[] = (catalogFullJson as any[]).map((item) => {
     source_kind: item.source_kind || 'free_exercise_db_public_domain',
     version: item.version || '1.0.0',
   };
-});
+}
 
-// Mescla garantindo que exercícios especializados de recuperação ativa estejam incluídos
+// Mescla garantindo que exercícios essenciais estejam disponíveis no milissegundo zero (Camada 1 Instantânea)
 const exerciseIdSet = new Set<string>();
 export const allExercises: Exercise[] = [];
 
-// Adiciona primeiro os exercícios especializados de recuperação ativa
+// 1. Exercícios especializados de recuperação ativa
 specializedRecoveryExercises.forEach((ex) => {
   if (!exerciseIdSet.has(ex.id)) {
     exerciseIdSet.add(ex.id);
@@ -252,7 +238,7 @@ specializedRecoveryExercises.forEach((ex) => {
   }
 });
 
-// Adiciona os 12 exercícios especializados de puxar, costas e fortalecimento em casa
+// 2. Exercícios especializados de puxar, costas e fortalecimento em casa
 specializedHomeExercises.forEach((ex) => {
   if (!exerciseIdSet.has(ex.id)) {
     exerciseIdSet.add(ex.id);
@@ -260,13 +246,66 @@ specializedHomeExercises.forEach((ex) => {
   }
 });
 
-// Adiciona todos os 876 exercícios da base completa
-rawFullList.forEach((ex) => {
+// 3. Exercícios essenciais dos programas e fichas oficiais
+essentialProgramExercises.forEach((ex) => {
   if (!exerciseIdSet.has(ex.id)) {
     exerciseIdSet.add(ex.id);
     allExercises.push(ex);
   }
 });
+
+// 4. Mecanismo de Carregamento Assíncrono Sob Demanda da Enciclopédia Completa (Camada 2)
+let isFullCatalogLoaded = false;
+let fullCatalogPromise: Promise<Exercise[]> | null = null;
+const catalogListeners = new Set<() => void>();
+
+export function isFullCatalogReady(): boolean {
+  return isFullCatalogLoaded;
+}
+
+export async function ensureFullCatalogLoaded(): Promise<Exercise[]> {
+  if (isFullCatalogLoaded) return allExercises;
+  if (fullCatalogPromise) return fullCatalogPromise;
+
+  fullCatalogPromise = (async () => {
+    try {
+      const mod = await import('../../data/catalog_full_pt.json');
+      const rawList: any[] = mod.default || mod;
+      for (const item of rawList) {
+        if (!exerciseIdSet.has(item.id)) {
+          const normalized = normalizeFullCatalogItem(item);
+          exerciseIdSet.add(normalized.id);
+          allExercises.push(normalized);
+        }
+      }
+      isFullCatalogLoaded = true;
+      catalogListeners.forEach((fn) => fn());
+      return allExercises;
+    } catch (err) {
+      console.warn('Erro ao carregar catálogo completo sob demanda:', err);
+      return allExercises;
+    }
+  })();
+
+  return fullCatalogPromise;
+}
+
+export function useFullCatalog(): { isReady: boolean; totalCount: number } {
+  const [ready, setReady] = useState<boolean>(isFullCatalogLoaded);
+  useEffect(() => {
+    if (isFullCatalogLoaded) {
+      setReady(true);
+      return;
+    }
+    const listener = () => setReady(true);
+    catalogListeners.add(listener);
+    void ensureFullCatalogLoaded();
+    return () => {
+      catalogListeners.delete(listener);
+    };
+  }, []);
+  return { isReady: ready, totalCount: allExercises.length };
+}
 
 // Templates Seed do projeto oficial com etiqueta explícita de "modelo demonstrativo" (A17)
 export const rawTemplates: WorkoutPlan[] = (templatesJson as any[]).map((t, idx) => {
@@ -546,6 +585,7 @@ export const normalizeText = (str: string): string => {
 
 // Helpers de busca flexível e multifiltro (A09, A10)
 export function searchExercises(
+
   query: string,
   filterEquipment?: string,
   filterMuscle?: string,

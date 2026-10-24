@@ -126,6 +126,7 @@ export interface Exercise {
   version?: string;
   review_status?: string | null;
   media_url?: string | null;
+  is_curated_for_auto_proposal?: boolean;
   functionalPattern?: FunctionalMovementPattern;
   jointStress?: JointStressRating;
   floorTransition?: boolean;

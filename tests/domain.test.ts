@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect, beforeEach, beforeAll } from 'vitest';
 import {
   defaultGuestProfile,
   generateBlankWeeklyCalendar,
@@ -21,7 +21,7 @@ import {
   EQUIPMENT_LABELS,
   AVOIDANCE_LABELS,
 } from '../src/lib/storage';
-import { searchExercises, allExercises, getExerciseById } from '../src/data/catalog';
+import { searchExercises, allExercises, getExerciseById, ensureFullCatalogLoaded } from '../src/data/catalog';
 import { premadePrograms } from '../src/data/premadePrograms';
 import {
   WorkoutSession,
@@ -55,6 +55,10 @@ if (typeof globalThis.localStorage === 'undefined') {
 }
 
 describe('Superação v6 — Critérios de Aceitação e Regras de Domínio (C01 a C40)', () => {
+  beforeAll(async () => {
+    await ensureFullCatalogLoaded();
+  });
+
   beforeEach(() => {
     localStorage.clear();
   });

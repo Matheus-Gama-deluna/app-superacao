@@ -4,15 +4,26 @@ import { WorkoutProvider, useWorkout } from './context/WorkoutContext';
 import { TopStatusBar } from './components/TopStatusBar';
 import { BottomNav, TabDestination } from './components/BottomNav';
 import { HomeView } from './views/HomeView';
-import { ExploreView } from './views/ExploreView';
-import { BuilderView } from './views/BuilderView';
-import { ActiveWorkoutView } from './views/ActiveWorkoutView';
-import { CalendarView } from './views/CalendarView';
-import { ProgressView } from './views/ProgressView';
-import { ProfileView } from './views/ProfileView';
 import { WelcomeView } from './views/WelcomeView';
-import { ListeningJourneyView } from './views/ListeningJourneyView';
-import { ProposalView } from './views/ProposalView';
+
+// Code Splitting das Telas Secundárias (Sprint 2 - Performance & Leveza)
+const ExploreView = React.lazy(() => import('./views/ExploreView').then((m) => ({ default: m.ExploreView })));
+const BuilderView = React.lazy(() => import('./views/BuilderView').then((m) => ({ default: m.BuilderView })));
+const ActiveWorkoutView = React.lazy(() => import('./views/ActiveWorkoutView').then((m) => ({ default: m.ActiveWorkoutView })));
+const CalendarView = React.lazy(() => import('./views/CalendarView').then((m) => ({ default: m.CalendarView })));
+const ProgressView = React.lazy(() => import('./views/ProgressView').then((m) => ({ default: m.ProgressView })));
+const ProfileView = React.lazy(() => import('./views/ProfileView').then((m) => ({ default: m.ProfileView })));
+const ListeningJourneyView = React.lazy(() => import('./views/ListeningJourneyView').then((m) => ({ default: m.ListeningJourneyView })));
+const ProposalView = React.lazy(() => import('./views/ProposalView').then((m) => ({ default: m.ProposalView })));
+
+const ViewLoadingFallback: React.FC = () => (
+  <div className="flex-1 flex flex-col items-center justify-center min-h-[50vh] p-6 text-center animate-pulse">
+    <div className="w-12 h-12 rounded-2xl bg-[#EAF3EF] flex items-center justify-center text-[#125F55] font-black text-xl mb-3 shadow-2xs">
+      S
+    </div>
+    <span className="text-xs font-semibold text-[#5B7170]">Carregando com cuidado...</span>
+  </div>
+);
 import { WorkoutPlan, ExplainableProposal, OnboardingDraft } from './types';
 import { premadeWorkouts } from './data/premadeWorkouts';
 import {
@@ -97,7 +108,11 @@ const MainAppContent: React.FC = () => {
 
   // Se houver uma sessão ativa de treino e o modo foco estiver ativo, entra no MODO FOCO (Seção 10 / V8-03)
   if (activeSession && isFocusMode) {
-    return <ActiveWorkoutView />;
+    return (
+      <React.Suspense fallback={<ViewLoadingFallback />}>
+        <ActiveWorkoutView />
+      </React.Suspense>
+    );
   }
 
   // 1. TELA DE BOAS-VINDAS (Seção 4, Critérios C01, C02)
@@ -115,7 +130,8 @@ const MainAppContent: React.FC = () => {
   // 2. ESCUTA INICIAL / ONBOARDING PROGRESSIVO (Seção 5, Critérios C04, C05, C06, C07, C08)
   if (flowState === 'onboarding') {
     return (
-      <ListeningJourneyView
+      <React.Suspense fallback={<ViewLoadingFallback />}>
+        <ListeningJourneyView
         onCompleteListening={(draft, nextAction) => {
           if (nextAction === 'proposal') {
             const prop = generateExplainableProposal(profile, draft);
@@ -129,14 +145,16 @@ const MainAppContent: React.FC = () => {
           }
         }}
         onCancel={accessChoice ? () => setAccessChoice(null) : undefined}
-      />
+        />
+      </React.Suspense>
     );
   }
 
   // 3. REVISÃO DA PROPOSTA EXPLICÁVEL (Seção 6, Critérios C09, C10, C11, C15)
   if (flowState === 'proposal' && currentProposal) {
     return (
-      <ProposalView
+      <React.Suspense fallback={<ViewLoadingFallback />}>
+        <ProposalView
         proposal={currentProposal}
         onConfirm={() => {
           setIsViewingProposal(false);
@@ -160,7 +178,8 @@ const MainAppContent: React.FC = () => {
             handleOpenBuilder(undefined, false);
           }
         }}
-      />
+        />
+      </React.Suspense>
     );
   }
 
@@ -172,6 +191,7 @@ const MainAppContent: React.FC = () => {
 
       {/* Conteúdo Principal com Container Responsivo Mobile-First */}
       <main className="flex-1 max-w-xl mx-auto w-full px-4 pt-4">
+        <React.Suspense fallback={<ViewLoadingFallback />}>
         {isProfileOpen ? (
           <ProfileView onClose={() => setIsProfileOpen(false)} />
         ) : isBuilderOpen ? (
@@ -219,6 +239,7 @@ const MainAppContent: React.FC = () => {
             {currentTab === 'progress' && <ProgressView />}
           </>
         )}
+      </React.Suspense>
       </main>
 
       {/* Barra de Navegação Inferior (oculta em modais e modo foco) */}

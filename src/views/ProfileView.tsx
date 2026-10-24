@@ -87,7 +87,7 @@ export const ProfileView: React.FC<ProfileViewProps> = ({ onClose }) => {
       avoidedMovements,
     });
     setIsSaved(true);
-    setTimeout(() => setIsSaved(false), 2000);
+    setTimeout(() => setIsSaved(false), 4000);
   };
 
   const handleImportBackup = (e: React.ChangeEvent<HTMLInputElement>) => {

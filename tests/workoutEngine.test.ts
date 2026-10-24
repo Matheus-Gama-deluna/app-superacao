@@ -1,14 +1,17 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, beforeAll } from 'vitest';
 import {
   generateSmartWorkoutRoutine,
   enrichExercise,
   isExerciseSafeForUser,
 } from '../src/lib/workoutEngine';
-import { allExercises } from '../src/data/catalog';
+import { allExercises, ensureFullCatalogLoaded } from '../src/data/catalog';
 import { premadePrograms } from '../src/data/premadePrograms';
 import { premadeWorkouts } from '../src/data/premadeWorkouts';
 
 describe('Motor Canônico de Geração de Treinos v2 (workoutEngine)', () => {
+  beforeAll(async () => {
+    await ensureFullCatalogLoaded();
+  });
   describe('1. Segurança Articular e Filtros de Limitação (Invariantes Clínicos)', () => {
     it('deve enriquecer exercícios com metadados estruturados de estresse articular e padrões funcionais', () => {
       const wallPushup = allExercises.find((e) => e.id === 'wall_pushup_controlled');

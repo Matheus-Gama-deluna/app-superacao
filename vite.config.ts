@@ -1,8 +1,8 @@
 import tailwindcss from '@tailwindcss/vite';
 import react from '@vitejs/plugin-react';
 import path from 'path';
-import {defineConfig} from 'vite';
-import {VitePWA} from 'vite-plugin-pwa';
+import { defineConfig } from 'vite';
+import { VitePWA } from 'vite-plugin-pwa';
 
 export default defineConfig(() => {
   return {
@@ -46,8 +46,24 @@ export default defineConfig(() => {
         workbox: {
           skipWaiting: true,
           clientsClaim: true,
+          // Exclui o chunk do catálogo completo do precache inicial pesado, deixando-o para runtime sob demanda
+          globIgnores: ['**/*catalog_full_pt*.js'],
           maximumFileSizeToCacheInBytes: 6 * 1024 * 1024,
           runtimeCaching: [
+            {
+              urlPattern: /.*catalog_full_pt.*\.js$/i,
+              handler: 'CacheFirst',
+              options: {
+                cacheName: 'full-catalog-chunk-cache',
+                expiration: {
+                  maxEntries: 5,
+                  maxAgeSeconds: 60 * 60 * 24 * 30, // 30 dias
+                },
+                cacheableResponse: {
+                  statuses: [0, 200],
+                },
+              },
+            },
             {
               urlPattern: /^\/exercises\/.*\.(?:jpg|jpeg|png|webp)$/i,
               handler: 'CacheFirst',
@@ -71,7 +87,22 @@ export default defineConfig(() => {
       })
     ],
     build: {
-      chunkSizeWarningLimit: 4000,
+      chunkSizeWarningLimit: 1200,
+      rollupOptions: {
+        output: {
+          manualChunks(id) {
+            if (id.includes('node_modules/firebase/')) {
+              return 'vendor-firebase';
+            }
+            if (id.includes('node_modules/react/') || id.includes('node_modules/react-dom/')) {
+              return 'vendor-react';
+            }
+            if (id.includes('node_modules/lucide-react/') || id.includes('node_modules/canvas-confetti/')) {
+              return 'vendor-ui';
+            }
+          },
+        },
+      },
     },
 
     resolve: {
