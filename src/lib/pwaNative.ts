@@ -268,6 +268,33 @@ export async function syncAppBadge(hasPendingWorkoutToday: boolean): Promise<voi
 // ---------------------------------------------------------------------------
 // 7. Web Share API (Compartilhamento Nativo de Conquistas)
 // ---------------------------------------------------------------------------
+export async function copyTextToClipboard(text: string): Promise<boolean> {
+  if (typeof window === 'undefined') return false;
+  try {
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      await navigator.clipboard.writeText(text);
+      return true;
+    }
+  } catch {
+    // Continua para fallback DOM
+  }
+
+  try {
+    const textarea = document.createElement('textarea');
+    textarea.value = text;
+    textarea.style.position = 'fixed';
+    textarea.style.left = '-9999px';
+    textarea.style.opacity = '0';
+    document.body.appendChild(textarea);
+    textarea.select();
+    const successful = document.execCommand('copy');
+    document.body.removeChild(textarea);
+    return successful;
+  } catch {
+    return false;
+  }
+}
+
 export async function shareWorkoutVictory(data: {
   title: string;
   text: string;
@@ -276,8 +303,10 @@ export async function shareWorkoutVictory(data: {
   if (typeof window === 'undefined') return 'failed';
 
   const fullText = `${data.text}\n\nTreino feito no Superação: ${data.url || window.location.origin}`;
+  const isMobileDevice = typeof navigator !== 'undefined' && /android|iphone|ipad|ipod/i.test(navigator.userAgent || '');
 
-  if ('share' in navigator && typeof navigator.share === 'function') {
+  // No mobile, tenta a gaveta de compartilhamento nativo se disponível
+  if (isMobileDevice && 'share' in navigator && typeof navigator.share === 'function') {
     try {
       await navigator.share({
         title: data.title,
@@ -286,21 +315,13 @@ export async function shareWorkoutVictory(data: {
       });
       return 'shared';
     } catch (err: any) {
-      if (err.name === 'AbortError') return 'shared'; // Usuário cancelou a gaveta
+      if (err.name === 'AbortError') return 'shared';
     }
   }
 
-  // Fallback: copia para a área de transferência
-  try {
-    if ('clipboard' in navigator) {
-      await navigator.clipboard.writeText(fullText);
-      return 'copied';
-    }
-  } catch {
-    // Ignora
-  }
-
-  return 'failed';
+  // No desktop ou como garantia imediata, copia diretamente para a área de transferência
+  const copied = await copyTextToClipboard(fullText);
+  return copied ? 'copied' : 'failed';
 }
 
 // ---------------------------------------------------------------------------

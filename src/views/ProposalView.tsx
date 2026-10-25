@@ -23,7 +23,7 @@ import { ExplainableProposal, WorkoutPlan, Exercise } from '../types';
 import { allExercises, useFullCatalog } from '../data/catalog';
 import { ExerciseIllustration } from '../components/ExerciseIllustration';
 import { findSafeEquivalentExercises } from '../lib/workoutEngine';
-import { EQUIPMENT_LABELS, AVOIDANCE_LABELS } from '../lib/storage';
+import { EQUIPMENT_LABELS, AVOIDANCE_LABELS, generateExplainableProposal } from '../lib/storage';
 
 interface ProposalViewProps {
   proposal: ExplainableProposal;
@@ -141,7 +141,7 @@ export const ProposalView: React.FC<ProposalViewProps> = ({
 
       {/* Main Content */}
       <main className="flex-1 max-w-xl mx-auto w-full px-4 py-6 space-y-6">
-        {proposal.hasCompatibleExercises === false && (
+        {currentProposal.hasCompatibleExercises === false && (
           <section className="bg-white rounded-3xl p-6 border border-amber-300 shadow-xs space-y-4">
             <div className="flex items-start gap-3">
               <div className="w-12 h-12 rounded-2xl bg-amber-50 flex items-center justify-center text-amber-700 shrink-0">
@@ -155,7 +155,7 @@ export const ProposalView: React.FC<ProposalViewProps> = ({
                   Não encontramos movimentos curados para estes critérios
                 </h2>
                 <p className="text-xs text-[#5B7170] leading-relaxed">
-                  {proposal.reasonIfUnavailable || 'A combinação atual de equipamentos e restrições não possui exercícios certificados no momento. Não geramos rotinas fictícias.'}
+                  {currentProposal.reasonIfUnavailable || 'A combinação atual de equipamentos e restrições não possui exercícios certificados no momento. Não geramos rotinas fictícias.'}
                 </p>
               </div>
             </div>
@@ -188,10 +188,37 @@ export const ProposalView: React.FC<ProposalViewProps> = ({
                 Proposta Personalizada
               </span>
               <h1 className="text-xl font-extrabold text-[#152A29] mt-0.5 leading-tight">
-                {proposal.title}
+                {currentProposal.title}
               </h1>
             </div>
           </div>
+
+          {/* Card de Acolhimento do Momento Pessoal (Critério C04, C11) */}
+          {(profile.experienceLevel === 'retomando' || profile.exerciseReason || profile.userContextNotes) && (
+            <div className="p-4 rounded-2xl bg-amber-50/80 border border-amber-200/80 space-y-2">
+              <div className="flex items-center gap-2 text-xs font-bold text-amber-900">
+                <span className="text-sm">🌱</span>
+                <span>Seu Momento e Motivação Pessoal</span>
+              </div>
+              <div className="text-xs text-amber-950 space-y-1 leading-relaxed">
+                {profile.experienceLevel === 'retomando' && (
+                  <p>
+                    <strong>Retomando após pausa:</strong> calibramos um volume acolhedor para que você construa consistência sem cansaço excessivo.
+                  </p>
+                )}
+                {profile.exerciseReason && (
+                  <p>
+                    <strong>Seu porquê:</strong> «{profile.exerciseReason}».
+                  </p>
+                )}
+                {profile.userContextNotes && (
+                  <p>
+                    <strong>Nota pessoal:</strong> «{profile.userContextNotes}».
+                  </p>
+                )}
+              </div>
+            </div>
+          )}
 
           {/* Justificativa Clara e Verificável (Critério C11) */}
           <div className="p-4 rounded-2xl bg-[#F5F8F5] border border-[#C9DBD3]/70 space-y-2">
@@ -200,7 +227,7 @@ export const ProposalView: React.FC<ProposalViewProps> = ({
               <span>Por que esta rotina foi pensada para você?</span>
             </div>
             <p className="text-xs text-[#152A29] leading-relaxed">
-              {proposal.justificationText}
+              {currentProposal.justificationText}
             </p>
           </div>
 
@@ -211,7 +238,7 @@ export const ProposalView: React.FC<ProposalViewProps> = ({
               <div className="text-xs">
                 <span className="text-[10px] text-[#5B7170] block font-medium">Frequência</span>
                 <span className="font-bold text-[#125F55]">
-                  {proposal.targetDaysCount} {proposal.targetDaysCount === 1 ? 'dia por semana' : 'dias por semana'}
+                  {currentProposal.targetDaysCount} {currentProposal.targetDaysCount === 1 ? 'dia por semana' : 'dias por semana'}
                 </span>
               </div>
             </div>
@@ -221,7 +248,7 @@ export const ProposalView: React.FC<ProposalViewProps> = ({
               <div className="text-xs">
                 <span className="text-[10px] text-[#5B7170] block font-medium">Duração real</span>
                 <span className="font-bold text-[#125F55]">
-                  ~{proposal.sessionDurationMinutes} min / treino
+                  ~{currentProposal.sessionDurationMinutes} min / treino
                 </span>
               </div>
             </div>
@@ -229,8 +256,48 @@ export const ProposalView: React.FC<ProposalViewProps> = ({
 
           {/* Explicação da Duração com Séries e Descansos Somados (Seção 6) */}
           <p className="text-[11px] text-[#5B7170] leading-snug px-1">
-            {proposal.timeBreakdownText}
+            {currentProposal.timeBreakdownText}
           </p>
+
+          {/* Atalho para Hábito Mínimo (5 min) se a proposta atual for mais longa */}
+          {/* Alternância Dinâmica entre Versão Expressa (5 min) e Versão Completa Informada */}
+          {currentProposal.sessionDurationMinutes === 5 && proposal.sessionDurationMinutes > 5 ? (
+            <div className="p-3 bg-[#EAF3EF] rounded-2xl border border-[#125F55]/20 flex items-center justify-between gap-3 text-xs">
+              <div className="text-[#125F55]">
+                <span className="font-bold block">Versão Expressa de 5 min ativada</span>
+                <span className="text-[11px] text-[#5B7170]">Disponibilidade informada original: {proposal.sessionDurationMinutes} min.</span>
+              </div>
+              <button
+                type="button"
+                onClick={() => setCurrentProposal(proposal)}
+                className="px-3 py-1.5 bg-white text-[#125F55] border border-[#125F55]/40 rounded-xl text-xs font-bold shrink-0 hover:bg-[#EAF3EF] cursor-pointer shadow-2xs"
+              >
+                Restaurar {proposal.sessionDurationMinutes} min
+              </button>
+            </div>
+          ) : currentProposal.sessionDurationMinutes > 5 ? (
+            <div className="p-3 bg-[#EAF3EF] rounded-2xl border border-[#125F55]/20 flex items-center justify-between gap-3 text-xs">
+              <div className="text-[#125F55]">
+                <span className="font-bold block">Pouco tempo ou voltando aos poucos?</span>
+                <span className="text-[11px] text-[#5B7170]">Comece com 5 min de hábito diário.</span>
+              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  const microProposal = generateExplainableProposal(
+                    { ...profile, sessionDurationMinutes: 5 },
+                    { sessionDurationMinutes: 5 }
+                  );
+                  const origMin = proposal.sessionDurationMinutes;
+                  microProposal.justificationText = `Versão expressa (hábito mínimo): adaptamos esta rotina para aproximadamente 5 minutos por sessão com exercícios essenciais, preservando sua meta de ${microProposal.targetDaysCount} dias por semana e sua disponibilidade original informada de ${origMin} minutos. Foco em manter o hábito ativo sem sobrecarga articular.`;
+                  setCurrentProposal(microProposal);
+                }}
+                className="px-3 py-1.5 bg-[#125F55] text-white rounded-xl text-xs font-bold shrink-0 hover:bg-[#0C5148] cursor-pointer shadow-2xs"
+              >
+                Versão 5 min
+              </button>
+            </div>
+          ) : null}
         </section>
 
         {/* Ficha de Exercícios Detalhada */}
@@ -443,8 +510,7 @@ export const ProposalView: React.FC<ProposalViewProps> = ({
                 swapCandidates.map((cand) => (
                   <div
                     key={cand.id}
-                    onClick={() => handleSwapExercise(cand)}
-                    className="p-3 rounded-2xl bg-white border border-[#C9DBD3] hover:border-[#125F55] transition-all cursor-pointer flex items-center justify-between gap-3 shadow-xs hover:shadow-sm"
+                    className="p-3 rounded-2xl bg-white border border-[#C9DBD3] hover:border-[#125F55]/60 transition-all flex items-center justify-between gap-3 shadow-xs"
                   >
                     <div className="flex items-center gap-3 min-w-0">
                       <ExerciseIllustration
@@ -465,6 +531,7 @@ export const ProposalView: React.FC<ProposalViewProps> = ({
                     </div>
                     <button
                       type="button"
+                      onClick={() => handleSwapExercise(cand)}
                       className="px-3 py-1.5 rounded-xl bg-[#EAF3EF] text-[#125F55] text-xs font-bold shrink-0 hover:bg-[#125F55] hover:text-white transition-colors cursor-pointer"
                     >
                       Escolher

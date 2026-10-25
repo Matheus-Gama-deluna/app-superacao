@@ -38,7 +38,7 @@ import {
 type AppFlowState = 'welcome' | 'onboarding' | 'proposal' | 'main';
 
 const MainAppContent: React.FC = () => {
-  const { user, profile, isGuest, isLoading: authLoading } = useAuth();
+  const { user, profile, isGuest, isLoading: authLoading, updateUserProfile } = useAuth();
   const {
     activeSession,
     isFocusMode,
@@ -223,8 +223,10 @@ const MainAppContent: React.FC = () => {
             setLocal(STORAGE_KEYS.PROPOSAL, prop);
             setIsViewingProposal(true);
           } else if (nextAction === 'builder_pro') {
+            setIsViewingProposal(false);
             handleOpenBuilder(undefined, true);
           } else if (nextAction === 'builder_manual') {
+            setIsViewingProposal(false);
             handleOpenBuilder(undefined, false);
           }
         }}
@@ -234,40 +236,76 @@ const MainAppContent: React.FC = () => {
     );
   }
 
-  // 3. REVISÃO DA PROPOSTA EXPLICÁVEL (Seção 6, Critérios C09, C10, C11, C15)
+  // 3. EDITOR MANUAL OU PROFISSIONAL ABERTO COM PRIORIDADE (Critérios C09, C10, C15)
+  if (isBuilderOpen) {
+    return (
+      <div className="min-h-screen bg-[#F5F8F5] text-[#152A29] flex flex-col justify-between font-sans">
+        <TopStatusBar onOpenProfile={handleOpenProfile} />
+        <main className="flex-1 max-w-xl mx-auto w-full px-4 pt-4">
+          <React.Suspense fallback={<ViewLoadingFallback />}>
+            <BuilderView
+              existingPlanId={editingPlanId || undefined}
+              initialIsProfessional={isBuilderPro}
+              onClose={() => {
+                setIsBuilderOpen(false);
+                setEditingPlanId(null);
+                setIsBuilderPro(false);
+              }}
+              onStartWorkout={(plan) => {
+                setIsBuilderOpen(false);
+                setEditingPlanId(null);
+                setIsBuilderPro(false);
+                handleStartPlan(plan);
+              }}
+            />
+          </React.Suspense>
+        </main>
+      </div>
+    );
+  }
+
+  // 4. REVISÃO DA PROPOSTA EXPLICÁVEL (Seção 6, Critérios C09, C10, C11, C15)
   if (flowState === 'proposal' && currentProposal) {
     return (
       <React.Suspense fallback={<ViewLoadingFallback />}>
         <ProposalView
-        proposal={currentProposal}
-        onConfirm={() => {
-          setIsViewingProposal(false);
-        }}
-        onAdjustAnswers={() => {
-          // Retorna para a escuta inicial para ajustar respostas (Critério C05)
-          setLocal(STORAGE_KEYS.USER_PROFILE, {
-            ...profile,
-            onboardingCompleted: false,
-          });
-          window.location.reload();
-        }}
-        onClose={() => {
-          setIsViewingProposal(false);
-        }}
-        onChooseOtherOption={(option) => {
-          setIsViewingProposal(false);
-          if (option === 'builder_pro') {
-            handleOpenBuilder(undefined, true);
-          } else {
-            handleOpenBuilder(undefined, false);
-          }
-        }}
+          proposal={currentProposal}
+          onConfirm={() => {
+            setIsViewingProposal(false);
+            setIsBuilderOpen(false);
+            setIsBuilderPro(false);
+          }}
+          onAdjustAnswers={() => {
+            updateUserProfile({
+              onboardingCompleted: false,
+              routineConfirmed: false,
+            });
+            setIsViewingProposal(false);
+            setIsBuilderOpen(false);
+            setIsBuilderPro(false);
+          }}
+          onClose={() => {
+            setIsViewingProposal(false);
+            setIsBuilderOpen(false);
+            setIsBuilderPro(false);
+            if (!profile.routineConfirmed) {
+              updateUserProfile({ routineConfirmed: true });
+            }
+          }}
+          onChooseOtherOption={(option) => {
+            setIsViewingProposal(false);
+            if (option === 'builder_pro') {
+              handleOpenBuilder(undefined, true);
+            } else {
+              handleOpenBuilder(undefined, false);
+            }
+          }}
         />
       </React.Suspense>
     );
   }
 
-  // 4. EXPERIÊNCIA PRINCIPAL (Seção 7, 8, 9, 10, 11)
+  // 5. EXPERIÊNCIA PRINCIPAL (Seção 7, 8, 9, 10, 11)
   return (
     <div className="min-h-screen bg-[#F5F8F5] text-[#152A29] flex flex-col justify-between font-sans">
       {/* Barra de Status e Cabeçalho Superior */}

@@ -16,7 +16,7 @@ Há uma aplicação implementada e publicada, além de materiais históricos de 
 
 ## Desenvolvimento local
 
-O repositório contém React, TypeScript, Vite, Tailwind e dependências Firebase. Os comandos abaixo correspondem aos scripts existentes; não foram executados nesta alteração documental.
+O repositório contém React, TypeScript, Vite, Tailwind e dependências Firebase. Os comandos abaixo correspondem aos scripts existentes:
 
 1. Instale as dependências com `npm install`.
 2. Consulte `.env.example` e a configuração Firebase existente para preparar seu ambiente. Nunca versionar credenciais ou arquivos locais de segredos. Não presumir que uma chave Gemini seja necessária para todos os fluxos.
@@ -29,9 +29,17 @@ O repositório contém React, TypeScript, Vite, Tailwind e dependências Firebas
 | `npm run build` | Build Vite |
 | `npm run preview` | Preview da build |
 
-## Publicação e contribuição
+## Fluxo de Trabalho, Homologação e Deploy
 
-O workflow `.github/workflows/firebase-hosting-merge.yml` publica no Firebase Hosting em pushes na `main`, após testes e build. Mudanças devem ser revisadas em branch/PR; não confundir preview de PR com produção. Ver [estrutura técnica e fluxo de trabalho](docs/projeto/ESTRUTURA_E_MANUTENCAO.md).
+O projeto adota uma esteira contínua com isolamento de homologação via Firebase Hosting:
+
+1. **Feature Branch:** Toda alteração ou correção deve ser desenvolvida em uma branch própria (`feat/nome-da-feature` ou `fix/nome-da-correcao`).
+2. **Validação Local:** Antes de abrir a PR, certifique-se de validar a tipagem (`npm run lint`), os testes unitários (`npm test`) e os testes E2E (`npx playwright test`).
+3. **Pull Request (PR):** Ao abrir a PR para a branch `main`, a GitHub Action `.github/workflows/firebase-hosting-pull-request.yml` executa os testes, build e faz deploy de um **Preview Channel temporário do Firebase Hosting** com link exclusivo nos comentários da PR.
+4. **Homologação:** Os testadores validam as alterações diretamente no link de preview gerado na PR, sem impactar a aplicação em produção.
+5. **Merge e Deploy de Produção:** Com a PR aprovada e testada, o merge na branch `main` dispara a GitHub Action `.github/workflows/firebase-hosting-merge.yml`, publicando a versão final no canal **live** em https://superacao-app-65.web.app/.
+
+Ver mais detalhes em [estrutura técnica e fluxo de trabalho](docs/projeto/ESTRUTURA_E_MANUTENCAO.md).
 
 ## Materiais históricos
 

@@ -13,7 +13,7 @@ export const AICoachCard: React.FC<AICoachCardProps> = ({ context }) => {
   const fetchInsight = async (force: boolean = false) => {
     setLoading(true);
     try {
-      const res = await generateDailyInsight(context, force);
+      const res = await generateDailyInsight(context, force, insightData?.insight);
       setInsightData(res);
     } catch {
       // Ignora erro, generateDailyInsight já tem fallback

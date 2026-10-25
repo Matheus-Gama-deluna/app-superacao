@@ -325,6 +325,7 @@ export const ProfileView: React.FC<ProfileViewProps> = ({ onClose }) => {
               <button
                 key={t.id}
                 type="button"
+                aria-pressed={preferredTime === t.id}
                 onClick={() => setPreferredTime(t.id)}
                 className={`py-2 rounded-xl text-xs font-bold border transition-colors cursor-pointer ${
                   preferredTime === t.id
@@ -353,11 +354,14 @@ export const ProfileView: React.FC<ProfileViewProps> = ({ onClose }) => {
               { idx: 5, label: 'S' },
               { idx: 6, label: 'S' },
             ].map((d) => {
+              const fullDayNames = ['Domingo', 'Segunda-feira', 'Terça-feira', 'Quarta-feira', 'Quinta-feira', 'Sexta-feira', 'Sábado'];
               const isSelected = availableDays.includes(d.idx);
               return (
                 <button
                   key={d.idx}
                   type="button"
+                  aria-pressed={isSelected}
+                  aria-label={fullDayNames[d.idx]}
                   onClick={() => handleToggleDay(d.idx)}
                   className={`h-10 rounded-xl font-bold text-xs transition-all cursor-pointer ${
                     isSelected
@@ -377,8 +381,8 @@ export const ProfileView: React.FC<ProfileViewProps> = ({ onClose }) => {
           <label className="block text-xs font-bold text-[#152A29] mb-1.5">
             Tempo Dedicado por Treino
           </label>
-          <div className="grid grid-cols-5 gap-1.5">
-            {[15, 20, 25, 30, 45].map((mins) => (
+          <div className="grid grid-cols-3 sm:grid-cols-6 gap-1.5">
+            {[5, 10, 15, 20, 30, 45].map((mins) => (
               <button
                 key={mins}
                 type="button"
@@ -468,9 +472,12 @@ export const ProfileView: React.FC<ProfileViewProps> = ({ onClose }) => {
           Retorno Sensorial & Timers
         </h4>
         <div className="space-y-2">
-          <div
+          <button
+            type="button"
+            role="switch"
+            aria-checked={profile.soundEnabled !== false}
             onClick={toggleSound}
-            className="flex items-center justify-between p-3 rounded-xl bg-[#F5F8F5] border border-[#C9DBD3] cursor-pointer"
+            className="w-full flex items-center justify-between p-3 rounded-xl bg-[#F5F8F5] border border-[#C9DBD3] hover:border-[#125F55] transition-colors cursor-pointer text-left"
           >
             <div className="flex items-center gap-2 text-xs font-medium text-[#152A29]">
               {profile.soundEnabled !== false ? <Volume2 className="w-4 h-4 text-[#125F55]" /> : <VolumeX className="w-4 h-4 text-[#5B7170]" />}
@@ -479,11 +486,14 @@ export const ProfileView: React.FC<ProfileViewProps> = ({ onClose }) => {
             <span className="text-xs font-bold text-[#125F55]">
               {profile.soundEnabled !== false ? 'Ativado' : 'Silencioso'}
             </span>
-          </div>
+          </button>
 
-          <div
+          <button
+            type="button"
+            role="switch"
+            aria-checked={profile.hapticEnabled !== false}
             onClick={toggleHaptic}
-            className="flex items-center justify-between p-3 rounded-xl bg-[#F5F8F5] border border-[#C9DBD3] cursor-pointer"
+            className="w-full flex items-center justify-between p-3 rounded-xl bg-[#F5F8F5] border border-[#C9DBD3] hover:border-[#125F55] transition-colors cursor-pointer text-left"
           >
             <div className="flex items-center gap-2 text-xs font-medium text-[#152A29]">
               <Smartphone className="w-4 h-4 text-[#125F55]" />
@@ -492,7 +502,7 @@ export const ProfileView: React.FC<ProfileViewProps> = ({ onClose }) => {
             <span className="text-xs font-bold text-[#125F55]">
               {profile.hapticEnabled !== false ? 'Ativado' : 'Desativado'}
             </span>
-          </div>
+          </button>
         </div>
       </section>
 
@@ -533,9 +543,12 @@ export const ProfileView: React.FC<ProfileViewProps> = ({ onClose }) => {
         </div>
 
         {/* Guia de Voz Offline do Coach */}
-        <div
+        <button
+          type="button"
+          role="switch"
+          aria-checked={voiceGuideEnabled}
           onClick={toggleVoiceGuide}
-          className="flex items-center justify-between p-3.5 rounded-2xl bg-[#F5F8F5] border border-[#C9DBD3] cursor-pointer"
+          className="w-full flex items-center justify-between p-3.5 rounded-2xl bg-[#F5F8F5] border border-[#C9DBD3] hover:border-[#125F55] transition-colors cursor-pointer text-left"
         >
           <div className="flex items-center gap-2.5 text-xs font-medium text-[#152A29]">
             <Mic className="w-4 h-4 text-[#125F55]" />
@@ -544,7 +557,7 @@ export const ProfileView: React.FC<ProfileViewProps> = ({ onClose }) => {
           <span className="text-xs font-bold text-[#125F55]">
             {voiceGuideEnabled ? 'Ativado' : 'Silencioso'}
           </span>
-        </div>
+        </button>
       </section>
 
       {/* Backup, Restauração e Privacidade (A19, A20) */}

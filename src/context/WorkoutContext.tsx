@@ -138,6 +138,7 @@ interface WorkoutContextType {
   swapExerciseInActiveSession: (targetIndex: number, newExercise: Exercise) => void;
   replaceExerciseInPlan: (planId: string, oldExerciseId: string, newExercise: Exercise) => Promise<void>;
   updateActiveExerciseTarget: (targetIndex: number, newTargetReps: number) => void;
+  softenActiveSessionTargets: () => void;
   applyPlanProgression: (planId: string, approvedUpgrades: ProgressionItemUpgrade[]) => Promise<void>;
 }
 
@@ -737,6 +738,33 @@ export const WorkoutProvider: React.FC<{ children: React.ReactNode }> = ({ child
     });
   };
 
+  const softenActiveSessionTargets = () => {
+    if (!activeSession) return;
+    const softened = activeSession.exercisesSnapshot.map((ex) => {
+      let nextReps = ex.targetReps;
+      let nextSec = ex.targetDurationSeconds;
+      if (nextReps && nextReps > 0) {
+        nextReps = Math.max(4, Math.round(nextReps * 0.75));
+      }
+      if (nextSec && nextSec > 0) {
+        nextSec = Math.max(15, Math.round(nextSec * 0.75));
+      }
+      return {
+        ...ex,
+        targetReps: nextReps,
+        targetDurationSeconds: nextSec,
+      };
+    });
+
+    const updated: WorkoutSession = {
+      ...activeSession,
+      exercisesSnapshot: softened,
+    };
+    setActiveSession(updated);
+    setLocal('superacao_active_session', updated);
+    triggerHaptic(50, profile.hapticEnabled);
+  };
+
   const updateActiveExerciseTarget = (targetIndex: number, newTargetReps: number) => {
     if (!activeSession) return;
     const currentList = [...activeSession.exercisesSnapshot];
@@ -827,8 +855,17 @@ export const WorkoutProvider: React.FC<{ children: React.ReactNode }> = ({ child
       triggerHaptic(60, profile.hapticEnabled);
     }
 
-    // 2. Grava evento de série (SetEvent - imutável)
-    const eventId = `set_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
+    // 2. Grava ou atualiza evento de série (evita duplicação ao navegar anterior/próximo)
+    const existingIndex = setEvents.findIndex(
+      (e) =>
+        e.sessionId === activeSession.id &&
+        e.exerciseId === currentExItem.exerciseId &&
+        e.setIndex === activeSession.currentSetIndex
+    );
+    const isUpdate = existingIndex >= 0;
+    const previousEvent = isUpdate ? setEvents[existingIndex] : null;
+
+    const eventId = previousEvent ? previousEvent.id : `set_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
     const restSec = customRestSeconds !== undefined ? customRestSeconds : currentExItem.restSeconds;
 
     const setEvent: SetEvent = {
@@ -850,8 +887,10 @@ export const WorkoutProvider: React.FC<{ children: React.ReactNode }> = ({ child
       recordedAt: Date.now(),
     };
 
-    // Atualiza estado local de eventos
-    const updatedEvents = [...setEvents, setEvent];
+    // Atualiza estado local de eventos com deduplicação
+    const updatedEvents = isUpdate
+      ? setEvents.map((e, idx) => (idx === existingIndex ? setEvent : e))
+      : [...setEvents, setEvent];
     setSetEvents(updatedEvents);
     setLocal('superacao_set_events', updatedEvents);
 
@@ -886,17 +925,20 @@ export const WorkoutProvider: React.FC<{ children: React.ReactNode }> = ({ child
       }
     }
 
-    const setVolume = (actualReps || 0) * (actualWeightKg || 0);
+    const repsDiff = actualReps - (previousEvent?.actualReps || 0);
+    const prevVol = (previousEvent?.actualReps || 0) * (previousEvent?.actualWeightKg || 0);
+    const newVol = (actualReps || 0) * (actualWeightKg || 0);
+    const volumeDiff = newVol - prevVol;
 
     const updatedSession: WorkoutSession = {
       ...activeSession,
       currentExerciseIndex: nextExIndex,
       currentSetIndex: nextSetIndex,
-      totalSetsCompleted: activeSession.totalSetsCompleted + 1,
-      totalRepsCompleted: activeSession.totalRepsCompleted + actualReps,
-      totalVolumeKg: (activeSession.totalVolumeKg || 0) + setVolume,
-      prsAchieved: activeSession.prsAchieved + (prCheck.isPR ? 1 : 0),
-      newBaselinesCount: (activeSession.newBaselinesCount || 0) + (prCheck.isNewBaseline ? 1 : 0),
+      totalSetsCompleted: isUpdate ? activeSession.totalSetsCompleted : activeSession.totalSetsCompleted + 1,
+      totalRepsCompleted: activeSession.totalRepsCompleted + repsDiff,
+      totalVolumeKg: (activeSession.totalVolumeKg || 0) + volumeDiff,
+      prsAchieved: activeSession.prsAchieved + (prCheck.isPR && !previousEvent?.isPR ? 1 : 0),
+      newBaselinesCount: (activeSession.newBaselinesCount || 0) + (prCheck.isNewBaseline && !previousEvent ? 1 : 0),
       durationSeconds: Math.floor((Date.now() - activeSession.startedAt) / 1000),
     };
 
@@ -913,10 +955,17 @@ export const WorkoutProvider: React.FC<{ children: React.ReactNode }> = ({ child
 
   const previousExercise = () => {
     if (!activeSession || activeSession.currentExerciseIndex <= 0) return;
+    const targetIdx = activeSession.currentExerciseIndex - 1;
+    const targetEx = activeSession.exercisesSnapshot[targetIdx];
+    const completedForTarget = setEvents.filter(
+      (e) => e.sessionId === activeSession.id && e.exerciseId === targetEx.exerciseId
+    ).length;
+    const nextSetIdx = Math.min(targetEx.targetSets, completedForTarget + 1);
+
     const updated: WorkoutSession = {
       ...activeSession,
-      currentExerciseIndex: activeSession.currentExerciseIndex - 1,
-      currentSetIndex: 1,
+      currentExerciseIndex: targetIdx,
+      currentSetIndex: nextSetIdx,
     };
     setActiveSession(updated);
     setLocal('superacao_active_session', updated);
@@ -924,10 +973,17 @@ export const WorkoutProvider: React.FC<{ children: React.ReactNode }> = ({ child
 
   const nextExercise = () => {
     if (!activeSession || activeSession.currentExerciseIndex >= activeSession.exercisesSnapshot.length - 1) return;
+    const targetIdx = activeSession.currentExerciseIndex + 1;
+    const targetEx = activeSession.exercisesSnapshot[targetIdx];
+    const completedForTarget = setEvents.filter(
+      (e) => e.sessionId === activeSession.id && e.exerciseId === targetEx.exerciseId
+    ).length;
+    const nextSetIdx = Math.min(targetEx.targetSets, completedForTarget + 1);
+
     const updated: WorkoutSession = {
       ...activeSession,
-      currentExerciseIndex: activeSession.currentExerciseIndex + 1,
-      currentSetIndex: 1,
+      currentExerciseIndex: targetIdx,
+      currentSetIndex: nextSetIdx,
     };
     setActiveSession(updated);
     setLocal('superacao_active_session', updated);
@@ -1348,7 +1404,7 @@ export const WorkoutProvider: React.FC<{ children: React.ReactNode }> = ({ child
       routineConfirmed: true,
       onboardingCompleted: true,
       availableDays: Object.keys(proposal.weeklySchedule).map(Number),
-      sessionDurationMinutes: proposal.sessionDurationMinutes,
+      sessionDurationMinutes: profile.sessionDurationMinutes || proposal.sessionDurationMinutes,
       equipments: proposal.equipmentsUsed,
       avoidedMovements: proposal.avoidedMovements,
       updatedAt: Date.now(),
@@ -1723,6 +1779,7 @@ export const WorkoutProvider: React.FC<{ children: React.ReactNode }> = ({ child
         swapExerciseInActiveSession,
         replaceExerciseInPlan,
         updateActiveExerciseTarget,
+        softenActiveSessionTargets,
         applyPlanProgression,
       }}
     >

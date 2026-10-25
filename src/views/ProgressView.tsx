@@ -389,7 +389,7 @@ export const ProgressView: React.FC = () => {
                       <p className="text-[11px] text-[#5B7170] mt-0.5">
                         {new Date(sess.startedAt).toLocaleDateString('pt-BR')} às{' '}
                         {new Date(sess.startedAt).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
-                        {' · '}{Math.ceil(sess.durationSeconds / 60)} min
+                        {' · '}{Math.max(1, Math.round(sess.durationSeconds / 60))} min
                       </p>
                     </div>
 

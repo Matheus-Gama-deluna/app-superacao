@@ -82,6 +82,7 @@ export const ActiveWorkoutView: React.FC<ActiveWorkoutViewProps> = ({
     plans,
     calendar,
     setSessionPreMood,
+    softenActiveSessionTargets,
     scheduleOptionalMobilityForTomorrow,
     setEvents,
     swapExerciseInActiveSession,
@@ -106,6 +107,7 @@ export const ActiveWorkoutView: React.FC<ActiveWorkoutViewProps> = ({
   const [copiedShare, setCopiedShare] = useState<boolean>(false);
   const [postMood, setPostMood] = useState<PostWorkoutMood | null>('orgulhoso');
   const [isMobilityScheduled, setIsMobilityScheduled] = useState<boolean>(false);
+  const [isSessionSoftened, setIsSessionSoftened] = useState<boolean>(false);
   // Fase 4: Adaptação Viva
   const [showSwapModal, setShowSwapModal] = useState<boolean>(false);
   const [saveSwapToPlan, setSaveSwapToPlan] = useState<boolean>(false);
@@ -300,7 +302,7 @@ export const ActiveWorkoutView: React.FC<ActiveWorkoutViewProps> = ({
   };
 
   const handleShareWorkout = async () => {
-    const shareText = `🔥 Mais um treino concluído no Superação!\n📋 ${activeSession.planTitle}\n⏱️ ${Math.ceil(activeSession.durationSeconds / 60)} minutos dedicados\n💪 ${activeSession.totalSetsCompleted} séries concluídas\n${activeSession.totalVolumeKg ? `🏋️ ${activeSession.totalVolumeKg} kg superados em volume\n` : ''}${activeSession.prsAchieved > 0 ? `🏆 ${activeSession.prsAchieved} novos recordes pessoais!\n` : ''}\nConstruindo minha melhor versão todos os dias!`;
+    const shareText = `🔥 Mais um treino concluído no Superação!\n📋 ${activeSession.planTitle}\n⏱️ ${Math.max(1, Math.round(activeSession.durationSeconds / 60))} minutos dedicados\n💪 ${activeSession.totalSetsCompleted} séries concluídas\n${activeSession.totalVolumeKg ? `🏋️ ${activeSession.totalVolumeKg} kg superados em volume\n` : ''}${activeSession.prsAchieved > 0 ? `🏆 ${activeSession.prsAchieved} novos recordes pessoais!\n` : ''}\nConstruindo minha melhor versão todos os dias!`;
     const status = await shareWorkoutVictory({
       title: 'Superação Diária',
       text: shareText,
@@ -429,6 +431,8 @@ export const ActiveWorkoutView: React.FC<ActiveWorkoutViewProps> = ({
               ].map((item) => (
                 <button
                   key={item.score}
+                  type="button"
+                  aria-pressed={effortScore === item.score}
                   onClick={() => {
                     setEffortScore(item.score);
                     if (currentPlan) {
@@ -547,6 +551,7 @@ export const ActiveWorkoutView: React.FC<ActiveWorkoutViewProps> = ({
                 <button
                   key={m.mood}
                   type="button"
+                  aria-pressed={postMood === m.mood}
                   onClick={() => setPostMood(m.mood)}
                   className={`py-2 px-1 rounded-xl text-center text-xs font-bold transition-all cursor-pointer flex flex-col items-center gap-0.5 ${
                     postMood === m.mood
@@ -566,7 +571,9 @@ export const ActiveWorkoutView: React.FC<ActiveWorkoutViewProps> = ({
             <div className="flex items-center justify-between text-xs">
               <span className="font-bold text-[#152A29]">Compartilhar sua Superação</span>
               {copiedShare && (
-                <span className="text-emerald-700 font-bold text-[11px]">✓ Copiado para compartilhar!</span>
+                <span role="status" className="text-emerald-700 font-bold text-[11px] animate-in fade-in">
+                  ✓ Resumo copiado! Pronto para colar onde quiser.
+                </span>
               )}
             </div>
             <p className="text-[11px] text-[#5B7170]">
@@ -578,7 +585,7 @@ export const ActiveWorkoutView: React.FC<ActiveWorkoutViewProps> = ({
               className="w-full py-3 bg-[#EAF3EF] hover:bg-[#D9F277] text-[#125F55] hover:text-[#203826] font-bold text-xs rounded-xl flex items-center justify-center gap-2 transition-all cursor-pointer border border-[#C9DBD3]"
             >
               <Sparkles className="w-4 h-4 text-[#E07A5F]" />
-              <span>{copiedShare ? 'Resumo Copiado para a Área de Transferência!' : 'Compartilhar Vitória'}</span>
+              <span>{copiedShare ? '✓ Resumo Copiado para a Área de Transferência!' : 'Compartilhar Vitória'}</span>
             </button>
           </div>
 
@@ -648,7 +655,7 @@ export const ActiveWorkoutView: React.FC<ActiveWorkoutViewProps> = ({
         <div className="flex items-center gap-1">
           <button
             onClick={() => setShowAbandonConfirm(true)}
-            className="p-1.5 rounded-lg text-[#5B7170] hover:text-[#B13D39] cursor-pointer"
+            className="min-w-[44px] min-h-[44px] p-2.5 rounded-xl text-[#5B7170] hover:text-[#B13D39] flex items-center justify-center cursor-pointer"
             title="Encerrar sessão"
             aria-label="Encerrar sessão"
           >
@@ -656,7 +663,7 @@ export const ActiveWorkoutView: React.FC<ActiveWorkoutViewProps> = ({
           </button>
           <button
             onClick={onPauseAndReturnHome || pauseAndReturnHome}
-            className="p-1.5 rounded-lg text-[#5B7170] hover:text-[#125F55] cursor-pointer"
+            className="min-w-[44px] min-h-[44px] p-2.5 rounded-xl text-[#5B7170] hover:text-[#125F55] flex items-center justify-center cursor-pointer"
             title="Pausar treino e voltar ao início"
             aria-label="Pausar treino e voltar ao início"
           >
@@ -675,8 +682,9 @@ export const ActiveWorkoutView: React.FC<ActiveWorkoutViewProps> = ({
 
         <button
           onClick={toggleSound}
-          className="p-1.5 rounded-lg text-[#5B7170] hover:text-[#125F55]"
+          className="min-w-[44px] min-h-[44px] p-2.5 rounded-xl text-[#5B7170] hover:text-[#125F55] flex items-center justify-center cursor-pointer"
           title="Alternar som do timer"
+          aria-label="Alternar som do timer"
         >
           {profile.soundEnabled ? <Volume2 className="w-5 h-5" /> : <VolumeX className="w-5 h-5" />}
         </button>
@@ -758,31 +766,81 @@ export const ActiveWorkoutView: React.FC<ActiveWorkoutViewProps> = ({
       ) : (
         /* ÁREA PRINCIPAL DO EXERCÍCIO (S07) */
         <main className="flex-1 flex flex-col justify-between p-4 max-w-md mx-auto w-full overflow-y-auto">
-          {/* Check-in Inicial de Sensação (Estratégia D: 1 toque opcional) */}
-          {!activeSession.preMood && activeSession.totalSetsCompleted === 0 && (
-            <div className="bg-[#FAF7F2] p-3 rounded-2xl border border-[#C9DBD3] space-y-1.5 mb-2 shadow-2xs">
-              <span className="text-[11px] font-bold text-[#152A29] block">
-                Como você está chegando hoje?
-              </span>
-              <div className="grid grid-cols-4 gap-1.5">
-                {[
-                  { mood: 'cansado' as const, label: 'Cansado', icon: '🔋' },
-                  { mood: 'tenso' as const, label: 'Tenso', icon: '🧘' },
-                  { mood: 'normal' as const, label: 'Normal', icon: '🙂' },
-                  { mood: 'disposto' as const, label: 'Disposto', icon: '⚡' },
-                ].map((m) => (
+          {/* Check-in Inicial de Sensação e Acolhimento */}
+          {activeSession.totalSetsCompleted === 0 && (
+            activeSession.preMood ? (
+              <div className="bg-[#FAF7F2] p-3.5 rounded-2xl border border-[#C9DBD3] space-y-2 mb-2 shadow-2xs animate-in fade-in">
+                <div className="flex items-start justify-between gap-2">
+                  <div className="flex items-center gap-2">
+                    <span className="text-base">
+                      {activeSession.preMood === 'cansado' ? '🔋' : activeSession.preMood === 'tenso' ? '🧘' : activeSession.preMood === 'disposto' ? '⚡' : '🙂'}
+                    </span>
+                    <span className="text-xs font-bold text-[#152A29]">
+                      {activeSession.preMood === 'cansado'
+                        ? 'Chegando com pouca energia hoje'
+                        : activeSession.preMood === 'tenso'
+                        ? 'Chegando com tensão muscular'
+                        : activeSession.preMood === 'disposto'
+                        ? 'Chegando com disposição alta'
+                        : 'Chegando no ritmo habitual'}
+                    </span>
+                  </div>
                   <button
-                    key={m.mood}
                     type="button"
-                    onClick={() => setSessionPreMood(m.mood)}
-                    className="py-1.5 px-1 rounded-xl bg-white border border-[#C9DBD3] hover:border-[#125F55] text-center text-[10px] font-semibold flex flex-col items-center gap-0.5 cursor-pointer shadow-2xs"
+                    onClick={() => setSessionPreMood(undefined as any)}
+                    className="text-[10px] text-[#5B7170] hover:text-[#125F55] cursor-pointer"
                   >
-                    <span className="text-sm">{m.icon}</span>
-                    <span className="text-[#5B7170] truncate">{m.label}</span>
+                    Alterar
                   </button>
-                ))}
+                </div>
+                <p className="text-[11px] text-[#5B7170] leading-relaxed">
+                  {activeSession.preMood === 'cansado' || activeSession.preMood === 'tenso'
+                    ? 'Tudo bem estar assim! Presença e movimento leve valem muito mais do que intensidade.'
+                    : 'Excelente! Vamos no seu ritmo, construindo constância dia a dia.'}
+                </p>
+                {(activeSession.preMood === 'cansado' || activeSession.preMood === 'tenso') && !isSessionSoftened && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      softenActiveSessionTargets();
+                      setIsSessionSoftened(true);
+                    }}
+                    className="w-full py-2 px-3 bg-[#EAF3EF] border border-[#125F55]/30 text-[#125F55] rounded-xl text-xs font-bold hover:bg-[#D9F277]/40 flex items-center justify-center gap-1.5 cursor-pointer shadow-2xs"
+                  >
+                    <span>🌿 Suavizar metas de hoje (-25% repetições/tempo)</span>
+                  </button>
+                )}
+                {isSessionSoftened && (
+                  <div className="py-1.5 px-2.5 bg-emerald-50 text-emerald-800 text-[11px] font-semibold rounded-lg border border-emerald-200 text-center">
+                    ✓ Metas de hoje suavizadas com carinho para o seu ritmo!
+                  </div>
+                )}
               </div>
-            </div>
+            ) : (
+              <div className="bg-[#FAF7F2] p-3 rounded-2xl border border-[#C9DBD3] space-y-1.5 mb-2 shadow-2xs">
+                <span className="text-[11px] font-bold text-[#152A29] block">
+                  Como você está chegando hoje?
+                </span>
+                <div className="grid grid-cols-4 gap-1.5">
+                  {[
+                    { mood: 'cansado' as const, label: 'Cansado', icon: '🔋' },
+                    { mood: 'tenso' as const, label: 'Tenso', icon: '🧘' },
+                    { mood: 'normal' as const, label: 'Normal', icon: '🙂' },
+                    { mood: 'disposto' as const, label: 'Disposto', icon: '⚡' },
+                  ].map((m) => (
+                    <button
+                      key={m.mood}
+                      type="button"
+                      onClick={() => setSessionPreMood(m.mood)}
+                      className="py-1.5 px-1 rounded-xl bg-white border border-[#C9DBD3] hover:border-[#125F55] text-center text-[10px] font-semibold flex flex-col items-center gap-0.5 cursor-pointer shadow-2xs"
+                    >
+                      <span className="text-sm">{m.icon}</span>
+                      <span className="text-[#5B7170] truncate">{m.label}</span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )
           )}
 
           {/* Destaque do Micro-Desafio de Hoje se for neste exercício (Estratégia C) */}

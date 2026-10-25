@@ -95,16 +95,19 @@ export function isExerciseSafeForUser(
   // 1. Apoios estruturais obrigatórios (cadeira, parede, barra_fixa, banco, paralelas)
   if (ex.requires_supports && Array.isArray(ex.requires_supports)) {
     for (const sup of ex.requires_supports) {
-      if (!userEquipments.includes(sup)) {
+      const isWallAvailable = sup === 'parede' && (userEquipments.includes('peso_corporal') || userEquipments.includes('parede'));
+      if (!userEquipments.includes(sup) && !isWallAvailable) {
         return { safe: false, reason: `Requer o apoio obrigatório '${sup}' que não está disponível.` };
       }
     }
   }
 
   // 2. Equipamentos estritamente obrigatórios
-  const requiresOtherEquip = ex.equipment.some(
-    (eq: string) => eq !== 'nenhum' && eq !== 'colchonete' && !userEquipments.includes(eq)
-  );
+  const requiresOtherEquip = ex.equipment.some((eq: string) => {
+    if (eq === 'nenhum' || eq === 'colchonete') return false;
+    if (eq === 'parede' && (userEquipments.includes('peso_corporal') || userEquipments.includes('parede'))) return false;
+    return !userEquipments.includes(eq);
+  });
   if (requiresOtherEquip) {
     return { safe: false, reason: 'Requer equipamento que não está no seu inventário.' };
   }
@@ -150,9 +153,29 @@ export function isExerciseSafeForUser(
   }
 
   if (avoidedMovements.includes('flexao_chao')) {
-    const textName = (ex.name_pt || '').toLowerCase();
-    if (textName.includes('flexão de braço') && !textName.includes('parede') && !textName.includes('inclinada')) {
+    const textName = `${ex.name_pt || ''} ${ex.name_en || ''} ${ex.id || ''}`.toLowerCase();
+    const isPushupPattern =
+      ex.id === 'pushups' ||
+      ex.id === 'kneeling_pushup' ||
+      ex.id === 'push-up' ||
+      ex.id === 'push_up' ||
+      textName.includes('flexão') ||
+      textName.includes('flexao') ||
+      textName.includes('pushup') ||
+      textName.includes('push-up') ||
+      textName.includes('push_up');
+    const isElevated =
+      textName.includes('parede') ||
+      textName.includes('wall') ||
+      textName.includes('inclinada') ||
+      textName.includes('incline') ||
+      textName.includes('elevada');
+
+    if (isPushupPattern && !isElevated) {
       return { safe: false, reason: 'Flexão tradicional no chão evitada por preferência.' };
+    }
+    if (ex.functionalPattern === 'push_horizontal' && ex.floorTransition && !isElevated) {
+      return { safe: false, reason: 'Movimento horizontal de peitoral no solo evitado por preferência.' };
     }
   }
 

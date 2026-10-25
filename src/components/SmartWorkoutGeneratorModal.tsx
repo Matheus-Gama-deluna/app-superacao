@@ -48,6 +48,7 @@ export const SmartWorkoutGeneratorModal: React.FC<SmartWorkoutGeneratorModalProp
 
   // Configurações do gerador calibradas com o perfil do praticante (Critérios C10, C12, C16)
   const [generationMode, setGenerationMode] = useState<'today' | 'weekly_split'>('today');
+  const [variationCount, setVariationCount] = useState<number>(0);
   const [selectedEquipments, setSelectedEquipments] = useState<string[]>(() => {
     return profile.equipments && profile.equipments.length > 0
       ? profile.equipments
@@ -149,7 +150,9 @@ export const SmartWorkoutGeneratorModal: React.FC<SmartWorkoutGeneratorModalProp
     }
   };
 
-  const handleGenerate = () => {
+  const handleGenerate = (isNewVariation: boolean = false) => {
+    const nextVar = isNewVariation ? variationCount + 1 : 0;
+    setVariationCount(nextVar);
     const targetMinutes = durationPreset === 'express' ? 15 : durationPreset === 'padrao' ? 25 : 40;
     
     // Geração canônica com workoutEngine v2
@@ -170,7 +173,8 @@ export const SmartWorkoutGeneratorModal: React.FC<SmartWorkoutGeneratorModalProp
         reportedLimitations: profile?.reportedLimitations || [],
       },
       {
-        seed: Date.now(),
+        seed: Date.now() + nextVar * 1000,
+        variationSeed: nextVar,
       }
     );
 
@@ -189,7 +193,7 @@ export const SmartWorkoutGeneratorModal: React.FC<SmartWorkoutGeneratorModalProp
 
     setGeneratedPlan({
       ...plan,
-      title: `${goalNameMap[goal] || plan.title} • ${durationPreset === 'express' ? '15m' : durationPreset === 'padrao' ? '30m' : '45m'}`,
+      title: `${goalNameMap[goal] || plan.title} • ${durationPreset === 'express' ? '15m' : durationPreset === 'padrao' ? '25m' : '40m'}${nextVar > 0 ? ` (Variação #${nextVar + 1})` : ''}`,
       isProfessional: true,
       authorName: 'Superação (Motor v2)',
     });
@@ -451,7 +455,7 @@ export const SmartWorkoutGeneratorModal: React.FC<SmartWorkoutGeneratorModalProp
               {/* Botão de Ação */}
               <button
                 type="button"
-                onClick={handleGenerate}
+                onClick={() => handleGenerate(false)}
                 className="w-full py-4 bg-[#125F55] hover:bg-[#0E4C44] text-white font-black text-sm rounded-2xl shadow-md flex items-center justify-center gap-2 cursor-pointer transition-all active:scale-[0.99]"
               >
                 <Sparkles className="w-4 h-4 text-[#D9F277]" />
@@ -482,11 +486,17 @@ export const SmartWorkoutGeneratorModal: React.FC<SmartWorkoutGeneratorModalProp
                     {generatedPlan.exercises.length} Movimentos na Sequência
                   </p>
                   <button
-                    onClick={handleGenerate}
-                    className="text-xs text-[#125F55] font-bold flex items-center gap-1 hover:underline cursor-pointer"
+                    type="button"
+                    onClick={() => handleGenerate(true)}
+                    className="text-xs text-[#125F55] font-bold flex items-center gap-1.5 hover:underline cursor-pointer bg-[#EAF3EF] px-2.5 py-1 rounded-lg border border-[#125F55]/30 hover:bg-[#D9F277]/40 transition-colors"
                   >
                     <RefreshCw className="w-3 h-3" />
-                    Gerar Outra Variação
+                    <span>Gerar Outra Variação</span>
+                    {variationCount > 0 && (
+                      <span className="text-[10px] bg-white px-1.5 py-0.2 rounded-full font-extrabold text-[#125F55]">
+                        #{variationCount + 1}
+                      </span>
+                    )}
                   </button>
                 </div>
 

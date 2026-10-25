@@ -18,16 +18,22 @@ export function prescribeExerciseItem(
 ): ExercisePlanItem {
   const duration = options.sessionDurationMinutes || 20;
   const level = options.experienceLevel || 'iniciante';
-  const isExpress = duration <= 15;
+  const isMicro = duration <= 5;
+  const isExpress = duration > 5 && duration <= 10;
+  const isFifteen = duration > 10 && duration <= 15;
   const isLong = duration >= 30;
 
   // 1. Determinação de Séries
   let sets = 2;
   if (ex.modality === 'mobilidade' || ex.modality === 'alongamento') {
-    sets = isExpress ? 1 : 2;
+    sets = (isMicro || isExpress) ? 1 : 2;
   } else {
-    if (isExpress) {
+    if (isMicro) {
       sets = 2;
+    } else if (isExpress) {
+      sets = 2;
+    } else if (isFifteen) {
+      sets = 3;
     } else if (isLong) {
       sets = level === 'avancado' ? 4 : 3;
     } else {

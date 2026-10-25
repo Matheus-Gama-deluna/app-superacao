@@ -1,5 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import { useWorkout } from '../context/WorkoutContext';
+import { useAuth } from '../context/AuthContext';
 import { WorkoutPlan, ExercisePlanItem, Exercise } from '../types';
 import { allExercises, searchExercises, useFullCatalog } from '../data/catalog';
 import {
@@ -16,6 +17,7 @@ import {
   UserCheck,
   Sparkles,
   SlidersHorizontal,
+  AlertCircle,
 } from 'lucide-react';
 import { SmartWorkoutGeneratorModal } from '../components/SmartWorkoutGeneratorModal';
 
@@ -33,6 +35,7 @@ export const BuilderView: React.FC<BuilderViewProps> = ({
   onStartWorkout,
 }) => {
   const { plans, savePlan } = useWorkout();
+  const { profile, updateUserProfile } = useAuth();
   const { isReady: catalogReady, totalCount: catalogTotal } = useFullCatalog();
   const existingPlan = plans.find((p) => p.id === existingPlanId);
 
@@ -50,6 +53,7 @@ export const BuilderView: React.FC<BuilderViewProps> = ({
   const [selectedMuscle, setSelectedMuscle] = useState<string>('todos');
   const [isSaving, setIsSaving] = useState<boolean>(false);
   const [isGeneratorOpen, setIsGeneratorOpen] = useState<boolean>(false);
+  const [validationError, setValidationError] = useState<string | null>(null);
 
   // Fecha modais com a tecla Escape (U03)
   React.useEffect(() => {
@@ -147,13 +151,18 @@ export const BuilderView: React.FC<BuilderViewProps> = ({
 
   const handleSave = async () => {
     if (!title.trim()) {
-      alert('Por favor, informe um título para o treino.');
+      setValidationError('Por favor, informe um título para o treino.');
       return;
     }
     if (items.length === 0) {
-      alert('Adicione pelo menos um exercício ao treino.');
+      setValidationError('Adicione pelo menos um exercício ao treino.');
       return;
     }
+    if (isProfessional && !authorName.trim()) {
+      setValidationError('Por favor, informe o nome ou registro do profissional (Personal Trainer ou Fisioterapeuta).');
+      return;
+    }
+    setValidationError(null);
 
     setIsSaving(true);
     try {
@@ -172,10 +181,13 @@ export const BuilderView: React.FC<BuilderViewProps> = ({
         },
         existingPlanId
       );
+      if (!profile.routineConfirmed) {
+        await updateUserProfile({ routineConfirmed: true });
+      }
       onClose();
     } catch (err) {
       console.error('Erro ao salvar plano:', err);
-      alert('Ocorreu um erro ao salvar o treino.');
+      setValidationError('Ocorreu um erro ao salvar o treino. Tente novamente.');
     } finally {
       setIsSaving(false);
     }
@@ -211,6 +223,13 @@ export const BuilderView: React.FC<BuilderViewProps> = ({
           <span>Salvar</span>
         </button>
       </div>
+
+      {validationError && (
+        <div role="alert" className="p-3.5 bg-red-50 border border-red-200 text-red-800 text-xs rounded-2xl flex items-center gap-2 animate-in fade-in">
+          <AlertCircle className="w-4 h-4 shrink-0 text-red-600" />
+          <span className="font-semibold">{validationError}</span>
+        </div>
+      )}
 
       {/* Informações Básicas */}
       <section className="bg-white rounded-3xl p-5 border border-[#C9DBD3] shadow-xs space-y-3.5">
@@ -273,13 +292,20 @@ export const BuilderView: React.FC<BuilderViewProps> = ({
             <span>Este treino foi passado por um Personal Trainer ou Fisioterapeuta</span>
           </label>
           {isProfessional && (
-            <div className="mt-2.5 pl-6">
+            <div className="mt-2.5 pl-6 space-y-1">
+              <label htmlFor="builder-author-name" className="block text-[11px] font-semibold text-[#5B7170]">
+                Nome e/ou registro do profissional (obrigatório):
+              </label>
               <input
+                id="builder-author-name"
                 type="text"
                 value={authorName}
-                onChange={(e) => setAuthorName(e.target.value)}
-                placeholder="Nome do profissional (ex: Fisioterapeuta Camila)"
-                className="w-full h-9 px-3 rounded-xl border border-[#C9DBD3] text-xs text-[#152A29]"
+                onChange={(e) => {
+                  setAuthorName(e.target.value);
+                  if (validationError) setValidationError(null);
+                }}
+                placeholder="Ex: Fisioterapeuta Camila (CREFITO 12345)"
+                className="w-full h-9 px-3 rounded-xl border border-[#C9DBD3] text-xs text-[#152A29] focus:outline-none focus:border-[#125F55]"
               />
             </div>
           )}

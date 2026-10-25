@@ -452,8 +452,8 @@ export function getSlotsForGoal(
   const pair = FUNCTIONAL_SLOT_TEMPLATES[norm];
   const template = variant === 'A' ? pair.templateA : pair.templateB;
 
-  // Garante pelo menos 3 e no máximo o solicitado
-  const count = Math.max(3, Math.min(maxSlots, template.slots.length));
+  // Garante pelo menos 2 (para rotinas express de 5 min) e no máximo o solicitado
+  const count = Math.max(2, Math.min(maxSlots, template.slots.length));
   const slots = template.slots.slice(0, count);
 
   return { template, slots };
