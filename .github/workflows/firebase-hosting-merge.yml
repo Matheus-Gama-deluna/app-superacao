@@ -18,8 +18,12 @@ jobs:
           cache: 'npm'
       - name: Install dependencies
         run: npm install --legacy-peer-deps
-      - name: Run tests
+      - name: Run unit & integration tests
         run: npm test
+      - name: Install Playwright Browsers
+        run: npx playwright install --with-deps chromium
+      - name: Run E2E tests (Playwright - Mobile Pixel 5 & Desktop)
+        run: npx playwright test
       - name: Build web app
         run: npm run build
       - uses: FirebaseExtended/action-hosting-deploy@v0

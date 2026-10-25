@@ -141,7 +141,7 @@ export const ProposalView: React.FC<ProposalViewProps> = ({
 
       {/* Main Content */}
       <main className="flex-1 max-w-xl mx-auto w-full px-4 py-6 space-y-6">
-        {proposal.hasCompatibleExercises === false && (
+        {currentProposal.hasCompatibleExercises === false && (
           <section className="bg-white rounded-3xl p-6 border border-amber-300 shadow-xs space-y-4">
             <div className="flex items-start gap-3">
               <div className="w-12 h-12 rounded-2xl bg-amber-50 flex items-center justify-center text-amber-700 shrink-0">
@@ -155,7 +155,7 @@ export const ProposalView: React.FC<ProposalViewProps> = ({
                   Não encontramos movimentos curados para estes critérios
                 </h2>
                 <p className="text-xs text-[#5B7170] leading-relaxed">
-                  {proposal.reasonIfUnavailable || 'A combinação atual de equipamentos e restrições não possui exercícios certificados no momento. Não geramos rotinas fictícias.'}
+                  {currentProposal.reasonIfUnavailable || 'A combinação atual de equipamentos e restrições não possui exercícios certificados no momento. Não geramos rotinas fictícias.'}
                 </p>
               </div>
             </div>
@@ -227,7 +227,7 @@ export const ProposalView: React.FC<ProposalViewProps> = ({
               <span>Por que esta rotina foi pensada para você?</span>
             </div>
             <p className="text-xs text-[#152A29] leading-relaxed">
-              {proposal.justificationText}
+              {currentProposal.justificationText}
             </p>
           </div>
 
@@ -238,7 +238,7 @@ export const ProposalView: React.FC<ProposalViewProps> = ({
               <div className="text-xs">
                 <span className="text-[10px] text-[#5B7170] block font-medium">Frequência</span>
                 <span className="font-bold text-[#125F55]">
-                  {proposal.targetDaysCount} {proposal.targetDaysCount === 1 ? 'dia por semana' : 'dias por semana'}
+                  {currentProposal.targetDaysCount} {currentProposal.targetDaysCount === 1 ? 'dia por semana' : 'dias por semana'}
                 </span>
               </div>
             </div>
@@ -248,7 +248,7 @@ export const ProposalView: React.FC<ProposalViewProps> = ({
               <div className="text-xs">
                 <span className="text-[10px] text-[#5B7170] block font-medium">Duração real</span>
                 <span className="font-bold text-[#125F55]">
-                  ~{proposal.sessionDurationMinutes} min / treino
+                  ~{currentProposal.sessionDurationMinutes} min / treino
                 </span>
               </div>
             </div>
@@ -260,7 +260,22 @@ export const ProposalView: React.FC<ProposalViewProps> = ({
           </p>
 
           {/* Atalho para Hábito Mínimo (5 min) se a proposta atual for mais longa */}
-          {currentProposal.sessionDurationMinutes > 5 && (
+          {/* Alternância Dinâmica entre Versão Expressa (5 min) e Versão Completa Informada */}
+          {currentProposal.sessionDurationMinutes === 5 && proposal.sessionDurationMinutes > 5 ? (
+            <div className="p-3 bg-[#EAF3EF] rounded-2xl border border-[#125F55]/20 flex items-center justify-between gap-3 text-xs">
+              <div className="text-[#125F55]">
+                <span className="font-bold block">Versão Expressa de 5 min ativada</span>
+                <span className="text-[11px] text-[#5B7170]">Disponibilidade informada original: {proposal.sessionDurationMinutes} min.</span>
+              </div>
+              <button
+                type="button"
+                onClick={() => setCurrentProposal(proposal)}
+                className="px-3 py-1.5 bg-white text-[#125F55] border border-[#125F55]/40 rounded-xl text-xs font-bold shrink-0 hover:bg-[#EAF3EF] cursor-pointer shadow-2xs"
+              >
+                Restaurar {proposal.sessionDurationMinutes} min
+              </button>
+            </div>
+          ) : currentProposal.sessionDurationMinutes > 5 ? (
             <div className="p-3 bg-[#EAF3EF] rounded-2xl border border-[#125F55]/20 flex items-center justify-between gap-3 text-xs">
               <div className="text-[#125F55]">
                 <span className="font-bold block">Pouco tempo ou voltando aos poucos?</span>
@@ -273,6 +288,8 @@ export const ProposalView: React.FC<ProposalViewProps> = ({
                     { ...profile, sessionDurationMinutes: 5 },
                     { sessionDurationMinutes: 5 }
                   );
+                  const origMin = proposal.sessionDurationMinutes;
+                  microProposal.justificationText = `Versão expressa (hábito mínimo): adaptamos esta rotina para aproximadamente 5 minutos por sessão com exercícios essenciais, preservando sua meta de ${microProposal.targetDaysCount} dias por semana e sua disponibilidade original informada de ${origMin} minutos. Foco em manter o hábito ativo sem sobrecarga articular.`;
                   setCurrentProposal(microProposal);
                 }}
                 className="px-3 py-1.5 bg-[#125F55] text-white rounded-xl text-xs font-bold shrink-0 hover:bg-[#0C5148] cursor-pointer shadow-2xs"
@@ -280,7 +297,7 @@ export const ProposalView: React.FC<ProposalViewProps> = ({
                 Versão 5 min
               </button>
             </div>
-          )}
+          ) : null}
         </section>
 
         {/* Ficha de Exercícios Detalhada */}

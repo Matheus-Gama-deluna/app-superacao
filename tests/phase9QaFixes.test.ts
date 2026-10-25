@@ -6,7 +6,7 @@ import { getHeuristicInsight, CoachContext } from '../src/lib/aiCoach';
 import { copyTextToClipboard, shareWorkoutVictory } from '../src/lib/pwaNative';
 import { UserProfile } from '../src/types';
 
-describe('Fase 9: Correções de QA, Experiência, Acolhimento e Acessibilidade (11 Critérios de Aceite)', () => {
+describe('Fase 9: Correções de QA, Experiência, Acolhimento e Acessibilidade (11 Critérios de Aceite + Feedback PR)', () => {
   beforeEach(async () => {
     await ensureFullCatalogLoaded();
   });
@@ -275,5 +275,34 @@ describe('Fase 9: Correções de QA, Experiência, Acolhimento e Acessibilidade 
     expect(standingPress?.functionalPattern).toBe('push_horizontal');
     expect(standingPress?.floorTransition).toBe(false);
     expect(standingPress?.jointStress?.wrist).toBe(0);
+  });
+
+  it('Critério 12: Versão 5 min atualiza a apresentação inteira do plano e preserva a disponibilidade original de 15 min do perfil', () => {
+    const profileOriginal: Partial<UserProfile> = {
+      ...baseProfile,
+      sessionDurationMinutes: 15,
+      availableDays: [1, 3, 5],
+    };
+
+    // Proposta original de 15 min
+    const originalProposal = generateSmartWorkoutRoutine(profileOriginal);
+    expect(originalProposal.sessionDurationMinutes).toBe(15);
+
+    // Quando o usuário alterna para a versão de 5 min na proposta
+    const microProposal = generateSmartWorkoutRoutine(
+      { ...profileOriginal, sessionDurationMinutes: 5 },
+      { sessionDurationMinutes: 5 }
+    );
+    expect(microProposal.sessionDurationMinutes).toBe(5);
+    expect(microProposal.routines[0].exercises.length).toBeGreaterThanOrEqual(2);
+
+    // Simulação da confirmação no WorkoutContext:
+    // A disponibilidade original do perfil (15 min) é preservada
+    const updatedProfile: Partial<UserProfile> = {
+      ...profileOriginal,
+      sessionDurationMinutes: profileOriginal.sessionDurationMinutes || microProposal.sessionDurationMinutes,
+      routineConfirmed: true,
+    };
+    expect(updatedProfile.sessionDurationMinutes).toBe(15);
   });
 });

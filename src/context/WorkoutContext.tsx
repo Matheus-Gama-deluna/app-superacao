@@ -1404,7 +1404,7 @@ export const WorkoutProvider: React.FC<{ children: React.ReactNode }> = ({ child
       routineConfirmed: true,
       onboardingCompleted: true,
       availableDays: Object.keys(proposal.weeklySchedule).map(Number),
-      sessionDurationMinutes: proposal.sessionDurationMinutes,
+      sessionDurationMinutes: profile.sessionDurationMinutes || proposal.sessionDurationMinutes,
       equipments: proposal.equipmentsUsed,
       avoidedMovements: proposal.avoidedMovements,
       updatedAt: Date.now(),
