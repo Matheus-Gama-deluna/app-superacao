@@ -631,10 +631,12 @@ export const ListeningJourneyView: React.FC<ListeningJourneyViewProps> = ({
               <label className="block text-xs font-bold text-[#152A29]">
                 Tempo disponível por sessão
               </label>
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-                {[15, 20, 30, 45].map((mins) => (
+              <div className="grid grid-cols-3 sm:grid-cols-6 gap-2">
+                {[5, 10, 15, 20, 30, 45].map((mins) => (
                   <button
                     key={mins}
+                    type="button"
+                    aria-pressed={sessionDurationMinutes === mins}
                     onClick={() => setSessionDurationMinutes(mins)}
                     className={`h-12 rounded-xl border text-xs font-bold flex items-center justify-center gap-1.5 cursor-pointer transition-all ${
                       sessionDurationMinutes === mins
@@ -711,6 +713,8 @@ export const ListeningJourneyView: React.FC<ListeningJourneyViewProps> = ({
                 return (
                   <button
                     key={eq.id}
+                    type="button"
+                    aria-pressed={isSelected}
                     onClick={() => handleToggleEquipment(eq.id)}
                     className={`w-full p-3.5 rounded-2xl border text-left flex items-start justify-between gap-3 transition-all cursor-pointer min-h-[52px] ${
                       isSelected
@@ -755,6 +759,8 @@ export const ListeningJourneyView: React.FC<ListeningJourneyViewProps> = ({
                   return (
                     <button
                       key={lim.id}
+                      type="button"
+                      aria-pressed={isChecked}
                       onClick={() => handleToggleLimitation(lim.id)}
                       className={`w-full p-3 rounded-xl border text-left flex items-center justify-between gap-2 text-xs cursor-pointer min-h-[46px] ${
                         isChecked
@@ -785,6 +791,8 @@ export const ListeningJourneyView: React.FC<ListeningJourneyViewProps> = ({
                   return (
                     <button
                       key={mov.id}
+                      type="button"
+                      aria-pressed={isChecked}
                       onClick={() => handleToggleAvoidMovement(mov.id)}
                       className={`w-full p-3 rounded-xl border text-left flex items-center justify-between gap-2 text-xs cursor-pointer min-h-[46px] ${
                         isChecked

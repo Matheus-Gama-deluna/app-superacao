@@ -14,6 +14,7 @@ import { EQUIPMENT_LABELS, AVOIDANCE_LABELS } from '../storage';
 
 export interface GenerationOptions {
   seed?: string | number;
+  variationSeed?: number;
   forceVariant?: 'A' | 'B';
   routinePrefix?: string;
 }
@@ -53,6 +54,7 @@ export function generateSmartWorkoutRoutine(
   const experienceLevel = draft?.experienceLevel || profile.experienceLevel || 'iniciante';
   const environment = (draft?.environmentPreference || profile.environmentPreference) === 'academia' ? 'na academia' : 'em casa';
   const userSeed = `${options.seed || profile.uid || 'guest'}_${goalKey}_${experienceLevel}`;
+  const variationSeed = options.variationSeed || 0;
   const extraRestSeconds = (practiceObstacles.includes('dor') || practiceObstacles.includes('cansaco')) ? 15 : 0;
 
   // 1. Filtragem preliminar de todos os exercícios seguros
@@ -98,10 +100,14 @@ export function generateSmartWorkoutRoutine(
 
   // 3. Determina quantidade de slots com base no tempo de treino desejado
   let maxSlots = 4;
-  if (targetDuration <= 15) {
+  if (targetDuration <= 5) {
+    maxSlots = 2;
+  } else if (targetDuration <= 10) {
     maxSlots = 3;
-  } else if (targetDuration <= 20) {
+  } else if (targetDuration <= 15) {
     maxSlots = 4;
+  } else if (targetDuration <= 20) {
+    maxSlots = 5;
   } else if (targetDuration <= 30) {
     maxSlots = 5;
   } else {
@@ -182,8 +188,15 @@ export function generateSmartWorkoutRoutine(
           return score;
         };
 
-        // Ordenação por maior afinidade, depois determinismo por hash
+        // Ordenação por maior afinidade ou rotação por variação
         const sorted = [...candidates].sort((a, b) => {
+          if (variationSeed && variationSeed > 0) {
+            // Rotaciona genuinamente entre os candidatos seguros quando solicitada nova variação
+            const hashA = deterministicHash(`${variationSeed}_${userSeed}_${slot.slotKey}_${a.id}`);
+            const hashB = deterministicHash(`${variationSeed}_${userSeed}_${slot.slotKey}_${b.id}`);
+            return hashA - hashB;
+          }
+
           const scoreDiff = getAffinityScore(b) - getAffinityScore(a);
           if (scoreDiff !== 0) return scoreDiff;
 
@@ -265,17 +278,42 @@ export function generateSmartWorkoutRoutine(
     userAvoided.length > 0
       ? ` e evitando ${userAvoided.map((a) => AVOIDANCE_LABELS[a] || a).join(', ')}`
       : '';
+  const cleanLimitations = reportedLimitations.filter((l) => l && l.toLowerCase() !== 'nenhuma');
   const limitationsText =
-    reportedLimitations.length > 0
-      ? ` com cuidado especial para ${reportedLimitations.join(', ')}`
+    cleanLimitations.length > 0
+      ? ` com cuidado especial para ${cleanLimitations.join(', ')}`
       : '';
 
-  let justificationText = `Você informou ${daysText} por semana com ${targetDuration} minutos ${environment}, com foco em "${rawGoal}", utilizando apenas ${equipText}${avoidanceText}${limitationsText}. Esta proposta equilibra padrões de agachar, empurrar, puxar e core de forma 100% segura para você.`;
+  // Identifica os padrões funcionais reais presentes nos exercícios da rotina principal
+  const patternsSet = new Set<string>();
+  for (const item of planA.exercises) {
+    const matched = allExercises.find((e) => e.id === item.exerciseId);
+    const pat = matched?.functionalPattern || '';
+    if (pat.includes('squat')) patternsSet.add('agachar');
+    else if (pat.includes('push')) patternsSet.add('empurrar');
+    else if (pat.includes('pull')) patternsSet.add('puxar');
+    else if (pat.includes('hinge')) patternsSet.add('quadril e posterior');
+    else if (pat.includes('core')) patternsSet.add('core e estabilidade');
+    else if (pat.includes('mobility')) patternsSet.add('mobilidade articular');
+    else if (pat.includes('cardio')) patternsSet.add('ativação cardiovascular');
+  }
+  const patternsText =
+    patternsSet.size > 0
+      ? `foco nos padrões de ${Array.from(patternsSet).join(', ')}`
+      : 'movimentos equilibrados';
+
+  let justificationText = `Você informou ${daysText} por semana com ${targetDuration} minutos ${environment}, com foco em "${rawGoal}", utilizando ${equipText}${avoidanceText}${limitationsText}. Esta proposta foi adaptada aos cuidados e preferências que você compartilhou, priorizando conforto articular e progresso gradual com ${patternsText}.`;
+  if (profile.experienceLevel === 'retomando') {
+    justificationText += ` Reconhecemos seu momento de retorno: calibramos um ritmo progressivo e acolhedor para você readquirir o hábito sem pressa nem cobrança excessiva.`;
+  }
+  if (profile.userContextNotes && profile.userContextNotes.trim()) {
+    justificationText += ` Observação pessoal acolhida: "${profile.userContextNotes.trim()}".`;
+  }
   if (healthNotes && healthNotes.trim()) {
     justificationText += ` Consideração de saúde: Levamos em conta suas observações ("${healthNotes.trim().slice(0, 70)}${healthNotes.length > 70 ? '...' : ''}"), priorizando movimentos articulares gentis.`;
   }
   if (practiceObstacles.length > 0) {
-    if (practiceObstacles.includes('dor') || practiceObstacles.includes('cansaco')) {
+    if (practiceObstacles.includes('dor') || practiceObstacles.includes('cansaco') || practiceObstacles.includes('falta_tempo')) {
       justificationText += ' Intervalos de descanso foram ampliados para garantir recuperação tranquila sem exaustão.';
     }
   }
@@ -290,7 +328,7 @@ export function generateSmartWorkoutRoutine(
     title: `Rotina Personalizada: ${rawGoal}`,
     description: justificationText,
     targetDaysCount: targetDays.length,
-    sessionDurationMinutes: planA.estimatedDurationMinutes,
+    sessionDurationMinutes: targetDuration,
     environment,
     equipmentsUsed: userEquipments,
     avoidedMovements: userAvoided,

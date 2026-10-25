@@ -76,29 +76,45 @@ export function saveCachedInsight(cacheKey: string, result: CoachInsightResult):
  * Motor heurístico 100% offline para momentos sem conexão ou sem API Key.
  * Utiliza psicologia comportamental acolhedora e o porquê pessoal do praticante.
  */
-export function getHeuristicInsight(ctx: CoachContext): string {
+export function getHeuristicInsight(ctx: CoachContext, previousInsight?: string): string {
   const name = ctx.displayName ? `${ctx.displayName}, ` : '';
   const reason = ctx.exerciseReason?.trim();
   const weekly = ctx.weeklyCompleted ?? 0;
   const mood = ctx.lastMood?.toLowerCase();
+  const anchor = ctx.habitAnchor?.trim();
+
+  // Banco de insights contextuais empáticos
+  const pool: string[] = [];
 
   if (reason && reason.length > 3) {
-    return `${name}lembre-se do que te move: "${reason}". Cada repetição com carinho e presença te aproxima dessa vida que você escolheu construir.`;
+    pool.push(`${name}lembre-se do que te move: "${reason}". Cada repetição com carinho te aproxima dessa vida que você escolheu construir.`);
+    pool.push(`${name}seu porquê ("${reason}") é seu maior guia. Não precisa de pressa, apenas de constância suave.`);
   }
 
-  if (mood && (mood.includes('renov') || mood.includes('leve') || mood.includes('energ'))) {
-    return `${name}guarde a sensação boa do seu último treino! O movimento regular é o melhor remédio preventivo para o seu corpo e mente.`;
+  if (anchor) {
+    pool.push(`${name}que tal aproveitar o seu momento "${anchor}" para movimentar o corpo? Pequenos passos repetidos geram grandes transformações.`);
   }
 
   if (weekly > 0) {
-    return `${name}você já somou ${weekly} momento(s) de autocuidado nesta semana! A constância no seu ritmo é o maior ato de respeito ao seu corpo.`;
+    pool.push(`${name}você já somou ${weekly} momento(s) de autocuidado nesta semana! A constância no seu ritmo é o maior ato de respeito ao seu corpo.`);
   }
 
-  if (ctx.habitAnchor) {
-    return `${name}que tal aproveitar o seu momento "${ctx.habitAnchor}" para movimentar o corpo suavemente? Pequenos passos repetidos geram grandes transformações.`;
+  if (mood && (mood.includes('renov') || mood.includes('leve') || mood.includes('energ'))) {
+    pool.push(`${name}guarde a sensação boa do seu último treino! O movimento regular é o melhor remédio preventivo para o corpo e mente.`);
   }
 
-  return `${name}hoje é um dia especial para honrar o seu corpo sem pressa. Não precisa ser perfeito, basta ser possível!`;
+  pool.push(`${name}hoje é um dia especial para honrar o seu corpo sem pressa. Não precisa ser perfeito, basta ser possível!`);
+  pool.push(`${name}a vitória de hoje é calçar o tênis e começar. O resto vem naturalmente no seu compasso.`);
+  pool.push(`${name}o progresso sustentável não é sobre intensidade extrema, mas sobre acolher o seu ritmo a cada dia.`);
+
+  // Se não foi solicitada rotação (primeiro carregamento), retorna determinístico pool[0]
+  if (!previousInsight) {
+    return pool[0];
+  }
+
+  // Filtra opções para não repetir a mesma da tela no refresh
+  const available = pool.filter((msg) => msg !== previousInsight);
+  return available.length > 0 ? available[0] : pool[0];
 }
 
 /**
@@ -106,7 +122,8 @@ export function getHeuristicInsight(ctx: CoachContext): string {
  */
 export async function generateDailyInsight(
   ctx: CoachContext,
-  forceRefresh: boolean = false
+  forceRefresh: boolean = false,
+  previousInsight?: string
 ): Promise<CoachInsightResult> {
   const cacheKey = buildCoachCacheKey(ctx);
 
@@ -128,7 +145,7 @@ export async function generateDailyInsight(
   // Se não houver chave ou estiver explicitamente offline, usa o motor heurístico
   if (!apiKey || (typeof navigator !== 'undefined' && !navigator.onLine)) {
     const heuristicResult: CoachInsightResult = {
-      insight: getHeuristicInsight(ctx),
+      insight: getHeuristicInsight(ctx, previousInsight),
       isAiGenerated: false,
       timestamp: Date.now(),
     };

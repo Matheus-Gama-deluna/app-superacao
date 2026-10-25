@@ -124,8 +124,8 @@ describe('Fase 8: Integridade de Dados, Catálogo 873 & Refinamentos UI', () => 
       bestReps: 15,
       bestDurationSeconds: 0,
       bestWeightKg: 0,
-      bestVolumeKg: 0,
-      achievedAt: Date.now(),
+      recordedAt: Date.now(),
+      sessionId: 'sess_1',
       prCount: 3,
       isBaseline: false,
     };
@@ -137,7 +137,7 @@ describe('Fase 8: Integridade de Dados, Catálogo 873 & Refinamentos UI', () => 
     const updatedPR: PersonalRecord = {
       ...pr,
       bestReps: 20,
-      achievedAt: Date.now() + 1000,
+      recordedAt: Date.now() + 1000,
       prCount: (pr.prCount || 1) + 1,
     };
 

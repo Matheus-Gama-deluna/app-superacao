@@ -6,6 +6,42 @@ import { Exercise } from '../types';
  * Preenchem a lacuna crítica de exercícios de puxar no peso corporal.
  */
 export const specializedHomeExercises: Exercise[] = [
+  // 0. Pressão Palmar Isométrica de Peitoral em Pé (Alternativa Segura sem Chão)
+  {
+    id: 'standing_isometric_chest_press',
+    name_pt: 'Pressão Palmar Isométrica de Peitoral em Pé',
+    name_en: 'Standing Isometric Palm Press (Svend Press)',
+    modality: 'forca',
+    movement_pattern: 'strength',
+    functionalPattern: 'push_horizontal',
+    jointStress: { knee: 0, lumbar: 0, shoulder: 0, wrist: 0 },
+    floorTransition: false,
+    movementComplexity: 1,
+    ladder: { ladderId: 'pushup', stepIndex: 1, name: 'Pressão Palmar Isométrica' },
+    equipment: ['peso_corporal'],
+    environment: ['casa', 'ar_livre', 'academia'],
+    difficulty_candidate: 'iniciante',
+    tracking: 'time',
+    requires_anchor: false,
+    target_muscle: 'Peitoral & Braços',
+    primary_muscles: ['Peitoral maior', 'Deltoides anteriores', 'Tríceps'],
+    secondary_muscles: ['Core', 'Serrátil anterior'],
+    instructions_pt: 'Em pé com postura ereta, junte as palmas das mãos na frente do peito como em oração. Pressione uma palma contra a outra com firmeza constante, sustentando a contração e respirando com calma.',
+    caution_pt: 'Excelente alternativa de empurrar sem sobrecarga nos punhos e sem deitar no chão.',
+    review_status: 'curado_especializado',
+    media_url: null,
+    images: [
+      '/exercises/Pushups/0.jpg',
+      '/exercises/Pushups/1.jpg',
+    ],
+    steps_pt: [
+      'Fique em pé com os pés na largura dos ombros e coluna alinhada.',
+      'Junte as duas palmas das mãos na altura do peito com os cotovelos abertos para os lados.',
+      'Pressione fortemente uma mão contra a outra ativando peitorais e braços.',
+      'Sustente a força isométrica respirando normalmente.',
+    ],
+  },
+
   // 1. Remada com Toalha na Porta
   {
     id: 'door_towel_row',

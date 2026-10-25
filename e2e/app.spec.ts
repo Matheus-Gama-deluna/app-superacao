@@ -1,4 +1,4 @@
-﻿import { test, expect } from '@playwright/test';
+import { test, expect } from '@playwright/test';
 
 test.describe('Superação - Validação End-to-End Headless (Em Segundo Plano)', () => {
   test.beforeEach(async ({ page }) => {
@@ -151,8 +151,8 @@ test.describe('Superação - Validação End-to-End Headless (Em Segundo Plano)'
     // O aplicativo DEVE sair do modo foco e voltar para a Home!
     await expect(page.getByText('Olá, Carlos!')).toBeVisible();
 
-    // O banner de "Treino em Andamento (Pausado)" deve estar visível
-    const pausedBanner = page.getByText(/Treino em Andamento \(Pausado\)/i);
+    // O card unificado de "Treino em Andamento" deve estar visível
+    const pausedBanner = page.getByText(/Treino em Andamento/i).first();
     await expect(pausedBanner).toBeVisible();
 
     // Clica em "Retomar Treino"
