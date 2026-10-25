@@ -12,7 +12,8 @@
     "test": "vitest run",
     "firebase": "firebase",
     "test:e2e": "playwright test",
-    "test:e2e:ui": "playwright test --ui"
+    "test:e2e:ui": "playwright test --ui",
+    "create-pr": "node scripts/create_pr.cjs"
   },
   "dependencies": {
     "@google/genai": "^2.4.0",
