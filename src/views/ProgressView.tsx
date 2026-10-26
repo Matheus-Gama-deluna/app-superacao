@@ -15,6 +15,7 @@ import {
   ChevronDown,
   ChevronUp,
 } from 'lucide-react';
+import { ActivityPath } from '../components/ActivityPath';
 
 export const ProgressView: React.FC = () => {
   const {
@@ -26,6 +27,7 @@ export const ProgressView: React.FC = () => {
   } = useWorkout();
 
   const [expandedSessionId, setExpandedSessionId] = useState<string | null>(null);
+  const [showAllBadges, setShowAllBadges] = useState<boolean>(false);
 
   // Métricas canônicas unificadas (E03 / Seção 5 / T18)
   // Fase 4: Trilhas de Evolução Biomecânica (Escadas de 4 degraus)
@@ -114,21 +116,29 @@ export const ProgressView: React.FC = () => {
     },
   ];
 
+  const unlockedBadges = badges.filter((b) => b.isUnlocked);
+  const nextSuggestedBadges = badges.filter((b) => !b.isUnlocked).slice(0, 2);
+  const visibleBadges = showAllBadges
+    ? badges
+    : unlockedBadges.length > 0
+    ? [...unlockedBadges, ...badges.filter((b) => !b.isUnlocked).slice(0, 1)]
+    : nextSuggestedBadges;
+
   return (
     <div className="space-y-6 pb-24">
-      {/* Header de Progresso */}
-      <div className="bg-white rounded-3xl p-5 border border-[#C9DBD3] shadow-xs space-y-2">
-        <div className="flex items-center gap-2 text-xs font-bold text-[#125F55] uppercase tracking-wider">
-          <Trophy className="w-4 h-4 text-[#125F55]" />
-          <span>Sua Jornada de Superação</span>
-        </div>
-        <h2 className="text-xl font-bold text-[#152A29]">Recordes & Evolução</h2>
-        <p className="text-xs text-[#5B7170] leading-relaxed">
-          Cada repetição registrada e cada dia de recuperação cumprido constroem a sua versão mais forte e consistente.
-        </p>
-      </div>
+      {/* 1. Caminho Pessoal de Progresso & Próximo Marco Alcançável (Gentler Streak / Clareza em Movimento) */}
+      <ActivityPath
+        variant="full"
+        calendar={calendar}
+        sessions={sessions}
+        metrics={metrics}
+        personalRecords={personalRecords}
+        targetWeeklyGoal={targetWeeklyGoal}
+        completedThisWeek={completedThisWeek}
+        todayDayOfWeek={new Date().getDay()}
+      />
 
-      {/* Cartões de Indicadores Gerais (E03 / Seção 5) */}
+      {/* 2. Indicadores Pessoais Enxutos (E03 / Seção 5) */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
         <div className="bg-white p-3.5 rounded-2xl border border-[#C9DBD3] shadow-xs text-center">
           <span className="text-[10px] text-[#5B7170] font-medium block">Treinos Concluídos</span>
@@ -191,26 +201,38 @@ export const ProgressView: React.FC = () => {
         </div>
       )}
 
-      {/* Seção de Medalhas de Superação & Conquistas */}
-      <section className="bg-white rounded-3xl p-5 border border-[#C9DBD3] shadow-xs space-y-3">
-        <div className="flex items-center justify-between">
-          <h3 className="text-sm font-bold text-[#152A29] flex items-center gap-1.5">
-            <Sparkles className="w-4 h-4 text-[#E07A5F]" />
-            Medalhas de Superação ({badges.filter((b) => b.isUnlocked).length}/{badges.length})
-          </h3>
-          <span className="text-[11px] text-[#125F55] font-bold">
-            {Math.round((badges.filter((b) => b.isUnlocked).length / badges.length) * 100)}% conquistado
-          </span>
+      {/* Seção de Conquistas & Próximos Passos (Sem "parede de medalhas bloqueadas" punitiva) */}
+      <section className="bg-white rounded-3xl p-5 border border-[#C9DBD3]/80 shadow-xs space-y-3">
+        <div className="flex items-center justify-between gap-2">
+          <div>
+            <h3 className="text-sm font-bold text-[#152A29] flex items-center gap-1.5">
+              <Sparkles className="w-4 h-4 text-[#E07A5F]" />
+              Reconhecimentos da Jornada
+            </h3>
+            <p className="text-[11px] text-[#5B7170] mt-0.5">
+              {unlockedBadges.length > 0
+                ? `${unlockedBadges.length} ${unlockedBadges.length === 1 ? 'marco reconhecido' : 'marcos reconhecidos'} no seu ritmo`
+                : 'Seus primeiros marcos serão iluminados conforme você pratica'}
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={() => setShowAllBadges(!showAllBadges)}
+            className="text-xs text-[#125F55] font-bold hover:underline flex items-center gap-1 cursor-pointer shrink-0"
+          >
+            <span>{showAllBadges ? 'Mostrar resumo' : `Ver todos (${badges.length})`}</span>
+            {showAllBadges ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
+          </button>
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 pt-1">
-          {badges.map((b) => (
+          {visibleBadges.map((b) => (
             <div
               key={b.id}
               className={`p-3 rounded-2xl border flex items-center gap-3 transition-all ${
                 b.isUnlocked
                   ? 'bg-[#EAF3EF]/80 border-[#125F55]/40 text-[#152A29]'
-                  : 'bg-[#F5F8F5] border-[#C9DBD3]/60 opacity-60'
+                  : 'bg-[#F5F8F5]/80 border-[#C9DBD3]/70 text-[#152A29]'
               }`}
             >
               <div className="w-10 h-10 rounded-xl bg-white border border-[#C9DBD3] flex items-center justify-center text-xl shrink-0 shadow-2xs">
@@ -219,9 +241,13 @@ export const ProgressView: React.FC = () => {
               <div className="min-w-0 flex-1">
                 <div className="flex items-center gap-1.5">
                   <p className="text-xs font-bold text-[#152A29]">{b.title}</p>
-                  {b.isUnlocked && (
+                  {b.isUnlocked ? (
                     <span className="text-[9px] font-black text-[#125F55] uppercase bg-[#D9F277]/50 px-1.5 py-0.2 rounded-md">
                       Conquistado
+                    </span>
+                  ) : (
+                    <span className="text-[9px] font-semibold text-[#125F55] uppercase bg-[#EAF3EF] px-1.5 py-0.2 rounded-md">
+                      Próximo passo
                     </span>
                   )}
                 </div>

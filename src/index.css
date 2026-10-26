@@ -2,15 +2,17 @@
 
 @layer base {
   :root {
-    --bg-app: #F5F8F5;
+    --bg-app: #F7F9F7;
     --surface: #FFFFFF;
     --surface-alt: #EAF3EF;
+    --surface-warm: #FAF7F2;
     --primary: #125F55;
     --primary-hover: #0C5148;
     --on-primary: #FFFFFF;
     --ink: #152A29;
     --ink-muted: #5B7170;
     --outline: #C9DBD3;
+    --outline-soft: #DCE8E2;
     --accent: #D9F277;
     --accent-ink: #203826;
     --success: #246747;

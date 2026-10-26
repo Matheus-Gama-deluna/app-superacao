@@ -112,15 +112,15 @@ export function calculateRoutineDurationMinutes(items: ExercisePlanItem[]): numb
 
   const totalSeconds = items.reduce((acc, item) => {
     // Estimativa de tempo sob tensão por série:
-    // Se for tempo marcado, usa o valor. Se for reps, assume ~3.5s por repetição controlada.
-    const execTimePerSet = item.targetDurationSeconds || (item.targetReps > 0 ? item.targetReps * 3.5 : 30);
+    // Se for tempo marcado, usa o valor. Se for reps, assume ~4s por repetição em cadência controlada e segura.
+    const execTimePerSet = item.targetDurationSeconds || (item.targetReps > 0 ? item.targetReps * 4 : 30);
     // Cada série tem execução + descanso
     const timeForSets = item.targetSets * (execTimePerSet + item.restSeconds);
     return acc + timeForSets;
   }, 0);
 
-  // Transições entre exercícios (~15 segundos para mudar de posição ou beber água)
-  const transitionsTotalSeconds = Math.max(0, (items.length - 1) * 15);
+  // Preparação de postura inicial e transição calma entre exercícios (~25 segundos por movimento)
+  const transitionsTotalSeconds = items.length * 25;
   const totalMinutes = Math.round((totalSeconds + transitionsTotalSeconds) / 60);
 
   return Math.max(5, totalMinutes);

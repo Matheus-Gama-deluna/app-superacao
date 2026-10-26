@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { generateSmartWorkoutRoutine } from '../src/lib/workoutEngine';
+import { generateSmartWorkoutRoutine, buildRoutinePatternsText } from '../src/lib/workoutEngine';
 import { getExerciseById, ensureFullCatalogLoaded } from '../src/data/catalog';
 import { specializedHomeExercises } from '../src/data/specializedExercises';
 import { getHeuristicInsight, CoachContext } from '../src/lib/aiCoach';
@@ -304,5 +304,58 @@ describe('Fase 9: Correções de QA, Experiência, Acolhimento e Acessibilidade 
       routineConfirmed: true,
     };
     expect(updatedProfile.sessionDurationMinutes).toBe(15);
+  });
+
+  it('Critério 13 (Frente 1): Contexto de retorno, motivo e notas do draft aparecem na justificativa mesmo antes do profile sincronizar', () => {
+    const staleProfile: Partial<UserProfile> = {
+      uid: 'guest_user',
+      experienceLevel: 'iniciante',
+      userContextNotes: '',
+      exerciseReason: '',
+    };
+
+    const freshDraft = {
+      step: 7,
+      displayName: 'Helena',
+      experienceLevel: 'retomando' as const,
+      exerciseReason: 'Voltar a ter energia sem dor',
+      orderedGoals: ['Construir o hábito e consistência diária'],
+      goalFocus: 'foco_unico' as const,
+      availableDays: [1, 4],
+      sessionDurationMinutes: 15,
+      habitAnchor: 'Após o expediente',
+      equipments: ['peso_corporal'],
+      reportedLimitations: [],
+      avoidedMovements: [],
+      healthNotes: '',
+      practiceObstacles: ['cansaco_mental', 'desanimo_falhar'],
+      userContextNotes: 'Sessões leves, sem me cobrar',
+      planSourcePreference: 'modelo_revisado' as const,
+      savedAt: Date.now(),
+    };
+
+    const proposal = generateSmartWorkoutRoutine(staleProfile, freshDraft);
+
+    expect(proposal.justificationText).toContain('Reconhecemos seu momento de retorno');
+    expect(proposal.justificationText).toContain('Voltar a ter energia sem dor');
+    expect(proposal.justificationText).toContain('Sessões leves, sem me cobrar');
+    expect(proposal.justificationText).toContain('Intervalos de descanso foram ampliados');
+    expect(proposal.justificationText).toContain('vencer a inércia sem cobrança');
+  });
+
+  it('Critério 14 (Frente 1): Duração estimada para 15 min é coerente e buildRoutinePatternsText reflete os exercícios reais', () => {
+    const proposal15 = generateSmartWorkoutRoutine({
+      ...baseProfile,
+      sessionDurationMinutes: 15,
+      availableDays: [1, 3],
+    });
+
+    const estMinutes = proposal15.routines[0].estimatedDurationMinutes;
+    expect(estMinutes).toBeGreaterThanOrEqual(11);
+    expect(estMinutes).toBeLessThanOrEqual(17);
+
+    const patternsSummary = buildRoutinePatternsText(proposal15.routines[0].exercises);
+    expect(patternsSummary).toContain('foco nos padrões de');
+    expect(proposal15.justificationText).toContain(patternsSummary);
   });
 });

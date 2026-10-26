@@ -116,13 +116,19 @@ export const CalendarView: React.FC<CalendarViewProps> = ({ onStartPlanById }) =
         {calendar.map((day) => {
           const cfg = activityBadges[day.activityType];
           const Icon = cfg.icon;
+          const isToday = day.dateStr === todayStr || (!day.dateStr && day.dayOfWeek === today.getDay());
+          const isRest = day.activityType === 'rest' || day.activityType === 'unassigned';
 
           return (
             <div
               key={day.id}
               className={`p-4 rounded-2xl border transition-all ${
-                day.isCompleted
-                  ? 'bg-white border-[#246747]/40 shadow-xs'
+                isToday
+                  ? 'bg-white border-2 border-[#125F55] shadow-xs ring-2 ring-[#125F55]/10'
+                  : day.isCompleted
+                  ? 'bg-[#EAF3EF]/40 border-[#246747]/40'
+                  : isRest
+                  ? 'bg-[#F7F9F7] border-[#C9DBD3]/60'
                   : 'bg-white border-[#C9DBD3] hover:border-[#125F55]/60'
               }`}
             >
@@ -137,6 +143,11 @@ export const CalendarView: React.FC<CalendarViewProps> = ({ onStartPlanById }) =
                         </span>
                       )}
                     </span>
+                    {isToday && (
+                      <span className="px-2 py-0.5 rounded-full bg-[#125F55] text-white text-[10px] font-bold">
+                        Hoje
+                      </span>
+                    )}
                     <span
                       className="px-2 py-0.5 rounded-full text-[10px] font-bold flex items-center gap-1 shrink-0 whitespace-nowrap"
                       style={{ backgroundColor: cfg.bg, color: cfg.color }}

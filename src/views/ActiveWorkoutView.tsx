@@ -799,16 +799,25 @@ export const ActiveWorkoutView: React.FC<ActiveWorkoutViewProps> = ({
                     : 'Excelente! Vamos no seu ritmo, construindo constância dia a dia.'}
                 </p>
                 {(activeSession.preMood === 'cansado' || activeSession.preMood === 'tenso') && !isSessionSoftened && (
-                  <button
-                    type="button"
-                    onClick={() => {
-                      softenActiveSessionTargets();
-                      setIsSessionSoftened(true);
-                    }}
-                    className="w-full py-2 px-3 bg-[#EAF3EF] border border-[#125F55]/30 text-[#125F55] rounded-xl text-xs font-bold hover:bg-[#D9F277]/40 flex items-center justify-center gap-1.5 cursor-pointer shadow-2xs"
-                  >
-                    <span>🌿 Suavizar metas de hoje (-25% repetições/tempo)</span>
-                  </button>
+                  <div className="flex flex-col sm:flex-row gap-1.5 pt-0.5">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        softenActiveSessionTargets();
+                        setIsSessionSoftened(true);
+                      }}
+                      className="flex-1 py-2 px-3 bg-[#EAF3EF] border border-[#125F55]/30 text-[#125F55] rounded-xl text-xs font-bold hover:bg-[#D9F277]/40 flex items-center justify-center gap-1.5 cursor-pointer shadow-2xs"
+                    >
+                      <span>🌿 Suavizar metas de hoje (-25% repetições/tempo)</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => abandonWorkout()}
+                      className="py-2 px-3 bg-white border border-[#C9DBD3] text-[#5B7170] hover:text-[#152A29] rounded-xl text-xs font-semibold flex items-center justify-center gap-1 cursor-pointer"
+                    >
+                      <span>🤍 Descansar hoje sem culpa</span>
+                    </button>
+                  </div>
                 )}
                 {isSessionSoftened && (
                   <div className="py-1.5 px-2.5 bg-emerald-50 text-emerald-800 text-[11px] font-semibold rounded-lg border border-emerald-200 text-center">

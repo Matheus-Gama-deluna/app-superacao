@@ -59,6 +59,7 @@ export const ExploreView: React.FC<ExploreViewProps> = ({
   const [visibleCount, setVisibleCount] = useState<number>(24);
   const [isGeneratorOpen, setIsGeneratorOpen] = useState<boolean>(false);
   const [generatorFocus, setGeneratorFocus] = useState<any>('habito');
+  const [showAdvancedCatalogFilters, setShowAdvancedCatalogFilters] = useState<boolean>(false);
 
   // Modal avançado de ativação e mescla de programas
   const [activationModal, setActivationModal] = useState<{
@@ -337,6 +338,31 @@ export const ExploreView: React.FC<ExploreViewProps> = ({
       {/* ───────────────────────────────────────────────────────────── */}
       {activeTab === 'programs' && (
         <div className="space-y-4">
+          {/* Curadoria por Perfil (Reduz densidade e guia a escolha inicial) */}
+          <div className="bg-[#EAF3EF]/75 rounded-2xl p-3.5 border border-[#125F55]/20 flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs">
+            <div className="flex items-center gap-2 text-[#152A29]">
+              <Sparkles className="w-4 h-4 text-[#125F55] shrink-0" />
+              <span>
+                <strong>Sugestão para seu perfil:</strong> rotinas {profile.environmentPreference === 'academia' ? 'de academia' : 'em casa'} alinhadas aos seus apoios ({profile.sessionDurationMinutes || 20} min).
+              </span>
+            </div>
+            <button
+              type="button"
+              onClick={() =>
+                setProgramFilter(
+                  profile.environmentPreference === 'academia'
+                    ? 'academia'
+                    : profile.avoidedMovements?.includes('sobrecarga_lombar') || profile.reportedLimitations?.includes('lombar')
+                    ? 'sentado'
+                    : 'calistenia'
+                )
+              }
+              className="text-[#125F55] font-bold hover:underline shrink-0 cursor-pointer text-left sm:text-right"
+            >
+              Filtrar para meu perfil →
+            </button>
+          </div>
+
           {/* Filtros de Categoria de Programas / Momentos de Vida */}
           <div className="flex items-center gap-1.5 overflow-x-auto pb-1 no-scrollbar">
             {[
@@ -680,58 +706,101 @@ export const ExploreView: React.FC<ExploreViewProps> = ({
             </div>
           </div>
 
-          {/* Filtros de Equipamento */}
-          <div className="space-y-1.5">
-            <div className="flex items-center gap-1.5 text-[11px] font-bold text-[#5B7170]">
-              <SlidersHorizontal className="w-3.5 h-3.5 text-[#125F55]" />
-              <span>Equipamento Disponível:</span>
-            </div>
-            <div className="flex items-center gap-1.5 overflow-x-auto pb-1 no-scrollbar">
-              {equipmentOptions.map((opt) => (
-                <button
-                  key={opt.id}
-                  type="button"
-                  onClick={() => {
-                    setSelectedEquipment(opt.id);
-                    setVisibleCount(24);
-                  }}
-                  className={`px-3 py-1.5 text-xs rounded-xl whitespace-nowrap transition-colors cursor-pointer shrink-0 ${
-                    selectedEquipment === opt.id
-                      ? 'bg-[#125F55] text-white shadow-xs font-bold'
-                      : 'bg-white border border-[#C9DBD3] text-[#5B7170] hover:border-[#125F55]'
-                  }`}
-                >
-                  {opt.label}
-                </button>
-              ))}
-            </div>
-          </div>
+          {/* Filtros Secundários Compactados (Equipamento e Músculo sob demanda para reduzir ruído visual) */}
+          <div className="space-y-2">
+            <div className="flex items-center justify-between">
+              <button
+                type="button"
+                aria-expanded={showAdvancedCatalogFilters}
+                onClick={() => setShowAdvancedCatalogFilters(!showAdvancedCatalogFilters)}
+                className="px-3 py-1.5 rounded-xl bg-white border border-[#C9DBD3] text-xs font-semibold text-[#152A29] hover:border-[#125F55] flex items-center gap-1.5 cursor-pointer"
+              >
+                <SlidersHorizontal className="w-3.5 h-3.5 text-[#125F55]" />
+                <span>
+                  {showAdvancedCatalogFilters
+                    ? 'Ocultar filtros de equipamento e músculo'
+                    : 'Filtrar por equipamento ou músculo'}
+                </span>
+                {(selectedEquipment !== 'todos' || selectedMuscle !== 'todos') && (
+                  <span className="px-1.5 py-0.2 rounded-full bg-[#125F55] text-white text-[10px] font-bold">
+                    Ativo
+                  </span>
+                )}
+              </button>
 
-          {/* Filtros de Músculo / Região */}
-          <div className="space-y-1.5">
-            <div className="flex items-center gap-1.5 text-[11px] font-bold text-[#5B7170]">
-              <Dumbbell className="w-3.5 h-3.5 text-[#125F55]" />
-              <span>Músculo ou Região:</span>
-            </div>
-            <div className="flex items-center gap-1.5 overflow-x-auto pb-1 no-scrollbar">
-              {muscleOptions.map((opt) => (
+              {(selectedEquipment !== 'todos' || selectedMuscle !== 'todos' || selectedCareFilter !== 'todos') && (
                 <button
-                  key={opt.id}
                   type="button"
                   onClick={() => {
-                    setSelectedMuscle(opt.id);
+                    setSelectedEquipment('todos');
+                    setSelectedMuscle('todos');
+                    setSelectedCareFilter('todos');
                     setVisibleCount(24);
                   }}
-                  className={`px-3 py-1.5 text-xs rounded-xl whitespace-nowrap transition-colors cursor-pointer shrink-0 ${
-                    selectedMuscle === opt.id
-                      ? 'bg-[#203826] text-[#D9F277] shadow-xs font-bold'
-                      : 'bg-white border border-[#C9DBD3] text-[#5B7170] hover:border-[#125F55]'
-                  }`}
+                  className="text-[11px] font-semibold text-[#125F55] hover:underline cursor-pointer"
                 >
-                  {opt.label}
+                  Limpar filtros
                 </button>
-              ))}
+              )}
             </div>
+
+            {showAdvancedCatalogFilters && (
+              <div className="p-3.5 rounded-2xl bg-white border border-[#C9DBD3]/80 space-y-3 animate-in fade-in">
+                {/* Filtros de Equipamento */}
+                <div className="space-y-1.5">
+                  <div className="flex items-center gap-1.5 text-[11px] font-bold text-[#5B7170]">
+                    <SlidersHorizontal className="w-3.5 h-3.5 text-[#125F55]" />
+                    <span>Equipamento Disponível:</span>
+                  </div>
+                  <div className="flex items-center gap-1.5 overflow-x-auto pb-1 no-scrollbar">
+                    {equipmentOptions.map((opt) => (
+                      <button
+                        key={opt.id}
+                        type="button"
+                        onClick={() => {
+                          setSelectedEquipment(opt.id);
+                          setVisibleCount(24);
+                        }}
+                        className={`px-3 py-1.5 text-xs rounded-xl whitespace-nowrap transition-colors cursor-pointer shrink-0 ${
+                          selectedEquipment === opt.id
+                            ? 'bg-[#125F55] text-white shadow-xs font-bold'
+                            : 'bg-[#F5F8F5] border border-[#C9DBD3] text-[#5B7170] hover:border-[#125F55]'
+                        }`}
+                      >
+                        {opt.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Filtros de Músculo / Região */}
+                <div className="space-y-1.5">
+                  <div className="flex items-center gap-1.5 text-[11px] font-bold text-[#5B7170]">
+                    <Dumbbell className="w-3.5 h-3.5 text-[#125F55]" />
+                    <span>Músculo ou Região:</span>
+                  </div>
+                  <div className="flex items-center gap-1.5 overflow-x-auto pb-1 no-scrollbar">
+                    {muscleOptions.map((opt) => (
+                      <button
+                        key={opt.id}
+                        type="button"
+                        onClick={() => {
+                          setSelectedMuscle(opt.id);
+                          setVisibleCount(24);
+                        }}
+                        className={`px-3 py-1.5 text-xs rounded-xl whitespace-nowrap transition-colors cursor-pointer shrink-0 ${
+                          selectedMuscle === opt.id
+                            ? 'bg-[#203826] text-[#D9F277] shadow-xs font-bold'
+                            : 'bg-[#F5F8F5] border border-[#C9DBD3] text-[#5B7170] hover:border-[#125F55]'
+                        }`}
+                      >
+                        {opt.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
 
           {/* Contador de Resultados */}

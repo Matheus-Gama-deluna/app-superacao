@@ -300,10 +300,11 @@ export const ListeningJourneyView: React.FC<ListeningJourneyViewProps> = ({
   };
 
   const handleFinalChoice = async (action: 'proposal' | 'builder_manual' | 'builder_pro') => {
-    // Salva o perfil com os dados preenchidos
+    // Salva o perfil com os dados preenchidos (incluindo exerciseReason - Frente 1)
     await updateUserProfile({
       displayName: displayName.trim() || 'Praticante',
       experienceLevel,
+      exerciseReason: exerciseReason.trim(),
       primaryGoal: orderedGoals[0] || DEFAULT_GOALS[0],
       secondaryGoals: orderedGoals.slice(1),
       goalPriorityOrder: orderedGoals,
@@ -421,6 +422,8 @@ export const ListeningJourneyView: React.FC<ListeningJourneyViewProps> = ({
                 ].map((item) => (
                   <button
                     key={item.id}
+                    type="button"
+                    aria-pressed={experienceLevel === item.id}
                     onClick={() => setExperienceLevel(item.id as any)}
                     className={`p-3.5 rounded-2xl border text-left flex items-start gap-3 transition-all cursor-pointer min-h-[52px] ${
                       experienceLevel === item.id
@@ -558,6 +561,8 @@ export const ListeningJourneyView: React.FC<ListeningJourneyViewProps> = ({
               </label>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                 <button
+                  type="button"
+                  aria-pressed={goalFocus === 'foco_unico'}
                   onClick={() => setGoalFocus('foco_unico')}
                   className={`p-3 rounded-xl border text-left cursor-pointer min-h-[48px] ${
                     goalFocus === 'foco_unico'
@@ -569,6 +574,8 @@ export const ListeningJourneyView: React.FC<ListeningJourneyViewProps> = ({
                   <div className="text-[10px] opacity-80 mt-0.5">Prioriza consistência em torno do 1º item</div>
                 </button>
                 <button
+                  type="button"
+                  aria-pressed={goalFocus === 'equilibrado'}
                   onClick={() => setGoalFocus('equilibrado')}
                   className={`p-3 rounded-xl border text-left cursor-pointer min-h-[48px] ${
                     goalFocus === 'equilibrado'
@@ -664,6 +671,8 @@ export const ListeningJourneyView: React.FC<ListeningJourneyViewProps> = ({
                 ].map((env) => (
                   <button
                     key={env.id}
+                    type="button"
+                    aria-pressed={environmentPreference === env.id}
                     onClick={() => setEnvironmentPreference(env.id as any)}
                     className={`h-12 rounded-xl border text-xs font-bold flex items-center justify-center cursor-pointer ${
                       environmentPreference === env.id
@@ -845,6 +854,8 @@ export const ListeningJourneyView: React.FC<ListeningJourneyViewProps> = ({
                 return (
                   <button
                     key={obs.id}
+                    type="button"
+                    aria-pressed={isChecked}
                     onClick={() => handleToggleObstacle(obs.id)}
                     className={`w-full p-3 rounded-xl border text-left flex items-center justify-between gap-2 text-xs cursor-pointer min-h-[46px] ${
                       isChecked

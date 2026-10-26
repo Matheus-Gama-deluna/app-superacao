@@ -31,6 +31,7 @@ import { OnboardingModal } from './OnboardingModal';
 import { AICoachCard } from '../components/AICoachCard';
 import { CoachContext } from '../lib/aiCoach';
 import { PWAInstallButton } from '../components/PWAInstallButton';
+import { ActivityPath } from '../components/ActivityPath';
 
 interface HomeViewProps {
   onStartWorkout: (
@@ -43,7 +44,7 @@ interface HomeViewProps {
   ) => void;
   onResumeWorkout: () => void;
   onNavigateTab: (tab: 'home' | 'workouts' | 'calendar' | 'progress') => void;
-  onOpenBuilder?: (existingPlanId?: string) => void;
+  onOpenBuilder?: (existingPlanId?: string, isPro?: boolean) => void;
   onReviewProposal?: () => void;
 }
 
@@ -206,16 +207,8 @@ export const HomeView: React.FC<HomeViewProps> = ({
 
       
 
-      {/* Banner Visual Convidativo de Instalação do App */}
-      {!isInstallBannerDismissed && (
-        <PWAInstallButton
-          variant="banner"
-          onDismissBanner={() => setIsInstallBannerDismissed(true)}
-        />
-      )}
-
-      {/* 1. Header de Acolhimento & Âncora de Hábito */}
-      <section className="bg-white rounded-3xl p-5 border border-[#C9DBD3] shadow-xs">
+      {/* 1. Header de Acolhimento & Trilha Semanal (Direção "Clareza em Movimento") */}
+      <section className="bg-white rounded-3xl p-5 border border-[#C9DBD3]/80 shadow-xs space-y-3">
         <div className="flex items-start justify-between gap-3">
           <div>
             <p className="text-xs font-semibold text-[#5B7170] uppercase tracking-wider">
@@ -235,29 +228,31 @@ export const HomeView: React.FC<HomeViewProps> = ({
           </div>
         </div>
 
-        {/* Lembrete da Âncora de Rotina (Acolhedor e sem culpa) */}
-        {profile.habitAnchor && (
-          <div className="mt-3 flex items-center gap-2 text-xs text-[#5B7170] bg-[#F5F8F5] px-3 py-2 rounded-xl border border-[#C9DBD3]/50">
-            <Clock className="w-3.5 h-3.5 text-[#125F55] shrink-0" />
-            <span>
-              Sua âncora de rotina: <strong>{profile.habitAnchor}</strong>
-            </span>
+        {/* Lembrete Sutil da Âncora e Motivação Pessoal */}
+        {(profile.habitAnchor || profile.exerciseReason) && (
+          <div className="flex flex-wrap items-center gap-2 pt-0.5">
+            {profile.habitAnchor && (
+              <div className="flex items-center gap-1.5 text-xs text-[#5B7170] bg-[#F5F8F5] px-3 py-1.5 rounded-xl border border-[#C9DBD3]/50">
+                <Clock className="w-3.5 h-3.5 text-[#125F55] shrink-0" />
+                <span>
+                  Sua âncora de rotina: <strong>{profile.habitAnchor}</strong>
+                </span>
+              </div>
+            )}
+            {profile.exerciseReason && (
+              <div className="flex items-center gap-1.5 text-xs text-[#5B7170] bg-[#EAF3EF]/70 px-3 py-1.5 rounded-xl border border-[#C9DBD3]/50">
+                <Heart className="w-3.5 h-3.5 text-[#125F55] shrink-0" />
+                <span>
+                  Seu porquê: <em>«{profile.exerciseReason}»</em>
+                </span>
+              </div>
+            )}
           </div>
         )}
 
-        {/* Lembrete da Motivação Pessoal (Dados da Escuta) */}
-        {profile.exerciseReason && (
-          <div className="mt-2 flex items-center gap-2 text-xs text-[#5B7170] bg-[#EAF3EF]/70 px-3 py-2 rounded-xl border border-[#C9DBD3]/50">
-            <Heart className="w-3.5 h-3.5 text-[#125F55] shrink-0" />
-            <span>
-              Seu porquê: <em>«{profile.exerciseReason}»</em>
-            </span>
-          </div>
-        )}
-
-        {/* Programa Ativo Confirmado */}
+        {/* Programa Ativo Confirmado (Compacto) */}
         {activeProgram && (
-          <div className="mt-3 bg-[#EAF3EF] p-3.5 rounded-2xl border border-[#C9DBD3] space-y-2">
+          <div className="bg-[#EAF3EF]/70 p-3 rounded-2xl border border-[#C9DBD3]/70 space-y-1.5">
             <div className="flex items-center justify-between text-[11px]">
               <span className="font-black text-[#125F55] uppercase tracking-wider truncate max-w-[240px]">
                 {activeProgram.title}
@@ -277,141 +272,23 @@ export const HomeView: React.FC<HomeViewProps> = ({
                 {currentPhase?.name || 'Fase Ativa'}
               </span>
             </div>
-            {/* Barra de Progresso */}
-            <div className="w-full h-2 bg-white rounded-full overflow-hidden border border-[#C9DBD3]/50">
-              <div
-                className="h-full bg-[#125F55] rounded-full transition-all duration-300"
-                style={{
-                  width: `${Math.round((activeProgram.currentWeek / activeProgram.durationWeeks) * 100)}%`,
-                }}
-              />
-            </div>
           </div>
         )}
 
-        {/* Mini Tira da Semana (A05: descanso não é falha) */}
-        <div className="mt-4 pt-3 border-t border-[#C9DBD3]/40">
-          <div className="flex items-center justify-between text-xs text-[#5B7170] mb-2 font-medium">
-            <span>Sua semana</span>
-            <button
-              onClick={() => onNavigateTab('calendar')}
-              className="text-[#125F55] font-semibold hover:underline flex items-center gap-0.5 cursor-pointer"
-            >
-              <span>Ver agenda</span>
-              <ChevronRight className="w-3.5 h-3.5" />
-            </button>
-          </div>
-          <div className="grid grid-cols-7 gap-1.5">
-            {calendar.map((cDay, idx) => {
-              const isToday = cDay.dayOfWeek === dayOfWeek;
-              const isDone = cDay.isCompleted;
-              const isRest = cDay.activityType === 'rest';
-              const isUnassigned = cDay.activityType === 'unassigned';
-              const isVitalityBonus = Boolean(cDay.vitalityBonusCompleted || (isRest && (cDay.careMinutes || 0) > 0));
-
-              return (
-                <div
-                  key={cDay.id || idx}
-                  className={`flex flex-col items-center py-2 rounded-xl text-center transition-all ${
-                    isToday
-                      ? 'border-2 border-[#125F55] bg-[#EAF3EF]'
-                      : 'bg-[#F5F8F5] border border-transparent'
-                  }`}
-                >
-                  <span className="text-[10px] font-bold text-[#5B7170]">
-                    {daysLabels[cDay.dayOfWeek]}
-                  </span>
-                  <div className="mt-1 w-5 h-5 flex items-center justify-center">
-                    {isDone ? (
-                      <CheckCircle2 className="w-4 h-4 text-[#246747]" />
-                    ) : isVitalityBonus ? (
-                      <span title="Elo de Vitalidade conquistado!">
-                        <Sparkles className="w-3.5 h-3.5 text-[#125F55]" />
-                      </span>
-                    ) : isRest ? (
-                      <span title="Descanso planejado">
-                        <Heart className="w-3.5 h-3.5 text-[#5B7170]" />
-                      </span>
-                    ) : isUnassigned ? (
-                      <div className="w-1.5 h-1.5 rounded-full bg-[#C9DBD3]" />
-                    ) : (
-                      <div className={`w-2 h-2 rounded-full ${isToday ? 'bg-[#125F55]' : 'bg-[#C9DBD3]'}`} />
-                    )}
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        </div>
-
-        {/* Superações e Marcos Conquistados (Sem pressão ou meta fixa de 3 treinos - Critério C27, E01, R04) */}
-        {(() => {
-          const isConsistencyMet = completedThisWeek >= targetWeeklyGoal;
-          const hasRealPR = personalRecords.some((p) => !p.isBaseline && (p.prCount || 0) > 0);
-          const completedMilestones = [isConsistencyMet, completedThisWeek >= 1, hasRealPR].filter(Boolean).length;
-
-          return (
-            <div className="mt-4 pt-3 border-t border-[#C9DBD3]/40 space-y-2">
-              <div className="flex items-center justify-between text-xs">
-                <span className="font-bold text-[#152A29] flex items-center gap-1.5">
-                  <Trophy className="w-3.5 h-3.5 text-[#E07A5F]" />
-                  Marcos da Semana ({completedMilestones}/3)
-                </span>
-                <span className="text-[11px] text-[#125F55] font-semibold">
-                  Evolução constante
-                </span>
-              </div>
-
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 pt-0.5">
-                <div className={`p-2.5 rounded-xl border flex items-center gap-2 text-xs transition-colors ${
-                  isConsistencyMet ? 'bg-[#EAF3EF] border-[#125F55]/40 text-[#125F55]' : 'bg-[#F5F8F5] border-[#C9DBD3] text-[#5B7170]'
-                }`}>
-                  <CheckCircle2 className={`w-4 h-4 shrink-0 ${isConsistencyMet ? 'text-[#125F55]' : 'text-[#C9DBD3]'}`} />
-                  <span className="text-[11px] font-medium leading-tight">
-                    Meta Real: {targetWeeklyGoal} {targetWeeklyGoal === 1 ? 'atividade' : 'atividades'} ({Math.min(targetWeeklyGoal, completedThisWeek)}/{targetWeeklyGoal})
-                  </span>
-                </div>
-
-                <div className={`p-2.5 rounded-xl border flex items-center gap-2 text-xs transition-colors ${
-                  completedThisWeek >= 1 ? 'bg-[#EAF3EF] border-[#125F55]/40 text-[#125F55]' : 'bg-[#F5F8F5] border-[#C9DBD3] text-[#5B7170]'
-                }`}>
-                  <CheckCircle2 className={`w-4 h-4 shrink-0 ${completedThisWeek >= 1 ? 'text-[#125F55]' : 'text-[#C9DBD3]'}`} />
-                  <span className="text-[11px] font-medium leading-tight">Vencer a Inércia: 1ª atividade feita</span>
-                </div>
-
-                <div className={`p-2.5 rounded-xl border flex items-center gap-2 text-xs transition-colors ${
-                  hasRealPR ? 'bg-[#EAF3EF] border-[#125F55]/40 text-[#125F55]' : 'bg-[#F5F8F5] border-[#C9DBD3] text-[#5B7170]'
-                }`}>
-                  <CheckCircle2 className={`w-4 h-4 shrink-0 ${hasRealPR ? 'text-[#125F55]' : 'text-[#C9DBD3]'}`} />
-                  <span className="text-[11px] font-medium leading-tight">
-                    {hasRealPR ? 'Recorde Pessoal (PR superado)' : 'Primeira marca base registrada'}
-                  </span>
-                </div>
-              </div>
-            </div>
-          );
-        })()}
+        {/* Caminho Pessoal da Semana (Inspirado no Gentler Streak — Descanso não quebra a linha) */}
+        <ActivityPath
+          variant="compact"
+          calendar={calendar}
+          sessions={sessions}
+          metrics={canonical}
+          personalRecords={personalRecords}
+          targetWeeklyGoal={targetWeeklyGoal}
+          completedThisWeek={completedThisWeek}
+          todayDayOfWeek={dayOfWeek}
+          onNavigateCalendar={() => onNavigateTab('calendar')}
+          onNavigateProgress={() => onNavigateTab('progress')}
+        />
       </section>
-
-      {/* Espelho de Bem-Estar (Estratégia D: Termômetro Antes vs Depois) */}
-      {wellbeingInsight && (
-        <section className="bg-gradient-to-r from-[#D9F277]/25 via-[#EAF3EF] to-white rounded-3xl p-4.5 border border-[#C9DBD3] flex items-start gap-3.5 shadow-xs animate-in fade-in">
-          <div className="w-9 h-9 rounded-2xl bg-[#125F55] text-white flex items-center justify-center shrink-0 text-base shadow-xs">
-            ✨
-          </div>
-          <div className="flex-1 min-w-0">
-            <span className="text-[10px] font-extrabold text-[#125F55] uppercase tracking-wider block">
-              Espelho de Bem-Estar & Sensação
-            </span>
-            <p className="text-xs text-[#152A29] mt-0.5 leading-relaxed font-medium">
-              {wellbeingInsight.message}
-            </p>
-          </div>
-        </section>
-      )}
-
-      {/* Pílula de Sabedoria do Coach IA (Sprint 5: Gemini 2.5 Flash Lite + Heurística Offline) */}
-      <AICoachCard context={coachContext} />
 
       {/* 2. CARD CONTEXTUAL DE HOJE (A06: reflete estritamente a atividade agendada) */}
       {activeSession ? (
@@ -705,7 +582,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
 
             <button
               onClick={() => {
-                if (onOpenBuilder) onOpenBuilder();
+                if (onOpenBuilder) onOpenBuilder(undefined, true);
                 else onNavigateTab('workouts');
               }}
               className="p-3.5 rounded-2xl border border-[#C9DBD3] hover:border-[#125F55] bg-[#F5F8F5] transition-all cursor-pointer group"
@@ -722,7 +599,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
 
       {/* 3. OPÇÃO RÁPIDA (5 MINUTOS) - Respeitosa e acolhedora (A08, A24) */}
       {!activeSession && (
-        <section className="bg-[#F5F8F5] rounded-2xl p-4 border border-[#C9DBD3] flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-xs">
+        <section className="bg-[#EAF3EF]/60 rounded-2xl p-4 border border-[#C9DBD3]/70 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
           <div className="space-y-0.5">
             <h4 className="text-xs font-bold text-[#125F55] flex items-center gap-1.5 uppercase tracking-wide">
               <Sparkles className="w-3.5 h-3.5 text-[#E07A5F]" />
@@ -739,6 +616,34 @@ export const HomeView: React.FC<HomeViewProps> = ({
             <span>Opção Rápida (5 min)</span>
           </button>
         </section>
+      )}
+
+      {/* Espelho de Bem-Estar (Estratégia D: Termômetro Antes vs Depois) */}
+      {wellbeingInsight && (
+        <section className="bg-gradient-to-r from-[#D9F277]/25 via-[#EAF3EF] to-white rounded-3xl p-4.5 border border-[#C9DBD3]/80 flex items-start gap-3.5 animate-in fade-in">
+          <div className="w-9 h-9 rounded-2xl bg-[#125F55] text-white flex items-center justify-center shrink-0 text-base shadow-xs">
+            ✨
+          </div>
+          <div className="flex-1 min-w-0">
+            <span className="text-[10px] font-extrabold text-[#125F55] uppercase tracking-wider block">
+              Espelho de Bem-Estar & Sensação
+            </span>
+            <p className="text-xs text-[#152A29] mt-0.5 leading-relaxed font-medium">
+              {wellbeingInsight.message}
+            </p>
+          </div>
+        </section>
+      )}
+
+      {/* Pílula de Sabedoria do Coach IA */}
+      <AICoachCard context={coachContext} />
+
+      {/* Convite Discreto de Instalação do App (Movido para depois da ação do dia para não competir com o foco principal) */}
+      {!isInstallBannerDismissed && (
+        <PWAInstallButton
+          variant="banner"
+          onDismissBanner={() => setIsInstallBannerDismissed(true)}
+        />
       )}
 
       {/* 4. Vitrine de Recordes Pessoais (PRs Recentes) */}
