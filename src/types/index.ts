@@ -5,7 +5,57 @@ export type SessionStatus = 'in_progress' | 'completed' | 'abandoned' | 'parcial
 export type TrackingMode = 'reps' | 'time';
 
 export type PreWorkoutMood = 'cansado' | 'tenso' | 'normal' | 'disposto';
-export type PostWorkoutMood = 'renovado' | 'leve' | 'orgulhoso' | 'cansado_bem';
+export type PostWorkoutMood = 'renovado' | 'leve' | 'orgulhoso' | 'cansado_bem' | 'neutro' | 'esgotado' | 'desconforto';
+export type SessionEnjoyment = 'prazeroso' | 'neutro' | 'dificil';
+
+export type MotivationStyle =
+  | 'consistency' // Foco em hábito, agenda e cumprir a semana (T04, T05)
+  | 'mastery'     // Foco em aprender o movimento, postura e confiança técnica (T03)
+  | 'wellbeing'   // Foco em prazer, alívio de tensão e energia pós-prática (T08)
+  | 'performance' // Foco em evolução de repetições, tempo e cargas (T02)
+  | 'variety'     // Foco em exploração guiada e evitar monotonia (T10)
+  | 'social'      // Foco em compromisso compartilhado com pessoa de confiança (T13)
+  | 'none';       // Apenas executar o plano, sem desafios ou convites extras (C09)
+
+export interface CopingPlanRule {
+  obstacleId: 'falta_tempo' | 'dificuldade_comecar' | 'cansaco_mental' | 'desanimo_falhar' | 'exercicios_complexos' | 'dor_articular' | string;
+  ifTriggerLabel: string;
+  thenActionType: 'express_5min' | 'soften_25pct' | 'swap_mobility' | 'reschedule_day' | 'guided_form_focus';
+  thenActionLabel: string;
+}
+
+export interface PreparationRitual {
+  anchorTrigger: string;
+  steps: string[];
+  pleasureBundle?: string;
+  enableGuidedImagery?: boolean;
+  lastCompletedDateStr?: string;
+}
+
+export interface SessionFocusInvite {
+  type: 'pr_challenge' | 'technical_mastery' | 'wellbeing_flow' | 'consistency_habit' | 'professional_respect';
+  title: string;
+  badgeText: string;
+  description: string;
+  targetMark?: number;
+  unit?: 'reps' | 'seconds';
+  exerciseId?: string;
+  exerciseName?: string;
+  cue?: string;
+}
+
+export interface WeeklyReviewSummary {
+  weekStartDate: string;
+  weekEndDate: string;
+  completedCount: number;
+  expressOrPartialCount: number;
+  externalCount: number;
+  averageRpe: number;
+  predominantMood?: PostWorkoutMood;
+  currentTargetDays: number;
+  suggestedAction: 'maintain' | 'soften' | 'advance';
+  suggestedDaysTarget: number;
+}
 
 export type AchievementCoinType =
   | 'base_unlocked'
@@ -211,11 +261,15 @@ export interface WorkoutSession {
   exercisesSnapshot: ExercisePlanItem[];
   scheduledDayId?: string;
   scheduledActivityId?: string;
-  originType?: 'scheduled' | 'program_session' | 'ad_hoc' | 'express' | 'active_recovery';
+  originType?: 'scheduled' | 'program_session' | 'ad_hoc' | 'express' | 'active_recovery' | 'external_practice';
   isExpress?: boolean;
   wasPlannedHabit?: boolean;
+  wasSoftened?: boolean;
+  externalModality?: 'caminhada_corrida' | 'forca_academia' | 'mobilidade_yoga' | 'esporte_coletivo' | 'ciclismo_natacao' | 'outra';
+  externalDistanceKm?: number;
   preMood?: PreWorkoutMood;
   postMood?: PostWorkoutMood;
+  sessionEnjoyment?: SessionEnjoyment;
   newBaselinesCount?: number;
   achievementCoins?: AchievementCoinType[];
   efficiencyComparison?: SessionEfficiencyComparison;
@@ -263,6 +317,8 @@ export interface PersonalRecord {
   bestDurationSeconds: number;
   reps?: number; // Alias retrocompatível
   bestWeightKg?: number; // Maior carga registrada em kg
+  bestRepsAtBestWeight?: number; // Repetições realizadas na maior carga registrada
+  maxRepsUnloaded?: number; // Melhor marca em repetições sem carga externa
   recordedAt: number;
   sessionId: string;
   isBaseline?: boolean; // Marca inicial de referência (não é PR de superação)
@@ -324,6 +380,11 @@ export interface UserProfile {
   avoidedMovements?: string[];
   healthNotes?: string;
   practiceObstacles?: string[];
+  motivationStyle?: MotivationStyle;
+  preparationRitual?: PreparationRitual;
+  copingPlans?: CopingPlanRule[];
+  pleasureBundle?: string;
+  completedWeeklyReviews?: string[];
   userContextNotes?: string;
   routineConfirmed?: boolean;
   accessChoice?: 'guest' | 'login' | 'signup' | null;

@@ -21,6 +21,7 @@ import { EmailAuthModal } from '../components/EmailAuthModal';
 import { PWAInstallButton } from '../components/PWAInstallButton';
 import { ensurePersistentStorage, getStorageEstimate, StorageEstimateResult } from '../lib/pwaNative';
 import { Mail, HardDrive, Mic, Shield } from 'lucide-react';
+import { MotivationStyle } from '../types';
 
 interface ProfileViewProps {
   onClose: () => void;
@@ -38,6 +39,7 @@ export const ProfileView: React.FC<ProfileViewProps> = ({ onClose }) => {
   const [availableDays, setAvailableDays] = useState<number[]>(profile.availableDays || [1, 3, 5]);
   const [sessionDurationMinutes, setSessionDurationMinutes] = useState<number>(profile.sessionDurationMinutes || 20);
   const [avoidedMovements, setAvoidedMovements] = useState<string[]>(profile.avoidedMovements || []);
+  const [motivationStyle, setMotivationStyle] = useState<MotivationStyle>(profile.motivationStyle || 'consistency');
   const [isSaved, setIsSaved] = useState<boolean>(false);
   const [isEmailModalOpen, setIsEmailModalOpen] = useState<boolean>(false);
   const [storageInfo, setStorageInfo] = useState<StorageEstimateResult | null>(null);
@@ -115,6 +117,7 @@ export const ProfileView: React.FC<ProfileViewProps> = ({ onClose }) => {
       availableDays,
       sessionDurationMinutes,
       avoidedMovements,
+      motivationStyle,
     });
     setIsSaved(true);
     setTimeout(() => setIsSaved(false), 4000);
@@ -295,6 +298,40 @@ export const ProfileView: React.FC<ProfileViewProps> = ({ onClose }) => {
             placeholder="Ex: Ter disposição para brincar com meus filhos"
             className="w-full h-10 px-3.5 rounded-xl border border-[#C9DBD3] text-xs text-[#152A29] focus:outline-none focus:border-[#125F55]"
           />
+        </div>
+
+        <div>
+          <label className="block text-xs font-bold text-[#152A29] mb-1.5">
+            Estilo de Incentivo Preferido (T01 Autonomia)
+          </label>
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+            {[
+              { id: 'consistency' as const, label: 'Constância & Hábito', icon: '🎯' },
+              { id: 'mastery' as const, label: 'Domínio Técnico', icon: '📐' },
+              { id: 'wellbeing' as const, label: 'Bem-Estar & Alívio', icon: '🌿' },
+              { id: 'performance' as const, label: 'Superação (PRs)', icon: '🏆' },
+              { id: 'variety' as const, label: 'Variedade Guiada', icon: '🎲' },
+              { id: 'none' as const, label: 'Apenas Meu Plano', icon: '🛡️' },
+            ].map((st) => (
+              <button
+                key={st.id}
+                type="button"
+                aria-pressed={motivationStyle === st.id}
+                onClick={() => setMotivationStyle(st.id)}
+                className={`p-2.5 rounded-xl text-left text-xs font-semibold flex items-center gap-2 border transition-all cursor-pointer ${
+                  motivationStyle === st.id
+                    ? 'bg-[#125F55] text-white border-[#125F55]'
+                    : 'bg-white text-[#152A29] border-[#C9DBD3] hover:border-[#125F55]'
+                }`}
+              >
+                <span>{st.icon}</span>
+                <span className="truncate">{st.label}</span>
+              </button>
+            ))}
+          </div>
+          <p className="text-[10px] text-[#5B7170] mt-1">
+            Você pode alterar seu foco a qualquer momento. Escolha &quot;Apenas Meu Plano&quot; se segue prescrição profissional e não quer sugestões extras.
+          </p>
         </div>
 
         <div>

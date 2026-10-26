@@ -353,7 +353,7 @@ export function generateWeeklyCalendarFromProgram(uid: string, program: WorkoutP
 
 // Cálculo e verificação de novo Recorde Pessoal (PR)
 // Regra canônica (E01 / Seção 5): Primeira marca é apenas linha de base (isBaseline: true, isPR: false).
-// Novo PR só ocorre quando supera estritamente uma marca prévia do mesmo exercício.
+// Novo PR só ocorre quando supera estritamente uma marca prévia sob condição equivalente.
 export function checkAndRegisterPR(
   exerciseId: string,
   exerciseName: string,
@@ -380,6 +380,8 @@ export function checkAndRegisterPR(
         bestReps: actualReps,
         bestDurationSeconds: actualDurationSeconds || 0,
         bestWeightKg: weight,
+        bestRepsAtBestWeight: weight > 0 ? actualReps : undefined,
+        maxRepsUnloaded: weight === 0 ? actualReps : undefined,
         recordedAt: Date.now(),
         sessionId,
         isBaseline: true,
@@ -389,39 +391,59 @@ export function checkAndRegisterPR(
     }
   } else {
     const prevWeight = currentPR.bestWeightKg || 0;
-    const isWeightPR = weight > prevWeight;
-    const isRepPR = actualReps > currentPR.bestReps;
-    const isTimePR = actualDurationSeconds && actualDurationSeconds > currentPR.bestDurationSeconds;
+    const isTimeMode = actualDurationSeconds !== undefined && actualDurationSeconds > 0;
+
+    const isWeightPR = weight > prevWeight && actualReps >= 1;
+    // PR de repetições estrito: exige condição de carga mantida ou aumentada
+    const isRepPR =
+      !isTimeMode &&
+      ((weight >= prevWeight && actualReps > currentPR.bestReps) ||
+        (weight === 0 && prevWeight > 0 && currentPR.maxRepsUnloaded !== undefined && actualReps > currentPR.maxRepsUnloaded));
+
+    const isTimePR = isTimeMode && actualDurationSeconds > currentPR.bestDurationSeconds;
 
     if (isWeightPR && isRepPR) {
       isPR = true;
-      prText = `Superação dupla: ${weight} kg (+${weight - prevWeight}kg) e ${actualReps} reps (+${actualReps - currentPR.bestReps})!`;
+      prText = `Superação dupla: ${weight} kg (+${weight - prevWeight}kg) e ${actualReps} reps!`;
     } else if (isWeightPR) {
       isPR = true;
       prText = `Superou carga: de ${prevWeight}kg para ${weight}kg (+${weight - prevWeight}kg)!`;
     } else if (isRepPR) {
       isPR = true;
-      prText = `Superou repetições: de ${currentPR.bestReps} para ${actualReps} reps (+${actualReps - currentPR.bestReps})!`;
+      const prevCompare = weight === 0 && prevWeight > 0 ? (currentPR.maxRepsUnloaded || 0) : currentPR.bestReps;
+      prText = `Superou repetições: de ${prevCompare} para ${actualReps} reps (+${actualReps - prevCompare})!`;
     } else if (isTimePR) {
       isPR = true;
       prText = `Superou tempo: de ${currentPR.bestDurationSeconds}s para ${actualDurationSeconds}s (+${actualDurationSeconds - currentPR.bestDurationSeconds}s)!`;
     }
 
     if (isPR) {
-      const updatedPRs = existingPRs.map((p) =>
-        p.exerciseId === exerciseId
-          ? {
-              ...p,
-              bestReps: Math.max(p.bestReps, actualReps),
-              bestDurationSeconds: Math.max(p.bestDurationSeconds, actualDurationSeconds || 0),
-              bestWeightKg: Math.max(p.bestWeightKg || 0, weight),
-              recordedAt: Date.now(),
-              sessionId,
-              isBaseline: false,
-              prCount: (p.prCount || 0) + 1,
-            }
-          : p
-      );
+      const updatedPRs = existingPRs.map((p) => {
+        if (p.exerciseId !== exerciseId) return p;
+
+        const newBestWeight = isWeightPR ? weight : (p.bestWeightKg || 0);
+        const newBestRepsAtWeight = isWeightPR
+          ? actualReps
+          : (p.bestRepsAtBestWeight || (weight === p.bestWeightKg ? Math.max(p.bestRepsAtBestWeight || 0, actualReps) : undefined));
+        const newMaxRepsUnloaded =
+          weight === 0
+            ? Math.max(p.maxRepsUnloaded || 0, actualReps)
+            : (p.maxRepsUnloaded !== undefined ? p.maxRepsUnloaded : (prevWeight === 0 && p.bestReps > 0 ? p.bestReps : undefined));
+        const newBestReps = weight >= prevWeight ? Math.max(p.bestReps, actualReps) : p.bestReps;
+
+        return {
+          ...p,
+          bestReps: newBestReps,
+          bestDurationSeconds: Math.max(p.bestDurationSeconds, actualDurationSeconds || 0),
+          bestWeightKg: newBestWeight,
+          bestRepsAtBestWeight: newBestRepsAtWeight,
+          maxRepsUnloaded: newMaxRepsUnloaded,
+          recordedAt: Date.now(),
+          sessionId,
+          isBaseline: false,
+          prCount: (p.prCount || 0) + 1,
+        };
+      });
       return { isPR, isNewBaseline: false, updatedPRs, prText };
     }
   }
@@ -436,7 +458,9 @@ export function calculateCanonicalMetrics(
   calendar: CalendarDay[],
   prs: PersonalRecord[]
 ): CanonicalMetrics {
-  const completedWorkoutsCount = sessions.filter((s) => s.status === 'completed').length;
+  const completedWorkoutsCount = sessions.filter(
+    (s) => s.status === 'completed' || s.originType === 'external_practice'
+  ).length;
   const partialWorkoutsCount = sessions.filter((s) => s.status === 'parcial').length;
   const totalWorkoutsCount = completedWorkoutsCount + partialWorkoutsCount;
   const realPRCount = prs.filter((p) => !p.isBaseline && (p.prCount || 0) > 0).length;
@@ -453,12 +477,13 @@ export function calculateCanonicalMetrics(
   const careSessions = sessions.filter(
     (s) =>
       s.status === 'completed' &&
-      (s.planId.includes('mobilidade') ||
-        s.planId.includes('walk') ||
+      ((s.planId && s.planId.includes('mobilidade')) ||
+        (s.planId && s.planId.includes('walk')) ||
         s.originType === 'active_recovery' ||
-        s.planTitle.toLowerCase().includes('mobilidade') ||
-        s.planTitle.toLowerCase().includes('caminhada') ||
-        s.planTitle.toLowerCase().includes('alongamento'))
+        s.externalModality === 'mobilidade_yoga' ||
+        (s.planTitle && s.planTitle.toLowerCase().includes('mobilidade')) ||
+        (s.planTitle && s.planTitle.toLowerCase().includes('caminhada')) ||
+        (s.planTitle && s.planTitle.toLowerCase().includes('alongamento')))
   );
   const careSessionsCount = careSessions.length;
   const careMinutesTotal = careSessions.reduce(
@@ -473,15 +498,16 @@ export function calculateCanonicalMetrics(
       ((c.activityType === 'rest' || c.activityType === 'unassigned') &&
         sessions.some(
           (s) =>
-            s.status === 'completed' &&
+            (s.status === 'completed' || s.originType === 'external_practice') &&
             (s.scheduledDayId === c.id ||
               (s.completedAt && getLocalDateStr(new Date(s.completedAt)) === c.dateStr)) &&
-            (s.planId.includes('mobilidade') ||
-              s.planId.includes('walk') ||
+            ((s.planId && s.planId.includes('mobilidade')) ||
+              (s.planId && s.planId.includes('walk')) ||
               s.originType === 'active_recovery' ||
-              s.planTitle.toLowerCase().includes('mobilidade') ||
-              s.planTitle.toLowerCase().includes('caminhada') ||
-              s.planTitle.toLowerCase().includes('alongamento'))
+              s.externalModality === 'mobilidade_yoga' ||
+              (s.planTitle && s.planTitle.toLowerCase().includes('mobilidade')) ||
+              (s.planTitle && s.planTitle.toLowerCase().includes('caminhada')) ||
+              (s.planTitle && s.planTitle.toLowerCase().includes('alongamento')))
         ))
   ).length;
 
@@ -519,6 +545,9 @@ export const POST_MOOD_LABELS: Record<PostWorkoutMood, { label: string; icon: st
   leve: { label: 'Mais leve e solto', icon: '🌿' },
   orgulhoso: { label: 'Dever cumprido', icon: '🏅' },
   cansado_bem: { label: 'Cansado, mas feliz', icon: '💪' },
+  neutro: { label: 'Igual / Neutro', icon: '🙂' },
+  esgotado: { label: 'Exausto / Pesado', icon: '🥱' },
+  desconforto: { label: 'Com desconforto', icon: '⚠️' },
 };
 
 // Estratégia C: Micro-Desafio do Dia
@@ -701,30 +730,37 @@ export function generateTomorrowBridge(
   };
 }
 
-// Estratégia D: Espelho de Bem-Estar (Termômetro Antes vs Depois)
+// Estratégia D: Espelho de Bem-Estar (Termômetro Antes vs Depois com Denominador Explícito)
 export function generateWellbeingInsight(sessions: WorkoutSession[]): WellbeingInsight | null {
   const tracked = sessions.filter((s) => s.preMood && s.postMood);
   if (tracked.length === 0) return null;
 
-  const turnarounds = tracked.filter(
+  const difficultStarts = tracked.filter((s) => s.preMood === 'cansado' || s.preMood === 'tenso');
+  const positiveEndsAfterDifficult = difficultStarts.filter(
     (s) =>
-      (s.preMood === 'cansado' || s.preMood === 'tenso') &&
-      (s.postMood === 'renovado' || s.postMood === 'leve' || s.postMood === 'orgulhoso' || s.postMood === 'cansado_bem')
+      s.postMood === 'renovado' ||
+      s.postMood === 'leve' ||
+      s.postMood === 'orgulhoso' ||
+      s.postMood === 'cansado_bem'
   );
 
-  if (turnarounds.length > 0) {
-    const latest = turnarounds[turnarounds.length - 1];
+  if (difficultStarts.length > 0) {
+    const latest =
+      positiveEndsAfterDifficult[positiveEndsAfterDifficult.length - 1] ||
+      difficultStarts[difficultStarts.length - 1];
     const mins = Math.max(1, Math.round(latest.durationSeconds / 60));
     const preLabel = PRE_MOOD_LABELS[latest.preMood!].label;
     const postLabel = POST_MOOD_LABELS[latest.postMood!].label;
 
     return {
       totalTrackedSessions: tracked.length,
-      positiveTurnaroundCount: turnarounds.length,
+      positiveTurnaroundCount: positiveEndsAfterDifficult.length,
       lastTurnaroundPreMood: latest.preMood,
       lastTurnaroundPostMood: latest.postMood,
       lastTurnaroundMinutes: mins,
-      message: `Em ${turnarounds.length} ${turnarounds.length === 1 ? 'ocasião' : 'ocasiões'} em que você começou '${preLabel}', apenas ${mins} min de prática fizeram você terminar '${postLabel}'. Comece no seu ritmo hoje!`,
+      message: `Em ${positiveEndsAfterDifficult.length} de ${difficultStarts.length} ${
+        difficultStarts.length === 1 ? 'prática registrada' : 'práticas registradas'
+      } em que você começou '${preLabel}', apenas ${mins} min de prática fizeram você terminar '${postLabel}'. Comece no seu ritmo hoje!`,
     };
   }
 
@@ -733,11 +769,13 @@ export function generateWellbeingInsight(sessions: WorkoutSession[]): WellbeingI
   return {
     totalTrackedSessions: tracked.length,
     positiveTurnaroundCount: 0,
-    message: `Nas suas práticas recentes, você terminou se sentindo '${postLabel}'. Reserve alguns minutos para cuidar de você hoje!`,
+    message: `Em ${tracked.length} ${
+      tracked.length === 1 ? 'prática recente registrada' : 'práticas recentes registradas'
+    }, você terminou se sentindo '${postLabel}'. Reserve alguns minutos para cuidar de você hoje!`,
   };
 }
 
-// Estratégia A: Avaliação de Superação de Fluidez (RPE)
+// Estratégia A: Avaliação de Superação de Fluidez com Equivalência Estrita de Trabalho
 export function evaluateSessionEfficiency(
   currentSession: WorkoutSession,
   allSessions: WorkoutSession[]
@@ -745,6 +783,8 @@ export function evaluateSessionEfficiency(
   if (
     currentSession.status !== 'completed' ||
     !currentSession.feedbackEffort ||
+    currentSession.isExpress ||
+    currentSession.wasSoftened ||
     currentSession.totalSetsCompleted < currentSession.totalSetsPlanned
   ) {
     return null;
@@ -756,8 +796,12 @@ export function evaluateSessionEfficiency(
         s.id !== currentSession.id &&
         s.planId === currentSession.planId &&
         s.status === 'completed' &&
+        !s.isExpress &&
+        !s.wasSoftened &&
         s.feedbackEffort !== undefined &&
-        s.totalSetsCompleted >= s.totalSetsPlanned
+        s.totalSetsCompleted >= s.totalSetsPlanned &&
+        currentSession.totalRepsCompleted >= s.totalRepsCompleted &&
+        (currentSession.totalVolumeKg || 0) >= (s.totalVolumeKg || 0)
     )
     .sort((a, b) => (b.completedAt || b.startedAt) - (a.completedAt || a.startedAt))[0];
 

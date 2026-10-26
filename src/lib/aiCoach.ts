@@ -9,6 +9,8 @@
  * 4. Fallback Heurístico Resiliente: Sem chave ou offline, fornece pílulas empáticas baseadas no porquê pessoal e histórico.
  */
 
+import { MotivationStyle } from '../types';
+
 export interface CoachContext {
   displayName?: string;
   exerciseReason?: string;
@@ -16,6 +18,7 @@ export interface CoachContext {
   weeklyCompleted?: number;
   lastMood?: string;
   todayPlanTitle?: string;
+  motivationStyle?: MotivationStyle;
 }
 
 export interface CoachInsightResult {
@@ -101,6 +104,16 @@ export function getHeuristicInsight(ctx: CoachContext, previousInsight?: string)
 
   if (mood && (mood.includes('renov') || mood.includes('leve') || mood.includes('energ'))) {
     pool.push(`${name}guarde a sensação boa do seu último treino! O movimento regular é o melhor remédio preventivo para o corpo e mente.`);
+  }
+
+  if (ctx.motivationStyle === 'mastery') {
+    pool.push(`${name}observe a qualidade de cada movimento hoje. A maestria corporal se constrói na presença e na precisão, não na pressa.`);
+  } else if (ctx.motivationStyle === 'wellbeing') {
+    pool.push(`${name}o treino de hoje é um presente para a sua mente e corpo. Respire fundo e busque a sensação de alívio.`);
+  } else if (ctx.motivationStyle === 'none') {
+    pool.push(`${name}foco total na execução precisa do seu plano. Seguir a estrutura prescrita com disciplina é sua maior força.`);
+  } else if (ctx.motivationStyle === 'performance') {
+    pool.push(`${name}supere a si mesmo com inteligência: busque marcas consistentes sob boa postura e esforço controlado.`);
   }
 
   pool.push(`${name}hoje é um dia especial para honrar o seu corpo sem pressa. Não precisa ser perfeito, basta ser possível!`);
