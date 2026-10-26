@@ -27,7 +27,7 @@ import {
   Check,
   Zap,
 } from 'lucide-react';
-import { WorkoutPlan, MotivationStyle, PostWorkoutMood, CopingPlanRule } from '../types';
+import { WorkoutPlan, MotivationStyle, PostWorkoutMood, PreWorkoutMood, CopingPlanRule } from '../types';
 import { premadeWorkouts } from '../data/premadeWorkouts';
 import { calculateCanonicalMetrics, generateWellbeingInsight } from '../lib/storage';
 import {
@@ -42,6 +42,10 @@ import { AICoachCard } from '../components/AICoachCard';
 import { CoachContext } from '../lib/aiCoach';
 import { PWAInstallButton } from '../components/PWAInstallButton';
 import { ActivityPath } from '../components/ActivityPath';
+import { WeekPath } from '../components/superacao/WeekPath';
+import { PreparationCard } from '../components/superacao/PreparationCard';
+import { ObstaclePills } from '../components/superacao/ObstaclePills';
+import { PreWorkoutModal } from '../components/superacao/PreWorkoutModal';
 
 interface HomeViewProps {
   onStartWorkout: (
@@ -94,11 +98,12 @@ export const HomeView: React.FC<HomeViewProps> = ({
   const [practiceDistanceKm, setPracticeDistanceKm] = useState<string>('');
   const [practiceNotes, setPracticeNotes] = useState<string>('');
 
-  // Estados locais para Se-Então (T07) e Seletor de Estilo (T01)
+  // Estados locais para Se-Então (T07), Seletor de Estilo (T01) e Pré-Treino (T08)
   const [showCopingModal, setShowCopingModal] = useState<boolean>(false);
   const [showStyleSelector, setShowStyleSelector] = useState<boolean>(false);
   const [showReviewOnboarding, setShowReviewOnboarding] = useState<boolean>(false);
-  const [isInstallBannerDismissed, setIsInstallBannerDismissed] = useState<boolean>(false);
+  const [showPreWorkoutModal, setShowPreWorkoutModal] = useState<boolean>(false);
+  const [preMood, setPreMood] = useState<PreWorkoutMood>('normal');
 
   // Dia de hoje e fuso local (A06)
   const today = new Date();
@@ -107,7 +112,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
   const todaySchedule =
     calendar.find((c) => c.dateStr === todayStr) || calendar.find((c) => c.dayOfWeek === dayOfWeek);
 
-  // Plano estritamente associado ao dia de hoje (sem fallback enganoso que substitui caminhada ou descanso por agachamento!)
+  // Plano estritamente associado ao dia de hoje
   const todayPlan = todaySchedule?.planId
     ? plans.find((p) => p.id === todaySchedule.planId) || null
     : null;
@@ -166,6 +171,14 @@ export const HomeView: React.FC<HomeViewProps> = ({
   const isWeeklyReviewCompleted = (profile.completedWeeklyReviews || []).includes(todayStr);
   const hasWeeklySessions = weeklyReview.completedCount + weeklyReview.expressOrPartialCount + weeklyReview.externalCount > 0;
 
+  // Formatação de data em pt-BR (Ritmo Natural)
+  const formattedDate = today.toLocaleDateString('pt-BR', {
+    weekday: 'long',
+    day: 'numeric',
+    month: 'short',
+  });
+  const capitalizedDate = formattedDate.charAt(0).toUpperCase() + formattedDate.slice(1);
+
   const handleSavePractice = async () => {
     const km = practiceDistanceKm ? parseFloat(practiceDistanceKm) : undefined;
     await recordExternalPractice(
@@ -181,10 +194,362 @@ export const HomeView: React.FC<HomeViewProps> = ({
     setPracticeNotes('');
   };
 
+  const handleStartTodayWorkout = () => {
+    if (!todayPlan) return;
+    if (preMood === 'cansado' || preMood === 'tenso') {
+      const softened = createGentleReturnPlanSnapshot(todayPlan);
+      onStartWorkout(softened, todaySchedule?.id, 'scheduled');
+    } else {
+      onStartWorkout(todayPlan, todaySchedule?.id, 'scheduled');
+    }
+  };
+
   return (
-    <div className="space-y-6 pb-24">
-      {/* Banner de Revisão Amigável para Usuários com Rotina Legada (A18) */}
-      {/* Card de Retomada Contextual sem Culpa (T11 / C01) */}
+    <div className="space-y-4.5 pb-24">
+      {/* ─────────────────────────────────────────────────────────────
+          FOLD 1: HEADER EDITORIAL ACOLHEDOR & RITMO SEMANAL
+          Garante que o Card de Ação Principal e o botão CTA fiquem
+          completamente visíveis no viewport mobile 390×844 sem rolagem.
+         ───────────────────────────────────────────────────────────── */}
+      <section className="space-y-3 pt-1">
+        {/* Cabeçalho Editorial com Saudação e Data */}
+        <div className="flex items-start justify-between gap-3">
+          <div>
+            <p className="text-[11px] font-semibold text-[#5D6E65] tracking-wide">
+              {capitalizedDate}
+            </p>
+            <h1 className="font-serif text-2xl font-bold text-[#19231E] leading-tight">
+              Olá, {profile.displayName || 'Praticante'}!
+            </h1>
+          </div>
+
+          {/* Badge de Consistência Semanal */}
+          <div className="flex items-center gap-1.5 px-3 py-1.5 bg-[#E8EFE9] text-[#1B4332] rounded-full border border-[#1B4332]/15 shrink-0 shadow-2xs">
+            <Flame className="w-3.5 h-3.5 text-[#1B4332]" />
+            <span className="text-xs font-bold">
+              {totalPlannedThisWeek > 0
+                ? `${completedThisWeek}/${totalPlannedThisWeek} na semana`
+                : `${completedThisWeek} sessões`}
+            </span>
+          </div>
+        </div>
+
+        {/* Estilo de Incentivo Compacto (T01 Autonomia) */}
+        <div className="flex items-center justify-between text-xs text-[#5D6E65]">
+          <div className="flex items-center gap-1.5 flex-wrap">
+            <span>Incentivo:</span>
+            <span className="font-bold text-[#1B4332] bg-[#E8EFE9] px-2.5 py-0.5 rounded-full border border-[#1B4332]/20 flex items-center gap-1">
+              {currentMotivationStyle === 'consistency' && '🎯 Constância & Hábito'}
+              {currentMotivationStyle === 'mastery' && '📐 Domínio Técnico'}
+              {currentMotivationStyle === 'wellbeing' && '🌿 Bem-Estar & Alívio'}
+              {currentMotivationStyle === 'performance' && '🏆 Superação (PRs)'}
+              {currentMotivationStyle === 'variety' && '🎲 Variedade'}
+              {currentMotivationStyle === 'social' && '🤝 Compromisso'}
+              {currentMotivationStyle === 'none' && '🛡️ Apenas Meu Plano'}
+            </span>
+          </div>
+          <button
+            type="button"
+            onClick={() => setShowStyleSelector((prev) => !prev)}
+            className="text-[11px] font-bold text-[#1B4332] hover:underline cursor-pointer shrink-0 ml-2"
+          >
+            {showStyleSelector ? 'Fechar' : 'Mudar estilo'}
+          </button>
+        </div>
+
+        {/* Menu rápido de estilos de incentivo quando acionado */}
+        {showStyleSelector && (
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-1.5 p-2 bg-[#FAF8F5] rounded-2xl border border-[#E4DDD3] animate-in fade-in">
+            {[
+              { id: 'consistency' as const, label: 'Constância', icon: '🎯' },
+              { id: 'mastery' as const, label: 'Domínio Técnico', icon: '📐' },
+              { id: 'wellbeing' as const, label: 'Bem-Estar', icon: '🌿' },
+              { id: 'performance' as const, label: 'Superação (PRs)', icon: '🏆' },
+              { id: 'variety' as const, label: 'Variedade', icon: '🎲' },
+              { id: 'none' as const, label: 'Sem desafios', icon: '🛡️' },
+            ].map((st) => (
+              <button
+                key={st.id}
+                type="button"
+                onClick={async () => {
+                  await updateMotivationStyle(st.id);
+                  setShowStyleSelector(false);
+                }}
+                className={`p-2 rounded-xl text-left text-xs font-semibold flex items-center gap-1.5 transition-all cursor-pointer ${
+                  currentMotivationStyle === st.id
+                    ? 'bg-[#1B4332] text-white'
+                    : 'bg-white text-[#19231E] border border-[#E4DDD3] hover:border-[#1B4332]'
+                }`}
+              >
+                <span>{st.icon}</span>
+                <span className="truncate">{st.label}</span>
+              </button>
+            ))}
+          </div>
+        )}
+
+        {/* Trilha Semanal de 1 Linha (Bolinhas Semânticas) */}
+        <WeekPath
+          calendar={calendar}
+          sessions={sessions}
+          todayDayOfWeek={dayOfWeek}
+          todayStr={todayStr}
+          onNavigateCalendar={() => onNavigateTab('calendar')}
+        />
+      </section>
+
+      {/* ─────────────────────────────────────────────────────────────
+          CARD PRINCIPAL CONTEXTUAL DE HOJE (FOLD 1 GARANTIDO)
+         ───────────────────────────────────────────────────────────── */}
+      {activeSession ? (
+        /* CARD: TREINO EM ANDAMENTO / PAUSADO */
+        <section className="bg-[#1B4332] text-white rounded-3xl p-5 shadow-md relative overflow-hidden space-y-3">
+          <div>
+            <span className="px-2.5 py-1 rounded-full bg-white/20 text-[11px] font-bold text-white tracking-wide uppercase">
+              Treino em Andamento
+            </span>
+            <h3 className="font-serif text-xl font-bold mt-2 text-white">
+              {activeSession.planTitle}
+            </h3>
+            <p className="text-xs text-white/80 mt-1">
+              Exercício {activeSession.currentExerciseIndex + 1} de {activeSession.exercisesSnapshot.length} · Série {activeSession.currentSetIndex}
+            </p>
+          </div>
+
+          <button
+            onClick={onResumeWorkout}
+            className="w-full h-14 bg-[#D9F277] text-[#19231E] font-bold text-sm rounded-2xl flex items-center justify-center gap-2 hover:bg-[#cbe368] active:scale-[0.98] transition-all cursor-pointer shadow-sm"
+          >
+            <RotateCcw className="w-5 h-5" />
+            <span>Retomar Treino Agora</span>
+          </button>
+        </section>
+      ) : todaySchedule?.activityType === 'walk' ? (
+        /* CARD: ATIVIDADE LIVRE · CAMINHADA */
+        <section className="bg-white border border-[#E4DDD3] rounded-3xl p-5 shadow-sm space-y-3">
+          <div className="flex items-center justify-between text-xs">
+            <span className="font-bold text-[#1B4332] uppercase tracking-wider text-[11px] flex items-center gap-1.5">
+              <Footprints className="w-4 h-4" />
+              <span>Atividade Livre · Caminhada</span>
+            </span>
+            <span className="text-[#5D6E65] text-[11px]">Ritmo livre</span>
+          </div>
+
+          <h3 className="font-serif text-xl font-bold text-[#19231E]">
+            {todaySchedule.planTitle || 'Caminhada Confortável & Ar Livre'}
+          </h3>
+          <p className="text-xs text-[#5D6E65] leading-relaxed">
+            Estimule o sistema cardiorrespiratório e a circulação no seu próprio ritmo. Registre a duração e a distância opcional sem necessidade de GPS.
+          </p>
+
+          <button
+            onClick={() => {
+              setPracticeModality('caminhada_corrida');
+              setShowPracticeModal(true);
+            }}
+            className="w-full h-14 bg-[#1B4332] hover:bg-[#12372A] text-white font-bold text-sm rounded-2xl flex items-center justify-center gap-2 active:scale-[0.98] transition-all cursor-pointer shadow-sm"
+          >
+            <Footprints className="w-5 h-5" />
+            <span>Registrar Caminhada de Hoje</span>
+          </button>
+        </section>
+      ) : todaySchedule?.activityType === 'rest' ? (
+        /* CARD: DIA DE DESCANSO & REGENERAÇÃO */
+        <section className="bg-white border border-[#E4DDD3] rounded-3xl p-5 shadow-sm space-y-3.5">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2 text-xs font-bold text-[#E07A5F] uppercase tracking-wider">
+              <Heart className="w-4 h-4" />
+              <span>Dia de Descanso & Regeneração</span>
+            </div>
+            {todaySchedule.vitalityBonusCompleted && (
+              <span className="px-2.5 py-0.5 rounded-full bg-[#E8EFE9] border border-[#1B4332]/20 text-[10px] font-bold text-[#1B4332] flex items-center gap-1">
+                <Sparkles className="w-3 h-3" /> Elo Conquistado
+              </span>
+            )}
+          </div>
+
+          <div>
+            <h3 className="font-serif text-xl font-bold text-[#19231E]">
+              O descanso é onde o corpo se regenera
+            </h3>
+            <p className="text-xs text-[#5D6E65] mt-1 leading-relaxed">
+              Hoje não há cobrança de treino. Descansar é vencer! Se quiser se movimentar levemente sem cansar os músculos, você pode registrar uma prática regenerativa:
+            </p>
+          </div>
+
+          <div className="pt-1 grid grid-cols-1 sm:grid-cols-2 gap-2">
+            {recoveryPlan && (
+              <button
+                onClick={() => onStartWorkout(recoveryPlan, todaySchedule?.id, 'ad_hoc')}
+                className="h-12 bg-[#E8EFE9] text-[#1B4332] font-bold text-xs rounded-xl flex items-center justify-center gap-2 hover:bg-[#1B4332] hover:text-white transition-all cursor-pointer shadow-2xs"
+              >
+                <Sparkles className="w-4 h-4 text-[#E07A5F]" />
+                <span>Alongamento / Mobilidade (8 min)</span>
+              </button>
+            )}
+            <button
+              onClick={() => {
+                setPracticeModality('caminhada_corrida');
+                setShowPracticeModal(true);
+              }}
+              className="h-12 bg-white text-[#19231E] font-semibold text-xs rounded-xl flex items-center justify-center gap-2 hover:bg-[#FAF8F5] transition-all border border-[#E4DDD3] cursor-pointer"
+            >
+              <Footprints className="w-4 h-4 text-[#1B4332]" />
+              <span>Caminhada Regenerativa Livre (Registrar Prática)</span>
+            </button>
+          </div>
+        </section>
+      ) : todayPlan ? (
+        /* CARD: TREINO DE FORÇA PLANEJADO PARA HOJE */
+        <section className="bg-white border border-[#E4DDD3] rounded-3xl p-5 shadow-sm space-y-3.5 transition-all">
+          {/* Cabeçalho do Card */}
+          <div className="flex items-center justify-between text-xs">
+            <span className="font-bold uppercase tracking-wider text-[10px] text-[#1B4332] bg-[#E8EFE9] px-2.5 py-1 rounded-full">
+              Treino Planejado para Hoje
+            </span>
+            <span className="flex items-center gap-1 text-[#5D6E65] font-semibold text-xs">
+              <Clock className="w-3.5 h-3.5 text-[#1B4332]" />
+              {todayPlan.estimatedDurationMinutes} min · {todayPlan.exercises.length} {todayPlan.exercises.length === 1 ? 'exercício' : 'exercícios'}
+            </span>
+          </div>
+
+          {/* Título Serifado */}
+          <div>
+            <h2 className="font-serif text-xl font-bold text-[#19231E] leading-tight">
+              {todayPlan.title}
+            </h2>
+            <p className="text-xs text-[#5D6E65] line-clamp-2 mt-0.5">
+              {todayPlan.description}
+            </p>
+          </div>
+
+          {/* Foco Adaptativo da Sessão (se houver) */}
+          {sessionFocus && (
+            <div className="bg-[#FAF8F5] border border-[#E4DDD3] rounded-2xl p-3 flex items-start gap-2.5">
+              <span className="text-base shrink-0 mt-0.5">🎯</span>
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-2">
+                  <span className="text-[10px] font-bold uppercase px-2 py-0.5 rounded-full bg-[#1B4332] text-white">
+                    {sessionFocus.badgeText}
+                  </span>
+                  <h4 className="text-xs font-bold text-[#19231E]">{sessionFocus.title}</h4>
+                </div>
+                <p className="text-[11px] text-[#5D6E65] mt-0.5 leading-snug">
+                  {sessionFocus.description}
+                </p>
+              </div>
+            </div>
+          )}
+
+          {/* Lista Compacta de Exercícios */}
+          <div className="bg-[#FAF8F5] p-3 rounded-2xl space-y-1.5 text-xs text-[#19231E] border border-[#E4DDD3]/60">
+            {todayPlan.exercises.slice(0, 3).map((ex, i) => (
+              <div key={i} className="flex items-center justify-between">
+                <span className="font-medium truncate max-w-[210px]">{ex.exerciseName}</span>
+                <span className="text-[#5D6E65] text-[11px] tabular-nums">
+                  {ex.targetSets}x {ex.targetReps > 0 ? `${ex.targetReps} reps` : `${ex.targetDurationSeconds}s`}
+                </span>
+              </div>
+            ))}
+            {todayPlan.exercises.length > 3 && (
+              <p className="text-[11px] text-[#5D6E65] pt-0.5">
+                + {todayPlan.exercises.length - 3} outros movimentos
+              </p>
+            )}
+          </div>
+
+          {/* Seletor Compacto de Humor "Como você chega hoje?" */}
+          <div className="space-y-1.5 pt-0.5">
+            <div className="flex items-center justify-between text-xs">
+              <span className="font-semibold text-[#19231E] text-[11px]">Como você chega hoje?</span>
+              <button
+                type="button"
+                onClick={() => setShowPreWorkoutModal(true)}
+                className="text-[10px] text-[#1B4332] font-bold hover:underline cursor-pointer"
+              >
+                Antes de começar
+              </button>
+            </div>
+
+            <div className="grid grid-cols-4 gap-1.5">
+              {[
+                { id: 'cansado' as const, label: 'Cansado', icon: '🔋' },
+                { id: 'tenso' as const, label: 'Tenso', icon: '🧘' },
+                { id: 'normal' as const, label: 'Normal', icon: '🌿' },
+                { id: 'disposto' as const, label: 'Disposto', icon: '⚡' },
+              ].map((m) => (
+                <button
+                  key={m.id}
+                  type="button"
+                  onClick={() => setPreMood(m.id)}
+                  className={`py-1.5 px-1 rounded-xl text-center text-[10px] font-semibold flex items-center justify-center gap-1 transition-all cursor-pointer ${
+                    preMood === m.id
+                      ? m.id === 'cansado' || m.id === 'tenso'
+                        ? 'bg-[#FDF3F0] text-[#E07A5F] border border-[#E07A5F] shadow-2xs font-bold'
+                        : 'bg-[#E8EFE9] text-[#1B4332] border border-[#1B4332] shadow-2xs font-bold'
+                      : 'bg-[#FAF8F5] text-[#5D6E65] border border-[#E4DDD3] hover:border-[#1B4332]/40'
+                  }`}
+                >
+                  <span>{m.icon}</span>
+                  <span className="truncate">{m.label}</span>
+                </button>
+              ))}
+            </div>
+
+            {(preMood === 'cansado' || preMood === 'tenso') && (
+              <div className="p-2.5 bg-[#FDF3F0] border border-[#E07A5F]/30 rounded-xl text-[11px] text-[#19231E]/80 animate-in fade-in">
+                <span className="font-bold text-[#E07A5F]">Sugestão Superação: </span>
+                Suavizar o treino de hoje? Reduzimos volume/carga para você manter a consistência sem cansaço excessivo.
+              </div>
+            )}
+          </div>
+
+          {/* BOTÃO CTA GIGANTE DE 56PX (H-14) VISÍVEL NO FOLD 1 */}
+          <div className="space-y-2 pt-1">
+            {preMood === 'cansado' || preMood === 'tenso' ? (
+              <div className="space-y-1.5">
+                <button
+                  onClick={handleStartTodayWorkout}
+                  className="w-full h-14 bg-[#1B4332] hover:bg-[#12372A] text-white font-bold text-sm rounded-2xl flex items-center justify-center gap-2 active:scale-[0.98] transition-all cursor-pointer shadow-md"
+                >
+                  <Play className="w-5 h-5 fill-current" />
+                  <span>Suavizar e começar (-25%)</span>
+                </button>
+                <button
+                  onClick={() => onStartWorkout(todayPlan, todaySchedule?.id, 'scheduled')}
+                  className="w-full py-2 text-xs font-semibold text-[#5D6E65] hover:text-[#19231E] text-center cursor-pointer"
+                >
+                  Prefiro fazer o treino normal
+                </button>
+              </div>
+            ) : (
+              <button
+                onClick={handleStartTodayWorkout}
+                className="w-full h-14 bg-[#1B4332] hover:bg-[#12372A] text-white font-bold text-sm rounded-2xl flex items-center justify-center gap-2 active:scale-[0.98] transition-all cursor-pointer shadow-md"
+              >
+                <Play className="w-5 h-5 fill-current" />
+                <span>Iniciar Treino de Hoje</span>
+              </button>
+            )}
+
+            {/* Pílulas Horizontais de Contingência (Express / Se-Então / Offline) */}
+            <ObstaclePills
+              onExpressClick={startEmergencyWorkout}
+              onCopingClick={() => setShowCopingModal(true)}
+              onOfflinePracticeClick={() => {
+                setPracticeModality('forca_academia');
+                setShowPracticeModal(true);
+              }}
+            />
+          </div>
+        </section>
+      ) : null}
+
+      {/* ─────────────────────────────────────────────────────────────
+          FOLD 2: RITUAL DE PREPARAÇÃO, CAMINHO SEMANAL & EXTRAS
+         ───────────────────────────────────────────────────────────── */}
+
+      {/* Banner de Retomada Gentil sem Culpa (Fase 4 & 5 - Ausência >= 7 dias) */}
       {gentleReturn.isEligible && todayPlan && (
         <section className="bg-amber-50 rounded-2xl p-4.5 border border-amber-300 shadow-sm space-y-3">
           <div className="flex items-start gap-3">
@@ -235,25 +600,25 @@ export const HomeView: React.FC<HomeViewProps> = ({
 
       {/* Card de Revisão Semanal de Processo (T04, T05, T17) */}
       {hasWeeklySessions && !isWeeklyReviewCompleted && dayOfWeek >= 4 && (
-        <section className="bg-gradient-to-r from-[#EAF3EF] to-white rounded-2xl p-4.5 border border-[#125F55]/30 shadow-xs space-y-3">
+        <section className="bg-gradient-to-r from-[#E8EFE9] to-white rounded-3xl p-4.5 border border-[#1B4332]/20 shadow-xs space-y-3">
           <div className="flex items-start justify-between gap-3">
             <div className="flex items-center gap-2">
               <span className="text-lg">📊</span>
               <div>
-                <h3 className="text-xs font-black uppercase tracking-wider text-[#125F55]">
+                <h3 className="text-xs font-black uppercase tracking-wider text-[#1B4332]">
                   Revisão Semanal de Processo
                 </h3>
-                <p className="text-xs text-[#152A29] font-medium mt-0.5">
+                <p className="text-xs text-[#19231E] font-medium mt-0.5">
                   {weeklyReview.completedCount} treinos completos · {weeklyReview.expressOrPartialCount} parciais/rápidos · {weeklyReview.externalCount} práticas externas
                 </p>
               </div>
             </div>
-            <span className="px-2 py-0.5 rounded-full bg-[#D9F277]/60 text-[#203826] text-[10px] font-bold shrink-0">
+            <span className="px-2.5 py-1 rounded-full bg-[#D9F277] text-[#19231E] text-[10px] font-bold shrink-0">
               Esforço médio {weeklyReview.averageRpe}/5
             </span>
           </div>
 
-          <div className="text-xs text-[#5B7170] leading-relaxed">
+          <div className="text-xs text-[#5D6E65] leading-relaxed">
             {weeklyReview.suggestedAction === 'advance' ? (
               <p>Você cumpriu sua meta com folga e sensação leve! Sugerimos avançar para <strong>{weeklyReview.suggestedDaysTarget} dias</strong> na próxima semana.</p>
             ) : weeklyReview.suggestedAction === 'soften' ? (
@@ -266,13 +631,13 @@ export const HomeView: React.FC<HomeViewProps> = ({
           <div className="flex flex-wrap items-center gap-2 pt-1">
             <button
               onClick={() => applyWeeklyReviewDecision(weeklyReview.suggestedAction, weeklyReview.suggestedDaysTarget)}
-              className="py-2 px-3.5 bg-[#125F55] text-white rounded-xl text-xs font-bold hover:bg-[#0C5148] cursor-pointer shadow-xs"
+              className="py-2 px-3.5 bg-[#1B4332] text-white rounded-xl text-xs font-bold hover:bg-[#12372A] cursor-pointer shadow-xs"
             >
               Aceitar recomendação ({weeklyReview.suggestedDaysTarget} dias)
             </button>
             <button
               onClick={() => applyWeeklyReviewDecision('maintain', targetWeeklyGoal)}
-              className="py-2 px-3 bg-white border border-[#C9DBD3] text-[#5B7170] rounded-xl text-xs font-semibold hover:bg-slate-50 cursor-pointer"
+              className="py-2 px-3 bg-white border border-[#E4DDD3] text-[#5D6E65] rounded-xl text-xs font-semibold hover:bg-slate-50 cursor-pointer"
             >
               Manter meta atual
             </button>
@@ -280,13 +645,14 @@ export const HomeView: React.FC<HomeViewProps> = ({
         </section>
       )}
 
+      {/* Revisão de Rotina para Usuários Legados */}
       {profile.needsReviewPrompt && activeProgram && (
-        <section className="bg-[#EAF3EF] rounded-2xl p-4 border border-[#125F55]/30 space-y-2">
+        <section className="bg-[#E8EFE9] rounded-2xl p-4 border border-[#1B4332]/20 space-y-2">
           <div className="flex items-start gap-2.5">
-            <AlertCircle className="w-4 h-4 text-[#125F55] shrink-0 mt-0.5" />
-            <div className="flex-1 text-xs text-[#152A29]">
+            <AlertCircle className="w-4 h-4 text-[#1B4332] shrink-0 mt-0.5" />
+            <div className="flex-1 text-xs text-[#19231E]">
               <p className="font-bold">Revisão de Rotina</p>
-              <p className="text-[#5B7170] mt-0.5">
+              <p className="text-[#5D6E65] mt-0.5">
                 Seu programa atual é <strong>{activeProgram.title}</strong>. Deseja confirmar esta rotina ou personalizar suas preferências?
               </p>
             </div>
@@ -294,13 +660,13 @@ export const HomeView: React.FC<HomeViewProps> = ({
           <div className="flex items-center gap-2 pt-1 pl-6">
             <button
               onClick={confirmLegacyRoutine}
-              className="px-3 py-1.5 bg-[#125F55] text-white rounded-lg text-xs font-bold hover:bg-[#0C5148] cursor-pointer"
+              className="px-3 py-1.5 bg-[#1B4332] text-white rounded-lg text-xs font-bold hover:bg-[#12372A] cursor-pointer"
             >
               Confirmar Rotina
             </button>
             <button
               onClick={() => setShowReviewOnboarding(true)}
-              className="px-3 py-1.5 border border-[#C9DBD3] bg-white text-[#5B7170] rounded-lg text-xs font-semibold hover:bg-slate-50 cursor-pointer"
+              className="px-3 py-1.5 border border-[#E4DDD3] bg-white text-[#5D6E65] rounded-lg text-xs font-semibold hover:bg-slate-50 cursor-pointer"
             >
               Personalizar Perfil
             </button>
@@ -308,793 +674,348 @@ export const HomeView: React.FC<HomeViewProps> = ({
         </section>
       )}
 
-      
+      {/* Ritual de Preparação (T06) - Acordeão Retrátil */}
+      <PreparationCard
+        ritual={ritual}
+        isDoneToday={isRitualDoneToday}
+        habitAnchor={profile.habitAnchor}
+        onComplete={completePreparationRitual}
+      />
 
-      {/* 1. Header de Acolhimento & Trilha Semanal (Direção "Clareza em Movimento") */}
-      <section className="bg-white rounded-3xl p-5 border border-[#C9DBD3]/80 shadow-xs space-y-3">
-        <div className="flex items-start justify-between gap-3">
-          <div>
-            <p className="text-xs font-semibold text-[#5B7170] uppercase tracking-wider">
-              Superação Diária
-            </p>
-            <h2 className="text-xl font-bold text-[#152A29] mt-0.5">
-              Olá, {profile.displayName || 'Praticante'}!
-            </h2>
-          </div>
-          <div className="flex items-center gap-1.5 px-3 py-1 bg-[#D9F277]/40 rounded-full border border-[#D9F277]">
-            <Flame className="w-4 h-4 text-[#125F55]" />
-            <span className="text-xs font-bold text-[#203826]">
-              {totalPlannedThisWeek > 0
-                ? `${completedThisWeek}/${totalPlannedThisWeek} na semana`
-                : `${completedThisWeek} sessões feitas`}
-            </span>
-          </div>
-        </div>
-
-        {/* Lembrete Sutil da Âncora e Motivação Pessoal */}
-        {(profile.habitAnchor || profile.exerciseReason) && (
-          <div className="flex flex-wrap items-center gap-2 pt-0.5">
-            {profile.habitAnchor && (
-              <div className="flex items-center gap-1.5 text-xs text-[#5B7170] bg-[#F5F8F5] px-3 py-1.5 rounded-xl border border-[#C9DBD3]/50">
-                <Clock className="w-3.5 h-3.5 text-[#125F55] shrink-0" />
-                <span>
-                  Sua âncora de rotina: <strong>{profile.habitAnchor}</strong>
-                </span>
-              </div>
-            )}
-            {profile.exerciseReason && (
-              <div className="flex items-center gap-1.5 text-xs text-[#5B7170] bg-[#EAF3EF]/70 px-3 py-1.5 rounded-xl border border-[#C9DBD3]/50">
-                <Heart className="w-3.5 h-3.5 text-[#125F55] shrink-0" />
-                <span>
-                  Seu porquê: <em>«{profile.exerciseReason}»</em>
-                </span>
-              </div>
-            )}
-          </div>
-        )}
-
-        {/* Estilo de Incentivo Escolhido (T01 Autonomia) */}
-        <div className="pt-1 flex items-center justify-between">
-          <div className="flex items-center gap-1.5 text-xs text-[#5B7170]">
-            <span>Incentivo:</span>
-            <span className="font-bold text-[#125F55] bg-[#EAF3EF] px-2.5 py-0.5 rounded-full border border-[#125F55]/20 flex items-center gap-1">
-              {currentMotivationStyle === 'consistency' && '🎯 Constância & Hábito'}
-              {currentMotivationStyle === 'mastery' && '📐 Domínio Técnico'}
-              {currentMotivationStyle === 'wellbeing' && '🌿 Bem-Estar & Alívio'}
-              {currentMotivationStyle === 'performance' && '🏆 Superação (PRs)'}
-              {currentMotivationStyle === 'variety' && '🎲 Variedade'}
-              {currentMotivationStyle === 'social' && '🤝 Compromisso'}
-              {currentMotivationStyle === 'none' && '🛡️ Apenas Meu Plano'}
-            </span>
-          </div>
-          <button
-            type="button"
-            onClick={() => setShowStyleSelector((prev) => !prev)}
-            className="text-[11px] font-bold text-[#125F55] hover:underline cursor-pointer"
-          >
-            {showStyleSelector ? 'Fechar opções' : 'Mudar estilo'}
-          </button>
-        </div>
-
-        {/* Menu rápido de estilos de incentivo */}
-        {showStyleSelector && (
-          <div className="grid grid-cols-2 sm:grid-cols-3 gap-1.5 p-2 bg-[#F5F8F5] rounded-2xl border border-[#C9DBD3] animate-in fade-in">
-            {[
-              { id: 'consistency' as const, label: 'Constância', icon: '🎯' },
-              { id: 'mastery' as const, label: 'Domínio Técnico', icon: '📐' },
-              { id: 'wellbeing' as const, label: 'Bem-Estar', icon: '🌿' },
-              { id: 'performance' as const, label: 'Superação (PRs)', icon: '🏆' },
-              { id: 'variety' as const, label: 'Variedade', icon: '🎲' },
-              { id: 'none' as const, label: 'Sem desafios', icon: '🛡️' },
-            ].map((st) => (
-              <button
-                key={st.id}
-                type="button"
-                onClick={async () => {
-                  await updateMotivationStyle(st.id);
-                  setShowStyleSelector(false);
-                }}
-                className={`p-2 rounded-xl text-left text-xs font-semibold flex items-center gap-1.5 transition-all cursor-pointer ${
-                  currentMotivationStyle === st.id
-                    ? 'bg-[#125F55] text-white'
-                    : 'bg-white text-[#152A29] border border-[#C9DBD3] hover:border-[#125F55]'
-                }`}
-              >
-                <span>{st.icon}</span>
-                <span className="truncate">{st.label}</span>
-              </button>
-            ))}
-          </div>
-        )}
-
-        {/* Ritual de Preparação (T06) */}
-        <div className="bg-[#FAF7F2] p-3 rounded-2xl border border-[#C9DBD3]/80 space-y-1.5">
-          <div className="flex items-center justify-between text-xs">
-            <span className="font-bold text-[#152A29] flex items-center gap-1.5">
-              <span>🚪</span>
-              <span>Ritual de Preparação</span>
-            </span>
-            {isRitualDoneToday ? (
-              <span className="text-emerald-800 text-[10px] font-bold bg-emerald-100 px-2 py-0.5 rounded-full flex items-center gap-1">
-                <Check className="w-3 h-3 stroke-[3]" /> Preparação Feita
+      {/* Lembretes Sutis de Âncora e Porquê */}
+      {(profile.habitAnchor || profile.exerciseReason) && (
+        <div className="flex flex-wrap items-center gap-2 pt-0.5">
+          {profile.habitAnchor && (
+            <div className="flex items-center gap-1.5 text-xs text-[#5D6E65] bg-white px-3 py-1.5 rounded-xl border border-[#E4DDD3]">
+              <Clock className="w-3.5 h-3.5 text-[#1B4332] shrink-0" />
+              <span>
+                Sua âncora: <strong>{profile.habitAnchor}</strong>
               </span>
-            ) : (
-              <button
-                type="button"
-                onClick={completePreparationRitual}
-                className="text-[10px] font-bold text-[#125F55] bg-white border border-[#125F55]/30 px-2 py-0.5 rounded-lg hover:bg-[#EAF3EF] cursor-pointer"
-              >
-                Concluir preparação
-              </button>
-            )}
-          </div>
-          <p className="text-[11px] text-[#5B7170] leading-snug">
-            {ritual.anchorTrigger}: {ritual.steps.join(' → ')}.
-          </p>
-        </div>
-
-        {/* Programa Ativo Confirmado (Compacto) */}
-        {activeProgram && (
-          <div className="bg-[#EAF3EF]/70 p-3 rounded-2xl border border-[#C9DBD3]/70 space-y-1.5">
-            <div className="flex items-center justify-between text-[11px]">
-              <span className="font-black text-[#125F55] uppercase tracking-wider truncate max-w-[240px]">
-                {activeProgram.title}
-              </span>
-              <button
-                onClick={() => onNavigateTab('workouts')}
-                className="text-[#125F55] font-bold hover:underline shrink-0 cursor-pointer"
-              >
-                Ver Programa
-              </button>
-            </div>
-            <div className="flex items-center justify-between text-xs text-[#152A29]">
-              <span className="font-bold">
-                Semana {activeProgram.currentWeek} de {activeProgram.durationWeeks}
-              </span>
-              <span className="text-[#5B7170] text-[11px]">
-                {currentPhase?.name || 'Fase Ativa'}
-              </span>
-            </div>
-          </div>
-        )}
-
-        {/* Caminho Pessoal da Semana (Inspirado no Gentler Streak — Descanso não quebra a linha) */}
-        <ActivityPath
-          variant="compact"
-          calendar={calendar}
-          sessions={sessions}
-          metrics={canonical}
-          personalRecords={personalRecords}
-          targetWeeklyGoal={targetWeeklyGoal}
-          completedThisWeek={completedThisWeek}
-          todayDayOfWeek={dayOfWeek}
-          onNavigateCalendar={() => onNavigateTab('calendar')}
-          onNavigateProgress={() => onNavigateTab('progress')}
-        />
-      </section>
-
-      {/* 2. CARD CONTEXTUAL DE HOJE (A06: reflete estritamente a atividade agendada) */}
-      {activeSession ? (
-        <section className="bg-[#125F55] text-white rounded-3xl p-5 shadow-md relative overflow-hidden">
-          <div className="relative z-10">
-            <span className="px-2.5 py-1 rounded-full bg-white/20 text-xs font-semibold text-white tracking-wide uppercase">
-              Treino em Andamento
-            </span>
-            <h3 className="text-xl font-bold mt-2">{activeSession.planTitle}</h3>
-            <p className="text-xs text-white/80 mt-1">
-              Exercício {activeSession.currentExerciseIndex + 1} de {activeSession.exercisesSnapshot.length} · Série {activeSession.currentSetIndex}
-            </p>
-
-            <button
-              onClick={onResumeWorkout}
-              className="mt-4 w-full h-14 bg-[#D9F277] text-[#203826] font-bold text-sm rounded-2xl flex items-center justify-center gap-2 hover:bg-[#c8e362] active:scale-[0.98] transition-all cursor-pointer shadow-sm"
-            >
-              <RotateCcw className="w-5 h-5" />
-              <span>Retomar Treino Agora</span>
-            </button>
-          </div>
-        </section>
-      ) : todaySchedule?.activityType === 'walk' ? (
-        /* CARD DE CAMINHADA (A06, A15) */
-        <section className="bg-gradient-to-br from-[#EAF3EF] to-white rounded-3xl p-5 border border-[#C9DBD3] shadow-xs space-y-3">
-          <div className="flex items-center gap-2 text-xs font-bold text-[#125F55] uppercase tracking-wider">
-            <Footprints className="w-4 h-4" />
-            <span>Atividade Livre · Caminhada</span>
-          </div>
-          <h3 className="text-xl font-bold text-[#152A29]">
-            {todaySchedule.planTitle || 'Caminhada Confortável & Ar Livre'}
-          </h3>
-          <p className="text-xs text-[#5B7170] leading-relaxed">
-            Estimule o sistema cardiorrespiratório e a circulação no seu próprio ritmo. Registre a duração e a distância opcional sem necessidade de GPS.
-          </p>
-
-          <button
-            onClick={() => {
-              setPracticeModality('caminhada_corrida');
-              setShowPracticeModal(true);
-            }}
-            className="w-full h-14 bg-[#125F55] text-white font-bold text-sm rounded-2xl flex items-center justify-center gap-2 hover:bg-[#0C5148] active:scale-[0.98] transition-all cursor-pointer shadow-md"
-          >
-            <Footprints className="w-5 h-5" />
-            <span>Registrar Caminhada de Hoje</span>
-          </button>
-        </section>
-      ) : todaySchedule?.activityType === 'rest' ? (
-        /* CARD DE DESCANSO PLANEJADO & CUIDADO ATIVO (Estratégia A, E e Invariante de Descanso) */
-        <section className="bg-white rounded-3xl p-5 border border-[#C9DBD3] shadow-xs space-y-3.5">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2 text-xs font-bold text-[#246747] uppercase tracking-wider">
-              <Heart className="w-4 h-4" />
-              <span>Dia de Descanso & Regeneração</span>
-            </div>
-            {todaySchedule.vitalityBonusCompleted && (
-              <span className="px-2 py-0.5 rounded-full bg-[#EAF3EF] border border-[#125F55]/30 text-[10px] font-bold text-[#125F55] flex items-center gap-1">
-                <Sparkles className="w-3 h-3" /> Elo Conquistado
-              </span>
-            )}
-          </div>
-          <div>
-            <h3 className="text-lg font-bold text-[#152A29]">
-              O descanso é onde o corpo se regenera
-            </h3>
-            <p className="text-xs text-[#5B7170] mt-1 leading-relaxed">
-              Hoje não há cobrança de treino. Descansar é vencer! Se quiser se movimentar levemente sem cansar os músculos, você pode conquistar um <strong>Elo de Vitalidade</strong> ou registrar uma prática leve:
-            </p>
-          </div>
-
-          <div className="pt-1 grid grid-cols-1 sm:grid-cols-2 gap-2">
-            {recoveryPlan && (
-              <button
-                onClick={() => onStartWorkout(recoveryPlan, todaySchedule?.id, 'ad_hoc')}
-                className="h-12 bg-[#EAF3EF] text-[#125F55] font-bold text-xs rounded-xl flex items-center justify-center gap-2 hover:bg-[#D9F277] hover:text-[#203826] transition-all cursor-pointer shadow-xs"
-              >
-                <Sparkles className="w-4 h-4" />
-                <span>Alongamento / Mobilidade (8 min)</span>
-              </button>
-            )}
-            <button
-              onClick={() => {
-                setPracticeModality('caminhada_corrida');
-                setShowPracticeModal(true);
-              }}
-              className="h-12 bg-[#F5F8F5] text-[#152A29] font-semibold text-xs rounded-xl flex items-center justify-center gap-2 hover:bg-slate-100 transition-all border border-[#C9DBD3] cursor-pointer"
-            >
-              <Footprints className="w-4 h-4 text-[#125F55]" />
-              <span>Caminhada Regenerativa Livre (Registrar Prática)</span>
-            </button>
-          </div>
-        </section>
-      ) : todayPlan ? (
-        <>
-        {/* CARD DE TREINO DE FORÇA PROGRAMADO */}
-        <section className="bg-white rounded-3xl p-5 border border-[#C9DBD3] shadow-xs space-y-3">
-          <div className="flex items-center justify-between text-xs text-[#5B7170]">
-            <span className="font-semibold uppercase tracking-wider text-[#125F55]">
-              Treino Planejado para Hoje
-            </span>
-            <span className="flex items-center gap-1">
-              <Clock className="w-3.5 h-3.5" />
-              {todayPlan.estimatedDurationMinutes} min
-            </span>
-          </div>
-          <h3 className="text-xl font-bold text-[#152A29] leading-tight">
-            {todayPlan.title}
-          </h3>
-          <p className="text-xs text-[#5B7170] line-clamp-2">
-            {todayPlan.description}
-          </p>
-
-          {/* Foco Adaptativo da Sessão (T01 a T04 / C01 a C09) */}
-          {sessionFocus && (
-            <div className="bg-[#EAF3EF] border border-[#125F55]/30 rounded-2xl p-3.5 flex items-start gap-3">
-              <span className="text-xl shrink-0 mt-0.5">🎯</span>
-              <div className="flex-1 min-w-0">
-                <span className="text-[10px] font-extrabold uppercase tracking-wide px-2 py-0.5 rounded-full bg-[#125F55] text-white inline-block">
-                  {sessionFocus.badgeText}
-                </span>
-                <h4 className="text-xs font-bold text-[#152A29] mt-1">
-                  {sessionFocus.title}
-                </h4>
-                <p className="text-[11px] text-[#5B7170] mt-0.5 leading-relaxed">
-                  {sessionFocus.description}
-                </p>
-              </div>
             </div>
           )}
-
-          <div className="bg-[#F5F8F5] p-3 rounded-2xl space-y-1.5 text-xs text-[#152A29]">
-            {todayPlan.exercises.slice(0, 3).map((ex, i) => (
-              <div key={i} className="flex items-center justify-between">
-                <span className="font-medium truncate max-w-[200px]">{ex.exerciseName}</span>
-                <span className="text-[#5B7170] text-[11px] tabular-nums">
-                  {ex.targetSets}x {ex.targetReps > 0 ? `${ex.targetReps} reps` : `${ex.targetDurationSeconds}s`}
-                </span>
-              </div>
-            ))}
-            {todayPlan.exercises.length > 3 && (
-              <p className="text-[11px] text-[#5B7170] pt-1">
-                + {todayPlan.exercises.length - 3} outros exercícios
-              </p>
-            )}
-          </div>
-
-          {/* Ação rápida para imprevisto (Se-Então T07) */}
-          <div className="flex items-center justify-between pt-0.5">
-            <button
-              type="button"
-              onClick={() => setShowCopingModal(true)}
-              className="text-[11px] text-[#125F55] font-bold hover:underline flex items-center gap-1 cursor-pointer"
-            >
-              <Zap className="w-3.5 h-3.5 text-[#E07A5F]" />
-              <span>Surgiu um imprevisto hoje? (Se-Então)</span>
-            </button>
-            <button
-              type="button"
-              onClick={() => {
-                setPracticeModality('forca_academia');
-                setShowPracticeModal(true);
-              }}
-              className="text-[11px] text-[#5B7170] hover:text-[#125F55] cursor-pointer"
-            >
-              Fiz sem o celular
-            </button>
-          </div>
-
-          <button
-            onClick={() => onStartWorkout(todayPlan, todaySchedule?.id, 'scheduled')}
-            className="w-full h-14 bg-[#125F55] text-white font-bold text-sm rounded-2xl flex items-center justify-center gap-2 hover:bg-[#0C5148] active:scale-[0.98] transition-all cursor-pointer shadow-md"
-          >
-            <Play className="w-5 h-5 fill-current" />
-            <span>Iniciar Treino de Hoje</span>
-          </button>
-        </section>
-
-        {/* ROTINAS COMPLEMENTARES INTERCALADAS DO DIA */}
-        {todaySchedule?.additionalActivities && todaySchedule.additionalActivities.length > 0 && (
-          <section className="bg-white rounded-3xl p-5 border border-[#C9DBD3] shadow-xs space-y-3">
-            <div className="flex items-center justify-between text-xs text-[#5B7170]">
-              <span className="font-semibold uppercase tracking-wider text-[#125F55] flex items-center gap-1.5">
-                <Sparkles className="w-3.5 h-3.5 text-[#E07A5F]" />
-                <span>Rotinas Intercaladas de Hoje</span>
-              </span>
-              <span className="text-[11px] font-bold text-[#125F55]">
-                {todaySchedule.additionalActivities.length} {todaySchedule.additionalActivities.length === 1 ? 'rotina' : 'rotinas'}
+          {profile.exerciseReason && (
+            <div className="flex items-center gap-1.5 text-xs text-[#5D6E65] bg-[#E8EFE9]/60 px-3 py-1.5 rounded-xl border border-[#1B4332]/20">
+              <Heart className="w-3.5 h-3.5 text-[#1B4332] shrink-0" />
+              <span>
+                Seu porquê: <em>«{profile.exerciseReason}»</em>
               </span>
             </div>
+          )}
+        </div>
+      )}
 
-            <div className="space-y-2">
-              {todaySchedule.additionalActivities.map((act) => {
-                const extraPlan = plans.find((p) => p.id === act.planId) || premadeWorkouts.find((p) => p.id === act.planId);
-                const timeBadge =
-                  act.timeOfDay === 'manha'
-                    ? '🌅 Manhã'
-                    : act.timeOfDay === 'tarde'
-                    ? '☀️ Tarde'
-                    : act.timeOfDay === 'noite'
-                    ? '🌙 Noite'
-                    : '⏱️ Horário Livre';
+      {/* Rotinas Complementares Intercaladas do Dia (se houver) */}
+      {todaySchedule?.additionalActivities && todaySchedule.additionalActivities.length > 0 && (
+        <section className="bg-white rounded-3xl p-5 border border-[#E4DDD3] shadow-xs space-y-3">
+          <div className="flex items-center justify-between text-xs text-[#5D6E65]">
+            <span className="font-semibold uppercase tracking-wider text-[#1B4332] flex items-center gap-1.5">
+              <Sparkles className="w-3.5 h-3.5 text-[#E07A5F]" />
+              <span>Rotinas Intercaladas de Hoje</span>
+            </span>
+            <span className="text-[11px] font-bold text-[#1B4332]">
+              {todaySchedule.additionalActivities.length} {todaySchedule.additionalActivities.length === 1 ? 'rotina' : 'rotinas'}
+            </span>
+          </div>
 
-                return (
-                  <div
-                    key={act.id}
-                    className={`p-3.5 rounded-2xl border transition-all flex flex-col sm:flex-row sm:items-center justify-between gap-3 ${
-                      act.isCompleted ? 'bg-[#EAF3EF]/60 border-[#246747]/40' : 'bg-[#F5F8F5] border-[#C9DBD3]'
-                    }`}
-                  >
-                    <div className="space-y-1">
-                      <div className="flex items-center gap-2 flex-wrap">
-                        <span className="text-[10px] font-bold px-2 py-0.5 rounded-md bg-white border border-[#C9DBD3] text-[#125F55]">
-                          {timeBadge}
+          <div className="space-y-2">
+            {todaySchedule.additionalActivities.map((act) => {
+              const extraPlan = plans.find((p) => p.id === act.planId) || premadeWorkouts.find((p) => p.id === act.planId);
+              const timeBadge =
+                act.timeOfDay === 'manha'
+                  ? '🌅 Manhã'
+                  : act.timeOfDay === 'tarde'
+                  ? '☀️ Tarde'
+                  : act.timeOfDay === 'noite'
+                  ? '🌙 Noite'
+                  : '⏱️ Horário Livre';
+
+              return (
+                <div
+                  key={act.id}
+                  className={`p-3.5 rounded-2xl border transition-all flex flex-col sm:flex-row sm:items-center justify-between gap-3 ${
+                    act.isCompleted ? 'bg-[#E8EFE9]/60 border-[#1B4332]/30' : 'bg-[#FAF8F5] border-[#E4DDD3]'
+                  }`}
+                >
+                  <div className="space-y-1">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <span className="text-[10px] font-bold px-2 py-0.5 rounded-md bg-white border border-[#E4DDD3] text-[#1B4332]">
+                        {timeBadge}
+                      </span>
+                      {act.isCompleted && (
+                        <span className="text-[10px] font-bold px-2 py-0.5 rounded-md bg-[#D9F277] text-[#19231E]">
+                          ✓ Concluído
                         </span>
-                        {act.isCompleted && (
-                          <span className="text-[10px] font-bold px-2 py-0.5 rounded-md bg-[#D9F277]/60 text-[#203826]">
-                            ✓ Concluído
-                          </span>
-                        )}
-                      </div>
-                      <h4 className="text-sm font-bold text-[#152A29]">{act.planTitle}</h4>
-                      {act.programTitle && (
-                        <p className="text-[11px] text-[#5B7170]">Programa: {act.programTitle}</p>
                       )}
                     </div>
-
-                    <div className="flex items-center gap-2">
-                      {extraPlan && !act.isCompleted && (
-                        <button
-                          type="button"
-                          onClick={() => onStartWorkout(extraPlan, todaySchedule.id, 'scheduled', false, true, act.id)}
-                          className="w-full sm:w-auto px-4 py-2 bg-[#125F55] hover:bg-[#0C5148] text-white text-xs font-bold rounded-xl flex items-center justify-center gap-1.5 cursor-pointer shadow-xs transition-colors"
-                        >
-                          <Play className="w-3.5 h-3.5 fill-current" />
-                          <span>Iniciar Agora</span>
-                        </button>
-                      )}
-                      <button
-                        type="button"
-                        onClick={() => toggleDayActivityCompleted(todaySchedule.id, act.id)}
-                        className={`p-2 rounded-xl transition-all cursor-pointer ${
-                          act.isCompleted ? 'text-[#246747] bg-emerald-50' : 'text-[#5B7170] hover:text-[#125F55]'
-                        }`}
-                        title={act.isCompleted ? 'Desmarcar' : 'Marcar como concluído'}
-                      >
-                        {act.isCompleted ? (
-                          <CheckCircle2 className="w-5 h-5 fill-emerald-100" />
-                        ) : (
-                          <Circle className="w-5 h-5" />
-                        )}
-                      </button>
-                    </div>
+                    <h4 className="text-sm font-bold text-[#19231E]">{act.planTitle}</h4>
+                    {act.programTitle && (
+                      <p className="text-[11px] text-[#5D6E65]">Programa: {act.programTitle}</p>
+                    )}
                   </div>
-                );
-              })}
-            </div>
-          </section>
-        )}
-        </>
-      ) : (
-        /* CONTA VAZIA / SEM PROGRAMA ATIVO: 3 ORIGENS CLARAS (A01, A02) */
-        <section className="bg-white rounded-3xl p-6 border border-[#C9DBD3] text-center space-y-4">
-          <div className="w-12 h-12 rounded-2xl bg-[#EAF3EF] flex items-center justify-center mx-auto text-[#125F55]">
-            <Dumbbell className="w-6 h-6" />
+
+                  <div className="flex items-center gap-2 shrink-0">
+                    {extraPlan && !act.isCompleted && (
+                      <button
+                        onClick={() =>
+                          onStartWorkout(
+                            extraPlan,
+                            todaySchedule?.id,
+                            'program_session',
+                            false,
+                            false,
+                            act.id
+                          )
+                        }
+                        className="py-1.5 px-3 bg-[#1B4332] text-white rounded-xl text-xs font-bold hover:bg-[#12372A] flex items-center gap-1 cursor-pointer shadow-2xs"
+                      >
+                        <Play className="w-3.5 h-3.5 fill-current" />
+                        <span>Iniciar</span>
+                      </button>
+                    )}
+                    <button
+                      onClick={() => toggleDayActivityCompleted(todaySchedule?.id || '', act.id)}
+                      className="py-1.5 px-3 bg-white border border-[#E4DDD3] text-[#5D6E65] hover:text-[#19231E] rounded-xl text-xs font-semibold cursor-pointer"
+                    >
+                      {act.isCompleted ? 'Desmarcar' : 'Marcar como feito'}
+                    </button>
+                  </div>
+                </div>
+              );
+            })}
           </div>
-          <div>
-            <h3 className="text-lg font-bold text-[#152A29]">
-              Como você deseja começar?
-            </h3>
-            <p className="text-xs text-[#5B7170] mt-1 max-w-sm mx-auto">
-              Nenhuma rotina foi pré-imposta. Escolha uma das 3 origens para organizar sua rotina no seu ritmo.
-            </p>
-          </div>
+        </section>
+      )}
 
-          {onReviewProposal && (
-            <div className="p-4 rounded-2xl bg-[#EAF3EF] border border-[#125F55]/30 flex flex-col sm:flex-row items-center justify-between gap-3 text-left">
-              <div>
-                <span className="text-xs font-bold text-[#125F55] block">
-                  Proposta Baseada nas suas Respostas
-                </span>
-                <span className="text-[11px] text-[#5B7170]">
-                  Revise a rotina calibrada para seus dias e apoios.
-                </span>
-              </div>
-              <button
-                onClick={onReviewProposal}
-                className="w-full sm:w-auto px-4 py-2 bg-[#125F55] text-white text-xs font-bold rounded-xl hover:bg-[#0C5148] transition-all cursor-pointer shrink-0"
-              >
-                Ver Proposta
-              </button>
-            </div>
-          )}
-
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5 pt-1 text-left">
-            <button
-              onClick={() => {
-                if (onOpenBuilder) onOpenBuilder();
-                else onNavigateTab('workouts');
-              }}
-              className="p-3.5 rounded-2xl border border-[#C9DBD3] hover:border-[#125F55] bg-[#F5F8F5] transition-all cursor-pointer group"
-            >
-              <Plus className="w-5 h-5 text-[#125F55] mb-2 group-hover:scale-110 transition-transform" />
-              <div className="text-xs font-bold text-[#152A29]">Montar meu Treino</div>
-              <div className="text-[10px] text-[#5B7170] mt-0.5 leading-snug">
-                Escolha exercícios do catálogo e ajuste séries livres.
-              </div>
-            </button>
-
+      {/* Programa Ativo Confirmado (se houver) */}
+      {activeProgram && (
+        <div className="bg-white p-4 rounded-3xl border border-[#E4DDD3] space-y-2 shadow-2xs">
+          <div className="flex items-center justify-between text-xs">
+            <span className="font-bold text-[#1B4332] uppercase tracking-wider text-[11px] truncate max-w-[240px]">
+              {activeProgram.title}
+            </span>
             <button
               onClick={() => onNavigateTab('workouts')}
-              className="p-3.5 rounded-2xl border border-[#125F55]/40 bg-[#EAF3EF] transition-all cursor-pointer group"
+              className="text-[#1B4332] font-bold hover:underline shrink-0 cursor-pointer text-xs"
             >
-              <Compass className="w-5 h-5 text-[#125F55] mb-2 group-hover:scale-110 transition-transform" />
-              <div className="text-xs font-bold text-[#125F55]">Modelos Demonstrativos</div>
-              <div className="text-[10px] text-[#5B7170] mt-0.5 leading-snug">
-                Fichas demonstrativas para casa ou academia.
-              </div>
-            </button>
-
-            <button
-              onClick={() => {
-                if (onOpenBuilder) onOpenBuilder(undefined, true);
-                else onNavigateTab('workouts');
-              }}
-              className="p-3.5 rounded-2xl border border-[#C9DBD3] hover:border-[#125F55] bg-[#F5F8F5] transition-all cursor-pointer group"
-            >
-              <FileCheck2 className="w-5 h-5 text-[#125F55] mb-2 group-hover:scale-110 transition-transform" />
-              <div className="text-xs font-bold text-[#152A29]">Plano de Profissional</div>
-              <div className="text-[10px] text-[#5B7170] mt-0.5 leading-snug">
-                Cadastre o treino do seu personal ou fisioterapeuta.
-              </div>
+              Ver Programa
             </button>
           </div>
-        </section>
-      )}
-
-      {/* 3. OPÇÃO RÁPIDA (5 MINUTOS) - Respeitosa e acolhedora (A08, A24) */}
-      {!activeSession && (
-        <section className="bg-[#EAF3EF]/60 rounded-2xl p-4 border border-[#C9DBD3]/70 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-          <div className="space-y-0.5">
-            <h4 className="text-xs font-bold text-[#125F55] flex items-center gap-1.5 uppercase tracking-wide">
-              <Sparkles className="w-3.5 h-3.5 text-[#E07A5F]" />
-              Pouco tempo hoje? Opção rápida (5 a 10 min)
-            </h4>
-            <p className="text-[11px] text-[#5B7170]">
-              2 movimentos essenciais em <strong>5 minutos</strong>. Mesmo em dias corridos, movimentar o corpo com calma faz bem.
-            </p>
-          </div>
-          <button
-            onClick={startEmergencyWorkout}
-            className="px-4 py-2.5 bg-[#125F55] hover:bg-[#0C5148] text-white font-bold text-xs rounded-xl shadow-xs shrink-0 flex items-center justify-center gap-1.5 cursor-pointer transition-all active:scale-95"
-          >
-            <span>Opção Rápida (5 min)</span>
-          </button>
-        </section>
-      )}
-
-      {/* Espelho de Bem-Estar (Estratégia D: Termômetro Antes vs Depois) */}
-      {wellbeingInsight && (
-        <section className="bg-gradient-to-r from-[#D9F277]/25 via-[#EAF3EF] to-white rounded-3xl p-4.5 border border-[#C9DBD3]/80 flex items-start gap-3.5 animate-in fade-in">
-          <div className="w-9 h-9 rounded-2xl bg-[#125F55] text-white flex items-center justify-center shrink-0 text-base shadow-xs">
-            ✨
-          </div>
-          <div className="flex-1 min-w-0">
-            <span className="text-[10px] font-extrabold text-[#125F55] uppercase tracking-wider block">
-              Espelho de Bem-Estar & Sensação
+          <div className="flex items-center justify-between text-xs text-[#19231E]">
+            <span className="font-bold">
+              Semana {activeProgram.currentWeek} de {activeProgram.durationWeeks}
             </span>
-            <p className="text-xs text-[#152A29] mt-0.5 leading-relaxed font-medium">
-              {wellbeingInsight.message}
-            </p>
+            <span className="text-[#5D6E65] text-[11px]">
+              {currentPhase?.name || 'Fase Ativa'}
+            </span>
           </div>
-        </section>
+        </div>
       )}
 
-      {/* Pílula de Sabedoria do Coach IA */}
+      {/* Caminho Pessoal da Semana Completo (Inspirado no Gentler Streak) */}
+      <ActivityPath
+        calendar={calendar}
+        sessions={sessions}
+        metrics={canonical}
+        personalRecords={personalRecords}
+        targetWeeklyGoal={targetWeeklyGoal}
+        completedThisWeek={completedThisWeek}
+        todayDayOfWeek={dayOfWeek}
+        onNavigateCalendar={() => onNavigateTab('calendar')}
+        onNavigateProgress={() => onNavigateTab('progress')}
+      />
+
+      {/* Coach de IA Contextual */}
       <AICoachCard context={coachContext} />
 
-      {/* Convite Discreto de Instalação do App (Movido para depois da ação do dia para não competir com o foco principal) */}
-      {!isInstallBannerDismissed && (
-        <PWAInstallButton
-          variant="banner"
-          onDismissBanner={() => setIsInstallBannerDismissed(true)}
+      {/* Banner de Instalação PWA */}
+      <PWAInstallButton />
+
+      {/* ─────────────────────────────────────────────────────────────
+          MODAIS E DIÁLOGOS DE APOIO
+         ───────────────────────────────────────────────────────────── */}
+
+      {/* DIÁLOGO PRÉ-TREINO "ANTES DE COMEÇAR" (T08 & T09) */}
+      {todayPlan && (
+        <PreWorkoutModal
+          isOpen={showPreWorkoutModal}
+          onClose={() => setShowPreWorkoutModal(false)}
+          plan={todayPlan}
+          onConfirmStart={(adapted, mood) => {
+            setShowPreWorkoutModal(false);
+            if (adapted) {
+              onStartWorkout(adapted, todaySchedule?.id, 'scheduled');
+            } else {
+              onStartWorkout(todayPlan, todaySchedule?.id, 'scheduled');
+            }
+          }}
+          onRestToday={() => {
+            setShowPreWorkoutModal(false);
+          }}
         />
       )}
 
-      {/* 4. Vitrine de Recordes Pessoais (PRs Recentes) */}
-      <section className="space-y-3">
-        <div className="flex items-center justify-between">
-          <h3 className="text-sm font-bold text-[#152A29] flex items-center gap-1.5">
-            <Trophy className="w-4 h-4 text-[#125F55]" />
-            Suas Superações & Recordes
-          </h3>
-          <button
-            onClick={() => onNavigateTab('progress')}
-            className="text-xs text-[#125F55] font-semibold hover:underline cursor-pointer"
-          >
-            Ver todos
-          </button>
-        </div>
-
-        {personalRecords.length > 0 ? (
-          <div className="grid grid-cols-2 gap-2.5">
-            {personalRecords.slice(0, 4).map((pr) => (
-              <div
-                key={pr.exerciseId}
-                className="bg-white p-3.5 rounded-2xl border border-[#C9DBD3] shadow-xs flex flex-col justify-between"
-              >
-                <p className="text-xs font-semibold text-[#152A29] truncate">{pr.exerciseName}</p>
-                <div className="mt-2 flex items-baseline gap-1">
-                  <span className="text-xl font-black text-[#125F55] tabular-nums">
-                    {pr.bestWeightKg && pr.bestWeightKg > 0
-                      ? `${pr.bestWeightKg} kg`
-                      : pr.bestReps > 0
-                      ? pr.bestReps
-                      : pr.bestDurationSeconds}
-                  </span>
-                  <span className="text-[10px] text-[#5B7170]">
-                    {pr.bestWeightKg && pr.bestWeightKg > 0
-                      ? `(${pr.bestReps} reps)`
-                      : pr.bestReps > 0
-                      ? 'reps'
-                      : 'segundos'}
-                  </span>
-                </div>
-                <div className="mt-1 flex items-center gap-1 text-[10px] font-medium">
-                  {pr.isBaseline ? (
-                    <span className="text-[#5B7170] flex items-center gap-1">
-                      <Target className="w-3 h-3 text-[#5B7170]" />
-                      Marca Base (Referência)
-                    </span>
-                  ) : (
-                    <span className="text-[#125F55] flex items-center gap-1 font-bold">
-                      <Sparkles className="w-3 h-3 text-[#125F55]" />
-                      Recorde Pessoal (PR{pr.prCount && pr.prCount > 1 ? ` #${pr.prCount}` : ''})
-                    </span>
-                  )}
-                </div>
-              </div>
-            ))}
-          </div>
-        ) : (
-          <div className="bg-white p-4 rounded-2xl border border-[#C9DBD3] text-center text-xs text-[#5B7170]">
-            Complete sua primeira série para registrar seu primeiro marco pessoal!
-          </div>
-        )}
-      </section>
-
-      {/* MODAL UNIVERSAL DE REGISTRO DE PRÁTICA REALIZADA (T04) */}
+      {/* MODAL UNIVERSAL DE PRÁTICA EXTERNA (T04) */}
       {showPracticeModal && (
         <div
           onClick={() => setShowPracticeModal(false)}
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-xs cursor-pointer"
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 backdrop-blur-xs cursor-pointer animate-in fade-in"
         >
           <div
             onClick={(e) => e.stopPropagation()}
-            className="w-full max-w-sm rounded-3xl bg-white p-6 shadow-2xl border border-[#C9DBD3] text-[#152A29] space-y-4 cursor-default animate-in fade-in duration-200 max-h-[90vh] overflow-y-auto"
+            className="w-full max-w-md rounded-3xl bg-white p-6 shadow-xl border border-[#E4DDD3] text-[#19231E] space-y-4 max-h-[90vh] overflow-y-auto cursor-default"
           >
-            <div className="flex items-center justify-between pb-2 border-b border-[#C9DBD3]/40">
+            <div className="flex items-center justify-between pb-2 border-b border-[#E4DDD3]">
               <div className="flex items-center gap-2">
-                <Footprints className="w-5 h-5 text-[#125F55]" />
-                <div className="flex flex-col">
-                  <h3 className="text-sm font-bold text-[#152A29]">
-                    {practiceModality === 'caminhada_corrida' ? 'Registrar Caminhada' : 'Registrar Prática Realizada'}
-                  </h3>
-                  <span className="text-[10px] text-[#5B7170]">
-                    {practiceModality === 'caminhada_corrida' ? 'Registrar Prática Realizada' : 'Atividade Externa'}
-                  </span>
-                </div>
+                <Footprints className="w-5 h-5 text-[#1B4332]" />
+                <h3 className="text-base font-bold text-[#19231E]">Registrar Prática Realizada</h3>
               </div>
               <button
                 onClick={() => setShowPracticeModal(false)}
-                className="p-1 rounded-full text-[#5B7170] hover:bg-slate-100 cursor-pointer"
+                className="p-1 rounded-full text-[#5D6E65] hover:bg-slate-100 cursor-pointer"
               >
-                <X className="w-4 h-4" />
+                <X className="w-5 h-5" />
               </button>
             </div>
 
-            <p className="text-xs text-[#5B7170]">
-              Registre atividades feitas ao ar livre, na academia ou fora do celular para honrar seu compromisso semanal.
+            <p className="text-xs text-[#5D6E65]">
+              Toda prática de movimento conta para sua constância semanal e saúde. Registre o que você fez fora do app:
             </p>
 
-            <div className="space-y-3">
-              <div>
-                <label className="block text-[11px] font-bold text-[#152A29] mb-1.5">
-                  Modalidade:
-                </label>
-                <div className="grid grid-cols-2 gap-1.5">
-                  {[
-                    { id: 'caminhada_corrida' as const, label: 'Caminhada / Corrida', icon: '🚶' },
-                    { id: 'forca_academia' as const, label: 'Força / Academia', icon: '🏋️' },
-                    { id: 'mobilidade_yoga' as const, label: 'Mobilidade / Yoga', icon: '🧘' },
-                    { id: 'esporte_coletivo' as const, label: 'Esporte / Aula', icon: '⚽' },
-                    { id: 'ciclismo_natacao' as const, label: 'Ciclismo / Natação', icon: '🚴' },
-                    { id: 'outra' as const, label: 'Outra Atividade', icon: '🏃' },
-                  ].map((m) => (
-                    <button
-                      key={m.id}
-                      type="button"
-                      onClick={() => setPracticeModality(m.id)}
-                      className={`p-2 rounded-xl text-xs font-semibold flex items-center gap-1.5 transition-all cursor-pointer ${
-                        practiceModality === m.id
-                          ? 'bg-[#125F55] text-white shadow-xs'
-                          : 'bg-[#F5F8F5] text-[#152A29] border border-[#C9DBD3] hover:border-[#125F55]'
-                      }`}
-                    >
-                      <span>{m.icon}</span>
-                      <span className="truncate">{m.label}</span>
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              <div>
-                <label htmlFor="practice_duration_input" className="block text-[11px] font-bold text-[#152A29] mb-1">
-                  Duração (minutos):
-                </label>
-                <input
-                  id={practiceModality === 'caminhada_corrida' ? 'walk_duration_input' : 'practice_duration_input'}
-                  data-testid="practice_duration_input"
-                  type="number"
-                  min="5"
-                  max="300"
-                  value={practiceDuration}
-                  onChange={(e) => setPracticeDuration(Math.max(1, parseInt(e.target.value) || 1))}
-                  className="w-full h-10 px-3 rounded-xl border border-[#C9DBD3] text-xs font-bold text-[#152A29]"
-                />
-              </div>
-
-              {(practiceModality === 'caminhada_corrida' || practiceModality === 'ciclismo_natacao') && (
-                <div>
-                  <label className="block text-[11px] font-bold text-[#152A29] mb-1">
-                    Distância em km (opcional):
-                  </label>
-                  <input
-                    type="number"
-                    step="0.1"
-                    min="0"
-                    placeholder="Ex: 3.2"
-                    value={practiceDistanceKm}
-                    onChange={(e) => setPracticeDistanceKm(e.target.value)}
-                    className="w-full h-10 px-3 rounded-xl border border-[#C9DBD3] text-xs text-[#152A29]"
-                  />
-                </div>
-              )}
-
-              <div>
-                <label className="block text-[11px] font-bold text-[#152A29] mb-1">
-                  Esforço percebido (1 a 5):
-                </label>
-                <div className="grid grid-cols-5 gap-1">
-                  {[1, 2, 3, 4, 5].map((score) => (
-                    <button
-                      key={score}
-                      type="button"
-                      onClick={() => setPracticeEffort(score)}
-                      className={`py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
-                        practiceEffort === score
-                          ? 'bg-[#125F55] text-white'
-                          : 'bg-[#F5F8F5] text-[#5B7170] border border-[#C9DBD3]'
-                      }`}
-                    >
-                      {score}
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-[11px] font-bold text-[#152A29] mb-1">
-                  Sensação ao terminar:
-                </label>
-                <div className="grid grid-cols-3 gap-1">
-                  {[
-                    { id: 'renovado' as const, label: 'Energia', icon: '✨' },
-                    { id: 'leve' as const, label: 'Mais leve', icon: '🌿' },
-                    { id: 'orgulhoso' as const, label: 'Cumprido', icon: '🏅' },
-                    { id: 'cansado_bem' as const, label: 'Cansado e bem', icon: '💪' },
-                    { id: 'neutro' as const, label: 'Neutro', icon: '🙂' },
-                    { id: 'esgotado' as const, label: 'Exausto', icon: '🥱' },
-                  ].map((m) => (
-                    <button
-                      key={m.id}
-                      type="button"
-                      onClick={() => setPracticeMood(m.id)}
-                      className={`py-1 px-1 rounded-lg text-[10px] font-semibold flex items-center justify-center gap-1 transition-all cursor-pointer ${
-                        practiceMood === m.id
-                          ? 'bg-[#125F55] text-white'
-                          : 'bg-[#F5F8F5] text-[#5B7170] border border-[#C9DBD3]'
-                      }`}
-                    >
-                      <span>{m.icon}</span>
-                      <span className="truncate">{m.label}</span>
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-[11px] font-bold text-[#152A29] mb-1">
-                  Notas sobre a prática (opcional):
-                </label>
-                <input
-                  type="text"
-                  placeholder="Ex: Treino no parque, ritmo tranquilo..."
-                  value={practiceNotes}
-                  onChange={(e) => setPracticeNotes(e.target.value)}
-                  className="w-full h-10 px-3 rounded-xl border border-[#C9DBD3] text-xs text-[#152A29]"
-                />
+            {/* Modalidades */}
+            <div className="space-y-1.5">
+              <label className="block text-xs font-bold text-[#19231E]">Modalidade</label>
+              <div className="grid grid-cols-2 gap-2">
+                {[
+                  { id: 'caminhada_corrida' as const, label: 'Caminhada / Corrida', icon: '🚶' },
+                  { id: 'forca_academia' as const, label: 'Musculação / Força', icon: '🏋️' },
+                  { id: 'mobilidade_yoga' as const, label: 'Mobilidade / Yoga', icon: '🧘' },
+                  { id: 'esporte_coletivo' as const, label: 'Futebol / Esporte', icon: '⚽' },
+                  { id: 'ciclismo_natacao' as const, label: 'Ciclismo / Natação', icon: '🚴' },
+                  { id: 'outra' as const, label: 'Outro Movimento', icon: '✨' },
+                ].map((item) => (
+                  <button
+                    key={item.id}
+                    type="button"
+                    onClick={() => setPracticeModality(item.id)}
+                    className={`p-2.5 rounded-xl text-left text-xs font-semibold flex items-center gap-2 border transition-all cursor-pointer ${
+                      practiceModality === item.id
+                        ? 'bg-[#E8EFE9] border-[#1B4332] text-[#1B4332] shadow-2xs'
+                        : 'bg-[#FAF8F5] border-[#E4DDD3] text-[#5D6E65] hover:border-[#1B4332]/40'
+                    }`}
+                  >
+                    <span>{item.icon}</span>
+                    <span className="truncate">{item.label}</span>
+                  </button>
+                ))}
               </div>
             </div>
 
-            <div className="pt-2 flex items-center justify-end gap-2">
+            {/* Duração em Minutos */}
+            <div className="space-y-1.5">
+              <label htmlFor="practice_duration_input" className="block text-xs font-bold text-[#19231E]">
+                Duração da Prática (minutos)
+              </label>
+              <input
+                id="practice_duration_input"
+                type="number"
+                min={5}
+                max={240}
+                value={practiceDuration}
+                onChange={(e) => setPracticeDuration(parseInt(e.target.value) || 10)}
+                className="w-full p-3 rounded-xl border border-[#E4DDD3] text-sm font-semibold focus:outline-[#1B4332]"
+              />
+            </div>
+
+            {/* Distância Opcional para Caminhada / Corrida */}
+            {practiceModality === 'caminhada_corrida' && (
+              <div className="space-y-1.5">
+                <label className="block text-xs font-bold text-[#19231E]">
+                  Distância Aproximada em km (opcional)
+                </label>
+                <input
+                  type="number"
+                  step="0.1"
+                  placeholder="Ex: 3.5"
+                  value={practiceDistanceKm}
+                  onChange={(e) => setPracticeDistanceKm(e.target.value)}
+                  className="w-full p-3 rounded-xl border border-[#E4DDD3] text-sm focus:outline-[#1B4332]"
+                />
+              </div>
+            )}
+
+            {/* Sensação de Esforço */}
+            <div className="space-y-1.5">
+              <label className="block text-xs font-bold text-[#19231E]">
+                Como foi o esforço?
+              </label>
+              <div className="grid grid-cols-5 gap-1.5">
+                {[
+                  { val: 1, label: 'Muito leve' },
+                  { val: 2, label: 'Leve' },
+                  { val: 3, label: 'Moderado' },
+                  { val: 4, label: 'Firme' },
+                  { val: 5, label: 'Intenso' },
+                ].map((eff) => (
+                  <button
+                    key={eff.val}
+                    type="button"
+                    onClick={() => setPracticeEffort(eff.val)}
+                    className={`py-2 rounded-xl text-center text-xs font-bold transition-all cursor-pointer ${
+                      practiceEffort === eff.val
+                        ? 'bg-[#1B4332] text-white shadow-2xs'
+                        : 'bg-[#FAF8F5] text-[#5D6E65] border border-[#E4DDD3]'
+                    }`}
+                  >
+                    {eff.val}
+                    <span className="block text-[8px] font-normal">{eff.label}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Sensação Pós-Prática */}
+            <div className="space-y-1.5">
+              <label className="block text-xs font-bold text-[#19231E]">
+                Como você se sentiu após praticar?
+              </label>
+              <div className="grid grid-cols-3 gap-2">
+                {[
+                  { id: 'leve' as const, label: 'Mais leve' },
+                  { id: 'renovado' as const, label: 'Energizado' },
+                  { id: 'neutro' as const, label: 'Tranquilo' },
+                ].map((mood) => (
+                  <button
+                    key={mood.id}
+                    type="button"
+                    onClick={() => setPracticeMood(mood.id)}
+                    className={`py-2 px-1 text-center text-xs font-bold rounded-xl border transition-all cursor-pointer ${
+                      practiceMood === mood.id
+                        ? 'bg-[#1B4332] text-white border-[#1B4332] shadow-2xs'
+                        : 'bg-[#FAF8F5] text-[#5D6E65] border border-[#E4DDD3]'
+                    }`}
+                  >
+                    {mood.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Botão de Gravação */}
+            <div className="pt-2 flex items-center gap-3">
               <button
+                type="button"
                 onClick={() => setShowPracticeModal(false)}
-                className="px-4 py-2.5 rounded-xl border border-[#C9DBD3] text-[#5B7170] text-xs font-semibold hover:bg-slate-50 cursor-pointer"
+                className="flex-1 py-3 text-xs font-semibold text-[#5D6E65] hover:bg-slate-100 rounded-xl cursor-pointer"
               >
                 Cancelar
               </button>
               <button
+                type="button"
                 onClick={handleSavePractice}
-                className="px-5 py-2.5 rounded-xl bg-[#125F55] text-white text-xs font-bold hover:bg-[#0C5148] cursor-pointer shadow-sm"
+                className="flex-2 py-3 bg-[#1B4332] hover:bg-[#12372A] text-white text-xs font-bold rounded-xl flex items-center justify-center gap-1.5 cursor-pointer shadow-sm"
               >
-                Confirmar Registro
+                <Check className="w-4 h-4 stroke-[3]" />
+                <span>Confirmar Registro</span>
               </button>
             </div>
           </div>
@@ -1105,26 +1026,26 @@ export const HomeView: React.FC<HomeViewProps> = ({
       {showCopingModal && (
         <div
           onClick={() => setShowCopingModal(false)}
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-xs cursor-pointer"
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 backdrop-blur-xs cursor-pointer animate-in fade-in"
         >
           <div
             onClick={(e) => e.stopPropagation()}
-            className="w-full max-w-sm rounded-3xl bg-white p-6 shadow-2xl border border-[#C9DBD3] text-[#152A29] space-y-4 cursor-default animate-in fade-in duration-200"
+            className="w-full max-w-sm rounded-3xl bg-white p-6 shadow-xl border border-[#E4DDD3] text-[#19231E] space-y-4 cursor-default animate-in fade-in duration-200"
           >
-            <div className="flex items-center justify-between pb-2 border-b border-[#C9DBD3]/40">
+            <div className="flex items-center justify-between pb-2 border-b border-[#E4DDD3]">
               <div className="flex items-center gap-2">
                 <Zap className="w-5 h-5 text-[#E07A5F]" />
-                <h3 className="text-sm font-bold text-[#152A29]">Respostas Rápidas Se-Então</h3>
+                <h3 className="text-sm font-bold text-[#19231E]">Respostas Rápidas Se-Então</h3>
               </div>
               <button
                 onClick={() => setShowCopingModal(false)}
-                className="p-1 rounded-full text-[#5B7170] hover:bg-slate-100 cursor-pointer"
+                className="p-1 rounded-full text-[#5D6E65] hover:bg-slate-100 cursor-pointer"
               >
                 <X className="w-4 h-4" />
               </button>
             </div>
 
-            <p className="text-xs text-[#5B7170]">
+            <p className="text-xs text-[#5D6E65]">
               Imprevistos fazem parte da vida real. Escolha um caminho de continuidade flexível para manter sua constância sem culpa:
             </p>
 
@@ -1132,12 +1053,12 @@ export const HomeView: React.FC<HomeViewProps> = ({
               {copingPlans.map((rule, idx) => (
                 <div
                   key={idx}
-                  className="p-3 rounded-2xl border border-[#C9DBD3] bg-[#F5F8F5] space-y-2"
+                  className="p-3 rounded-2xl border border-[#E4DDD3] bg-[#FAF8F5] space-y-2"
                 >
-                  <p className="text-[11px] font-bold text-[#125F55]">
+                  <p className="text-[11px] font-bold text-[#1B4332]">
                     {rule.ifTriggerLabel}
                   </p>
-                  <p className="text-xs text-[#152A29]">
+                  <p className="text-xs text-[#19231E]">
                     {rule.thenActionLabel}
                   </p>
 
@@ -1149,7 +1070,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
                           setShowCopingModal(false);
                           startEmergencyWorkout();
                         }}
-                        className="w-full py-2 px-3 bg-[#125F55] text-white rounded-xl text-xs font-bold hover:bg-[#0C5148] flex items-center justify-center gap-1.5 cursor-pointer shadow-xs"
+                        className="w-full py-2 px-3 bg-[#1B4332] text-white rounded-xl text-xs font-bold hover:bg-[#12372A] flex items-center justify-center gap-1.5 cursor-pointer shadow-2xs"
                       >
                         <Play className="w-3.5 h-3.5 fill-current" />
                         <span>Fazer Opção Rápida (5 min)</span>
@@ -1164,7 +1085,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
                           const softened = createGentleReturnPlanSnapshot(todayPlan);
                           onStartWorkout(softened, todaySchedule?.id, 'scheduled');
                         }}
-                        className="w-full py-2 px-3 bg-emerald-800 text-white rounded-xl text-xs font-bold hover:bg-emerald-900 flex items-center justify-center gap-1.5 cursor-pointer shadow-xs"
+                        className="w-full py-2 px-3 bg-[#1B4332] text-white rounded-xl text-xs font-bold hover:bg-[#12372A] flex items-center justify-center gap-1.5 cursor-pointer shadow-2xs"
                       >
                         <Play className="w-3.5 h-3.5 fill-current" />
                         <span>Iniciar Treino Suavizado (-25%)</span>
@@ -1178,7 +1099,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
                           setShowCopingModal(false);
                           onStartWorkout(recoveryPlan, todaySchedule?.id, 'ad_hoc');
                         }}
-                        className="w-full py-2 px-3 bg-[#EAF3EF] border border-[#125F55]/30 text-[#125F55] rounded-xl text-xs font-bold hover:bg-[#D9F277]/40 flex items-center justify-center gap-1.5 cursor-pointer"
+                        className="w-full py-2 px-3 bg-[#E8EFE9] border border-[#1B4332]/30 text-[#1B4332] rounded-xl text-xs font-bold hover:bg-[#1B4332] hover:text-white flex items-center justify-center gap-1.5 cursor-pointer"
                       >
                         <Sparkles className="w-3.5 h-3.5" />
                         <span>Fazer Alongamento Suave (8 min)</span>
@@ -1192,7 +1113,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
                           setShowCopingModal(false);
                           onNavigateTab('calendar');
                         }}
-                        className="w-full py-2 px-3 bg-white border border-[#C9DBD3] text-[#5B7170] rounded-xl text-xs font-semibold hover:bg-slate-50 flex items-center justify-center gap-1.5 cursor-pointer"
+                        className="w-full py-2 px-3 bg-white border border-[#E4DDD3] text-[#5D6E65] rounded-xl text-xs font-semibold hover:bg-slate-50 flex items-center justify-center gap-1.5 cursor-pointer"
                       >
                         <CalendarIcon className="w-3.5 h-3.5" />
                         <span>Reagendar na Agenda</span>
@@ -1206,9 +1127,9 @@ export const HomeView: React.FC<HomeViewProps> = ({
                           await completePreparationRitual();
                           setShowCopingModal(false);
                         }}
-                        className="w-full py-2 px-3 bg-[#FAF7F2] border border-[#C9DBD3] text-[#152A29] rounded-xl text-xs font-bold hover:bg-white flex items-center justify-center gap-1.5 cursor-pointer"
+                        className="w-full py-2 px-3 bg-white border border-[#E4DDD3] text-[#19231E] rounded-xl text-xs font-bold hover:bg-[#FAF8F5] flex items-center justify-center gap-1.5 cursor-pointer"
                       >
-                        <Check className="w-3.5 h-3.5 stroke-[3] text-emerald-700" />
+                        <Check className="w-3.5 h-3.5 stroke-[3] text-[#1B4332]" />
                         <span>Concluir apenas o Ritual de 2 passos</span>
                       </button>
                     )}
@@ -1219,7 +1140,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
 
             <button
               onClick={() => setShowCopingModal(false)}
-              className="w-full py-2.5 rounded-xl border border-[#C9DBD3] text-[#5B7170] text-xs font-semibold hover:bg-slate-50 cursor-pointer"
+              className="w-full py-2.5 rounded-xl border border-[#E4DDD3] text-[#5D6E65] text-xs font-semibold hover:bg-slate-50 cursor-pointer"
             >
               Fechar
             </button>
