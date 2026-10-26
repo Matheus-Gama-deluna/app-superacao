@@ -314,7 +314,7 @@ export const ActivityPath: React.FC<ActivityPathProps> = ({
       </div>
 
       {/* Trilha Visual de Capítulos */}
-      <div className="grid grid-cols-1 sm:grid-cols-4 gap-2.5 pt-1">
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 pt-1">
         {chapters.map((chap) => (
           <div
             key={chap.id}

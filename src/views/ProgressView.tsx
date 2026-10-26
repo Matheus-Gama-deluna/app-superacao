@@ -28,6 +28,7 @@ export const ProgressView: React.FC = () => {
 
   const [expandedSessionId, setExpandedSessionId] = useState<string | null>(null);
   const [showAllBadges, setShowAllBadges] = useState<boolean>(false);
+  const [showAllLadders, setShowAllLadders] = useState<boolean>(false);
 
   // Métricas canônicas unificadas (E03 / Seção 5 / T18)
   // Fase 4: Trilhas de Evolução Biomecânica (Escadas de 4 degraus)
@@ -316,18 +317,30 @@ export const ProgressView: React.FC = () => {
 
       {/* Trilhas de Evolução Biomecânica (Fase 4 - Escadas de 4 degraus) */}
       <section className="space-y-3">
-        <div className="flex items-center justify-between">
+        <div className="flex items-center justify-between gap-2">
           <h3 className="text-sm font-bold text-[#152A29] flex items-center gap-1.5">
             <span className="text-base">🪜</span>
             Trilhas de Evolução Biomecânica
           </h3>
-          <span className="text-[10px] text-[#125F55] font-bold bg-[#EAF3EF] px-2 py-0.5 rounded-full">
-            5 Padrões Fundamentais
-          </span>
+          <div className="flex items-center gap-2">
+            <span className="text-[10px] text-[#125F55] font-bold bg-[#EAF3EF] px-2 py-0.5 rounded-full">
+              5 Padrões
+            </span>
+            {movementLadders.length > 2 && (
+              <button
+                type="button"
+                onClick={() => setShowAllLadders(!showAllLadders)}
+                className="text-xs text-[#125F55] font-bold hover:underline flex items-center gap-1 cursor-pointer shrink-0"
+              >
+                <span>{showAllLadders ? 'Menos' : `Ver todas (${movementLadders.length})`}</span>
+                {showAllLadders ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
+              </button>
+            )}
+          </div>
         </div>
 
         <div className="space-y-3">
-          {movementLadders.map((ladder) => (
+          {(showAllLadders ? movementLadders : movementLadders.slice(0, 2)).map((ladder) => (
             <div
               key={ladder.ladderId}
               className="bg-white p-4 rounded-2xl border border-[#C9DBD3] shadow-xs space-y-3"

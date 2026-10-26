@@ -358,4 +358,41 @@ describe('Fase 9: Correções de QA, Experiência, Acolhimento e Acessibilidade 
     expect(patternsSummary).toContain('foco nos padrões de');
     expect(proposal15.justificationText).toContain(patternsSummary);
   });
+
+  it('Critério 15 (Regressão PR #3): Proposta de 15 min para praticante retomando com cansaço mental e flexao_chao respeita rigorosamente a janela de 15 min no Treino A e B', () => {
+    const profileReviewer: Partial<UserProfile> = {
+      uid: 'reviewer_user',
+      experienceLevel: 'retomando',
+      exerciseReason: 'Voltar a me movimentar no meu ritmo',
+      availableDays: [1, 3, 5],
+      sessionDurationMinutes: 15,
+      equipments: ['peso_corporal'],
+      reportedLimitations: ['flexao_chao'],
+      practiceObstacles: ['cansaco_mental'],
+    };
+
+    const proposal = generateSmartWorkoutRoutine(profileReviewer);
+
+    // Ambas as rotinas (Treino A e Treino B) devem respeitar a janela de 15 min:
+    expect(proposal.routines.length).toBe(2);
+    const planA = proposal.routines[0];
+    const planB = proposal.routines[1];
+
+    expect(planA.estimatedDurationMinutes).toBeLessThanOrEqual(15);
+    expect(planA.estimatedDurationMinutes).toBeGreaterThanOrEqual(12);
+
+    expect(planB.estimatedDurationMinutes).toBeLessThanOrEqual(15);
+    expect(planB.estimatedDurationMinutes).toBeGreaterThanOrEqual(12);
+
+    // Flexão no solo deve ser excluída e substituto seguro presente
+    const hasFloorPushupA = planA.exercises.some((e) => e.exerciseId === 'push_up' || e.exerciseId === 'push_ups');
+    const hasFloorPushupB = planB.exercises.some((e) => e.exerciseId === 'push_up' || e.exerciseId === 'push_ups');
+    expect(hasFloorPushupA).toBe(false);
+    expect(hasFloorPushupB).toBe(false);
+
+    // Contexto de retorno e cansaço mental devem estar na justificativa
+    expect(proposal.justificationText).toContain('Reconhecemos seu momento de retorno');
+    expect(proposal.justificationText).toContain('Voltar a me movimentar no meu ritmo');
+    expect(proposal.justificationText).toContain('Intervalos de descanso foram ampliados');
+  });
 });

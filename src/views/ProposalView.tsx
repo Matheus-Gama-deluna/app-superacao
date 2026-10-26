@@ -25,6 +25,7 @@ import { ExerciseIllustration } from '../components/ExerciseIllustration';
 import {
   findSafeEquivalentExercises,
   calculateRoutineDurationMinutes,
+  fitRoutineToTargetDuration,
   buildRoutinePatternsText,
 } from '../lib/workoutEngine';
 import {
@@ -119,7 +120,11 @@ export const ProposalView: React.FC<ProposalViewProps> = ({
       targetDurationSeconds: newEx.tracking === 'time' ? 30 : undefined,
     };
 
-    const recalculatedMinutes = calculateRoutineDurationMinutes(updatedExercises);
+    const calibratedExercises = fitRoutineToTargetDuration(
+      updatedExercises,
+      currentProposal.sessionDurationMinutes
+    );
+    const recalculatedMinutes = calculateRoutineDurationMinutes(calibratedExercises);
     const updatedTitle = (primaryPlan.title || '').replace(/\(\d+\s*min\)/, `(${recalculatedMinutes} min)`);
 
     const updatedRoutines = currentProposal.routines.map((r, i) =>
@@ -127,13 +132,13 @@ export const ProposalView: React.FC<ProposalViewProps> = ({
         ? {
             ...r,
             title: updatedTitle,
-            exercises: updatedExercises,
+            exercises: calibratedExercises,
             estimatedDurationMinutes: recalculatedMinutes,
           }
         : r
     );
 
-    const newPatternsText = buildRoutinePatternsText(updatedExercises);
+    const newPatternsText = buildRoutinePatternsText(calibratedExercises);
     const baseJustification = currentProposal.justificationText || '';
     const updatedJustification = baseJustification.replace(
       /foco nos padrões de [^.]+\./,
@@ -141,8 +146,8 @@ export const ProposalView: React.FC<ProposalViewProps> = ({
     );
     const planB = updatedRoutines[1] || null;
     const updatedTimeBreakdown = planB
-      ? `Treino A (${updatedExercises.length} movimentos em séries calibradas, ~${recalculatedMinutes} min) e Treino B (${planB.exercises.length} movimentos em séries calibradas, ~${planB.estimatedDurationMinutes} min) alternados ao longo da semana.`
-      : `${updatedExercises.length} exercícios × séries calibradas para ~${recalculatedMinutes} min por sessão com descansos e transições calculados.`;
+      ? `Treino A (${calibratedExercises.length} movimentos em séries calibradas, ~${recalculatedMinutes} min) e Treino B (${planB.exercises.length} movimentos em séries calibradas, ~${planB.estimatedDurationMinutes} min) alternados ao longo da semana.`
+      : `${calibratedExercises.length} exercícios × séries calibradas para ~${recalculatedMinutes} min por sessão com descansos e transições calculados.`;
 
     setCurrentProposal({
       ...currentProposal,

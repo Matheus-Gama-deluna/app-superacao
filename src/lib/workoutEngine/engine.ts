@@ -9,7 +9,7 @@ import {
 import { allExercises } from '../../data/catalog';
 import { enrichExercise, isExerciseSafeForUser } from './filters';
 import { getSlotsForGoal, normalizeGoalKey, RoutineTemplate } from './slots';
-import { calculateRoutineDurationMinutes, prescribeExerciseItem } from './prescriptions';
+import { calculateRoutineDurationMinutes, fitRoutineToTargetDuration, prescribeExerciseItem } from './prescriptions';
 import { EQUIPMENT_LABELS, AVOIDANCE_LABELS } from '../storage';
 
 export interface GenerationOptions {
@@ -93,8 +93,8 @@ export function generateSmartWorkoutRoutine(
       const check = isExerciseSafeForUser(ex, userEquipments, userAvoided, reportedLimitations);
       if (!check.safe) return false;
 
-      // Salvaguarda para iniciantes: sem exercícios avançados ou complexidade extrema
-      if (experienceLevel === 'iniciante') {
+      // Salvaguarda para iniciantes e praticantes em retomada: sem exercícios avançados ou complexidade extrema
+      if (experienceLevel === 'iniciante' || experienceLevel === 'retomando') {
         if (ex.difficulty_candidate === 'avancado' || ex.movementComplexity === 3) {
           return false;
         }
@@ -238,8 +238,8 @@ export function generateSmartWorkoutRoutine(
         const selected = sorted[0];
         usedExerciseIds.add(selected.id);
 
-        const normalizedExpLevel: 'iniciante' | 'intermediario' | 'avancado' =
-          experienceLevel === 'pratica' ? 'avancado' : experienceLevel === 'retomando' ? 'intermediario' : (experienceLevel || 'iniciante');
+        const normalizedExpLevel: 'iniciante' | 'intermediario' | 'avancado' | 'retomando' =
+          experienceLevel === 'pratica' ? 'avancado' : experienceLevel === 'retomando' ? 'retomando' : (experienceLevel || 'iniciante');
 
         const planItem = prescribeExerciseItem(
           selected,
@@ -255,7 +255,8 @@ export function generateSmartWorkoutRoutine(
       }
     }
 
-    const calculatedMinutes = calculateRoutineDurationMinutes(chosenItems);
+    const calibratedItems = fitRoutineToTargetDuration(chosenItems, targetDuration);
+    const calculatedMinutes = calculateRoutineDurationMinutes(calibratedItems);
     const routineId = `plan_${variant.toLowerCase()}_${Date.now()}_${Math.floor(Math.random() * 1000)}`;
 
     return {
@@ -268,7 +269,7 @@ export function generateSmartWorkoutRoutine(
       isTemplate: false,
       sourceKind: 'modelo_revisado',
       reviewStatus: 'revisado',
-      exercises: chosenItems,
+      exercises: calibratedItems,
       estimatedDurationMinutes: calculatedMinutes,
       category: userEquipments.includes('mini_band') ? 'mini_band' : 'casa',
       createdAt: Date.now(),

@@ -2,7 +2,7 @@ import { Exercise, ExercisePlanItem } from '../../types';
 
 export interface PrescriptionOptions {
   sessionDurationMinutes?: number;
-  experienceLevel?: 'iniciante' | 'intermediario' | 'avancado';
+  experienceLevel?: 'iniciante' | 'intermediario' | 'avancado' | 'retomando' | 'pratica';
   goalKey?: string;
   extraRestSeconds?: number;
 }
@@ -18,6 +18,7 @@ export function prescribeExerciseItem(
 ): ExercisePlanItem {
   const duration = options.sessionDurationMinutes || 20;
   const level = options.experienceLevel || 'iniciante';
+  const isBeginnerOrReturning = level === 'iniciante' || level === 'retomando';
   const isMicro = duration <= 5;
   const isExpress = duration > 5 && duration <= 10;
   const isFifteen = duration > 10 && duration <= 15;
@@ -28,17 +29,17 @@ export function prescribeExerciseItem(
   if (ex.modality === 'mobilidade' || ex.modality === 'alongamento') {
     sets = (isMicro || isExpress) ? 1 : 2;
   } else {
-    if (isMicro) {
-      sets = 2;
-    } else if (isExpress) {
+    if (isMicro || isExpress) {
       sets = 2;
     } else if (isFifteen) {
-      sets = 3;
+      // Se houver descanso extra (cansaço mental/físico) ou for iniciante/retomada,
+      // 2 séries asseguram que 4 movimentos caibam confortavelmente dentro dos 15 minutos
+      sets = (isBeginnerOrReturning || (options.extraRestSeconds && options.extraRestSeconds > 0)) ? 2 : 3;
     } else if (isLong) {
-      sets = level === 'avancado' ? 4 : 3;
+      sets = level === 'avancado' || level === 'pratica' ? 4 : 3;
     } else {
       // 16 a 29 min
-      sets = level === 'iniciante' ? 2 : 3;
+      sets = isBeginnerOrReturning ? 2 : 3;
     }
   }
 
@@ -52,7 +53,7 @@ export function prescribeExerciseItem(
       targetDurationSeconds = 30;
     } else {
       // Isometria de força (ex: Prancha, Perdigueiro sustentado, Parede isométrica)
-      if (level === 'iniciante') {
+      if (isBeginnerOrReturning) {
         targetDurationSeconds = 20;
       } else if (level === 'intermediario') {
         targetDurationSeconds = 30;
@@ -63,12 +64,12 @@ export function prescribeExerciseItem(
   } else {
     // Repetições dinâmicas
     if (options.goalKey === 'forca') {
-      targetReps = level === 'iniciante' ? 8 : level === 'intermediario' ? 10 : 12;
+      targetReps = isBeginnerOrReturning ? 8 : level === 'intermediario' ? 10 : 12;
     } else if (options.goalKey === 'vitalidade') {
-      targetReps = level === 'iniciante' ? 10 : 12;
+      targetReps = isBeginnerOrReturning ? 10 : 12;
     } else {
       // habito, postura, alivio_dores
-      targetReps = level === 'iniciante' ? 8 : 10;
+      targetReps = isBeginnerOrReturning ? 8 : 10;
     }
   }
 
@@ -77,7 +78,7 @@ export function prescribeExerciseItem(
   if (ex.modality === 'mobilidade' || ex.modality === 'alongamento') {
     restSeconds = 20;
   } else if (options.goalKey === 'forca') {
-    restSeconds = level === 'iniciante' ? 60 : 50;
+    restSeconds = isBeginnerOrReturning ? 60 : 50;
   } else if (options.goalKey === 'vitalidade') {
     restSeconds = 35;
   } else {
@@ -124,4 +125,41 @@ export function calculateRoutineDurationMinutes(items: ExercisePlanItem[]): numb
   const totalMinutes = Math.round((totalSeconds + transitionsTotalSeconds) / 60);
 
   return Math.max(5, totalMinutes);
+}
+
+/**
+ * Calibra rigorosamente o volume e séries dos exercícios para assegurar que a duração estimada
+ * da rotina respeite o teto da janela informada pelo usuário (ex.: <= 15 min para janela de 15 min),
+ * sem frustrar a expectativa de tempo declarada no onboarding.
+ */
+export function fitRoutineToTargetDuration(
+  items: ExercisePlanItem[],
+  targetDuration: number
+): ExercisePlanItem[] {
+  if (items.length === 0) return items;
+
+  const adjusted = items.map((it) => ({ ...it }));
+  let currentMinutes = calculateRoutineDurationMinutes(adjusted);
+
+  // 1. Se a duração calculada exceder o teto desejado, ajusta séries dos exercícios complementares
+  if (currentMinutes > targetDuration) {
+    // Passada A: reduz séries de 3 para 2, começando do último exercício para preservar o estímulo primário
+    for (let i = adjusted.length - 1; i >= 0 && currentMinutes > targetDuration; i--) {
+      if (adjusted[i].targetSets > 2) {
+        adjusted[i].targetSets -= 1;
+        currentMinutes = calculateRoutineDurationMinutes(adjusted);
+      }
+    }
+
+    // Passada B: se ainda exceder (ex: descansos estendidos de cansaço mental/dor em janelas curtas),
+    // reduz para 1 série em exercícios de alongamento/mobilidade ou acessórios (índice > 0)
+    for (let i = adjusted.length - 1; i >= 1 && currentMinutes > targetDuration; i--) {
+      if (adjusted[i].targetSets > 1) {
+        adjusted[i].targetSets -= 1;
+        currentMinutes = calculateRoutineDurationMinutes(adjusted);
+      }
+    }
+  }
+
+  return adjusted;
 }
