@@ -5,18 +5,19 @@ import { TopStatusBar } from './components/TopStatusBar';
 import { BottomNav, TabDestination } from './components/BottomNav';
 import { SWUpdateBanner } from './components/SWUpdateBanner';
 import { syncAppBadge } from './lib/pwaNative';
+import { lazyWithRetry } from './lib/lazyWithRetry';
 import { HomeView } from './views/HomeView';
 import { WelcomeView } from './views/WelcomeView';
 
-// Code Splitting das Telas Secundárias (Sprint 2 - Performance & Leveza)
-const ExploreView = React.lazy(() => import('./views/ExploreView').then((m) => ({ default: m.ExploreView })));
-const BuilderView = React.lazy(() => import('./views/BuilderView').then((m) => ({ default: m.BuilderView })));
-const ActiveWorkoutView = React.lazy(() => import('./views/ActiveWorkoutView').then((m) => ({ default: m.ActiveWorkoutView })));
-const CalendarView = React.lazy(() => import('./views/CalendarView').then((m) => ({ default: m.CalendarView })));
-const ProgressView = React.lazy(() => import('./views/ProgressView').then((m) => ({ default: m.ProgressView })));
-const ProfileView = React.lazy(() => import('./views/ProfileView').then((m) => ({ default: m.ProfileView })));
-const ListeningJourneyView = React.lazy(() => import('./views/ListeningJourneyView').then((m) => ({ default: m.ListeningJourneyView })));
-const ProposalView = React.lazy(() => import('./views/ProposalView').then((m) => ({ default: m.ProposalView })));
+// Code Splitting Resiliente das Telas Secundárias (com auto-retry em novos deploys)
+const ExploreView = lazyWithRetry(() => import('./views/ExploreView').then((m) => ({ default: m.ExploreView })));
+const BuilderView = lazyWithRetry(() => import('./views/BuilderView').then((m) => ({ default: m.BuilderView })));
+const ActiveWorkoutView = lazyWithRetry(() => import('./views/ActiveWorkoutView').then((m) => ({ default: m.ActiveWorkoutView })));
+const CalendarView = lazyWithRetry(() => import('./views/CalendarView').then((m) => ({ default: m.CalendarView })));
+const ProgressView = lazyWithRetry(() => import('./views/ProgressView').then((m) => ({ default: m.ProgressView })));
+const ProfileView = lazyWithRetry(() => import('./views/ProfileView').then((m) => ({ default: m.ProfileView })));
+const ListeningJourneyView = lazyWithRetry(() => import('./views/ListeningJourneyView').then((m) => ({ default: m.ListeningJourneyView })));
+const ProposalView = lazyWithRetry(() => import('./views/ProposalView').then((m) => ({ default: m.ProposalView })));
 
 const ViewLoadingFallback: React.FC = () => (
   <div
@@ -254,7 +255,7 @@ const MainAppContent: React.FC = () => {
   // 3. EDITOR MANUAL OU PROFISSIONAL ABERTO COM PRIORIDADE (Critérios C09, C10, C15)
   if (isBuilderOpen) {
     return (
-      <div className="min-h-screen bg-[#F5F8F5] text-[#152A29] flex flex-col justify-between font-sans">
+      <div className="min-h-screen bg-[#FAF8F5] text-[#19231E] flex flex-col justify-between font-sans">
         <TopStatusBar onOpenProfile={handleOpenProfile} />
         <main className="flex-1 max-w-xl mx-auto w-full px-4 pt-4">
           <React.Suspense fallback={<ViewLoadingFallback />}>
@@ -289,6 +290,9 @@ const MainAppContent: React.FC = () => {
             setIsViewingProposal(false);
             setIsBuilderOpen(false);
             setIsBuilderPro(false);
+            if (typeof window !== 'undefined') {
+              window.scrollTo({ top: 0, behavior: 'instant' });
+            }
           }}
           onAdjustAnswers={() => {
             updateUserProfile({
@@ -322,7 +326,7 @@ const MainAppContent: React.FC = () => {
 
   // 5. EXPERIÊNCIA PRINCIPAL (Seção 7, 8, 9, 10, 11)
   return (
-    <div className="min-h-screen bg-[#F5F8F5] text-[#152A29] flex flex-col justify-between font-sans">
+    <div className="min-h-screen bg-[#FAF8F5] text-[#19231E] flex flex-col justify-between font-sans">
       {/* Barra de Status e Cabeçalho Superior */}
       <TopStatusBar onOpenProfile={handleOpenProfile} />
 
