@@ -13,18 +13,16 @@ export const TopStatusBar: React.FC<TopStatusBarProps> = ({ onOpenProfile }) => 
   const { syncStatus, latestPRAnnouncement, clearPRAnnouncement } = useWorkout();
 
   return (
-    <header className="sticky top-0 z-30 bg-white/95 backdrop-blur-md border-b border-[#C9DBD3] px-4 py-3 pt-safe">
+    <header className="sticky top-0 z-30 bg-[#FAF8F5]/90 backdrop-blur-md border-b border-[#E4DDD3] px-4 py-2.5 pt-safe">
       <div className="max-w-4xl mx-auto flex items-center justify-between gap-3">
         {/* Logo / Nome da Marca */}
         <div className="flex items-center gap-2 shrink-0">
-          <div className="w-8 h-8 rounded-xl bg-[#125F55] flex items-center justify-center text-white font-black text-sm shadow-xs">
-            S
-          </div>
+          <span className="text-xl">🌿</span>
           <div>
-            <h1 className="text-base font-bold text-[#152A29] leading-tight tracking-tight">
+            <h1 className="text-lg font-serif font-bold text-[#19231E] leading-tight tracking-tight">
               Superação
             </h1>
-            <p className="text-[11px] text-[#5B7170] leading-none hidden sm:block">
+            <p className="text-[10px] text-[#5D6E65] leading-none hidden sm:block">
               Progresso possível & hábitos
             </p>
           </div>

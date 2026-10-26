@@ -141,40 +141,40 @@ export const ProgressView: React.FC = () => {
 
       {/* 2. Indicadores Pessoais Enxutos (E03 / Seção 5) */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
-        <div className="bg-white p-3.5 rounded-2xl border border-[#C9DBD3] shadow-xs text-center">
-          <span className="text-[10px] text-[#5B7170] font-medium block">Treinos Concluídos</span>
-          <span className="text-xl font-black text-[#125F55] tabular-nums mt-0.5 block">
+        <div className="bg-white p-3.5 rounded-2xl border border-[#E4DDD3] shadow-2xs text-center">
+          <span className="text-[10px] text-[#5D6E65] font-medium block">Treinos Concluídos</span>
+          <span className="text-xl font-black text-[#1B4332] tabular-nums mt-0.5 block">
             {metrics.completedWorkoutsCount}
           </span>
           {metrics.partialWorkoutsCount > 0 && (
-            <span className="text-[9px] text-[#5B7170] block font-normal">
+            <span className="text-[9px] text-[#5D6E65] block font-normal">
               + {metrics.partialWorkoutsCount} {metrics.partialWorkoutsCount === 1 ? 'parcial' : 'parciais'}
             </span>
           )}
         </div>
-        <div className="bg-white p-3.5 rounded-2xl border border-[#C9DBD3] shadow-xs text-center">
-          <span className="text-[10px] text-[#5B7170] font-medium block">Recordes Reais (PRs)</span>
-          <span className="text-xl font-black text-[#246747] tabular-nums mt-0.5 block">
+        <div className="bg-white p-3.5 rounded-2xl border border-[#E4DDD3] shadow-2xs text-center">
+          <span className="text-[10px] text-[#5D6E65] font-medium block">Recordes Reais (PRs)</span>
+          <span className="text-xl font-black text-[#1B4332] tabular-nums mt-0.5 block">
             {metrics.prsAchievedCount}
           </span>
           {personalRecords.length > metrics.prsAchievedCount && (
-            <span className="text-[9px] text-[#5B7170] block font-normal">
+            <span className="text-[9px] text-[#5D6E65] block font-normal">
               {personalRecords.length - metrics.prsAchievedCount}{' '}
               {personalRecords.length - metrics.prsAchievedCount === 1 ? 'marca inicial' : 'marcas iniciais'}
             </span>
           )}
         </div>
-        <div className="bg-white p-3.5 rounded-2xl border border-[#C9DBD3] shadow-xs text-center">
-          <span className="text-[10px] text-[#5B7170] font-medium block">Repetições Totais</span>
-          <span className="text-xl font-black text-[#125F55] tabular-nums mt-0.5 block">
+        <div className="bg-white p-3.5 rounded-2xl border border-[#E4DDD3] shadow-2xs text-center">
+          <span className="text-[10px] text-[#5D6E65] font-medium block">Repetições Totais</span>
+          <span className="text-xl font-black text-[#1B4332] tabular-nums mt-0.5 block">
             {totalReps}
           </span>
         </div>
-        <div className="bg-white p-3.5 rounded-2xl border border-[#C9DBD3] shadow-xs text-center">
-          <span className="text-[10px] text-[#5B7170] font-medium block">
+        <div className="bg-white p-3.5 rounded-2xl border border-[#E4DDD3] shadow-2xs text-center">
+          <span className="text-[10px] text-[#5D6E65] font-medium block">
             {totalVolumeKg > 0 ? 'Volume Total (kg)' : 'Recuperações'}
           </span>
-          <span className="text-xl font-black text-[#203826] tabular-nums mt-0.5 block">
+          <span className="text-xl font-black text-[#19231E] tabular-nums mt-0.5 block">
             {totalVolumeKg > 0 ? totalVolumeKg.toLocaleString('pt-BR') : recoveryDaysCompleted}
           </span>
         </div>
@@ -182,35 +182,35 @@ export const ProgressView: React.FC = () => {
 
       {/* Cartão de Cuidado & Vitalidade Semanal (Estratégia A e E) */}
       {(metrics.careMinutesTotal > 0 || metrics.weeklyVitalityLinksCount > 0) && (
-        <div className="bg-[#EAF3EF] border border-[#125F55]/30 rounded-2xl p-4 flex items-center justify-between shadow-xs">
+        <div className="bg-[#E8EFE9] border border-[#1B4332]/30 rounded-2xl p-4 flex items-center justify-between shadow-2xs">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-white border border-[#C9DBD3] flex items-center justify-center text-xl shrink-0">
+            <div className="w-10 h-10 rounded-xl bg-white border border-[#E4DDD3] flex items-center justify-center text-xl shrink-0">
               🌿
             </div>
             <div>
-              <span className="text-[10px] font-bold text-[#125F55] uppercase tracking-wider block">
+              <span className="text-[10px] font-bold text-[#1B4332] uppercase tracking-wider block">
                 Cuidado & Regeneração
               </span>
-              <p className="text-xs font-semibold text-[#152A29] mt-0.5">
+              <p className="text-xs font-semibold text-[#19231E] mt-0.5">
                 {metrics.careMinutesTotal} minutos acumulados · {metrics.weeklyVitalityLinksCount} {metrics.weeklyVitalityLinksCount === 1 ? 'elo' : 'elos'} de vitalidade
               </p>
             </div>
           </div>
-          <span className="text-[11px] font-bold text-[#125F55] bg-white px-2.5 py-1 rounded-full border border-[#C9DBD3]">
+          <span className="text-[11px] font-bold text-[#1B4332] bg-white px-2.5 py-1 rounded-full border border-[#E4DDD3]">
             Ritmo Vivo
           </span>
         </div>
       )}
 
-      {/* Seção de Conquistas & Próximos Passos (Sem "parede de medalhas bloqueadas" punitiva) */}
-      <section className="bg-white rounded-3xl p-5 border border-[#C9DBD3]/80 shadow-xs space-y-3">
+      {/* Seção de Conquistas & Próximos Passos (Honesto e Acolhedor) */}
+      <section className="bg-white rounded-3xl p-5 border border-[#E4DDD3] shadow-sm space-y-3">
         <div className="flex items-center justify-between gap-2">
           <div>
-            <h3 className="text-sm font-bold text-[#152A29] flex items-center gap-1.5">
+            <h3 className="font-serif text-base font-bold text-[#19231E] flex items-center gap-1.5">
               <Sparkles className="w-4 h-4 text-[#E07A5F]" />
               Reconhecimentos da Jornada
             </h3>
-            <p className="text-[11px] text-[#5B7170] mt-0.5">
+            <p className="text-[11px] text-[#5D6E65] mt-0.5">
               {unlockedBadges.length > 0
                 ? `${unlockedBadges.length} ${unlockedBadges.length === 1 ? 'marco reconhecido' : 'marcos reconhecidos'} no seu ritmo`
                 : 'Seus primeiros marcos serão iluminados conforme você pratica'}
@@ -219,44 +219,60 @@ export const ProgressView: React.FC = () => {
           <button
             type="button"
             onClick={() => setShowAllBadges(!showAllBadges)}
-            className="text-xs text-[#125F55] font-bold hover:underline flex items-center gap-1 cursor-pointer shrink-0"
+            className="text-xs text-[#1B4332] font-bold hover:underline flex items-center gap-1 cursor-pointer shrink-0"
           >
             <span>{showAllBadges ? 'Mostrar resumo' : `Ver todos (${badges.length})`}</span>
             {showAllBadges ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
           </button>
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 pt-1">
-          {visibleBadges.map((b) => (
-            <div
-              key={b.id}
-              className={`p-3 rounded-2xl border flex items-center gap-3 transition-all ${
-                b.isUnlocked
-                  ? 'bg-[#EAF3EF]/80 border-[#125F55]/40 text-[#152A29]'
-                  : 'bg-[#F5F8F5]/80 border-[#C9DBD3]/70 text-[#152A29]'
-              }`}
-            >
-              <div className="w-10 h-10 rounded-xl bg-white border border-[#C9DBD3] flex items-center justify-center text-xl shrink-0 shadow-2xs">
-                {b.icon}
-              </div>
-              <div className="min-w-0 flex-1">
-                <div className="flex items-center gap-1.5">
-                  <p className="text-xs font-bold text-[#152A29]">{b.title}</p>
-                  {b.isUnlocked ? (
-                    <span className="text-[9px] font-black text-[#125F55] uppercase bg-[#D9F277]/50 px-1.5 py-0.2 rounded-md">
-                      Conquistado
-                    </span>
-                  ) : (
-                    <span className="text-[9px] font-semibold text-[#125F55] uppercase bg-[#EAF3EF] px-1.5 py-0.2 rounded-md">
-                      Próximo passo
-                    </span>
-                  )}
-                </div>
-                <p className="text-[11px] text-[#5B7170] truncate">{b.desc}</p>
-              </div>
+        {/* Estado Vazio Honesto: quando não houver conquistas ainda */}
+        {unlockedBadges.length === 0 && !showAllBadges ? (
+          <div className="bg-[#FAF8F5] border border-[#E4DDD3] rounded-2xl p-4 text-center space-y-2">
+            <span className="text-2xl">🌱</span>
+            <h4 className="font-serif text-sm font-bold text-[#19231E]">Seu caminho começa aqui</h4>
+            <p className="text-xs text-[#5D6E65] max-w-sm mx-auto leading-relaxed">
+              Você ainda não concluiu treinos esta semana. Cada prática é um passo real: conclua seu 1º treino no app ou registre uma prática livre para inaugurar sua galeria!
+            </p>
+            <div className="pt-1">
+              <span className="inline-block text-[11px] font-bold text-[#1B4332] bg-[#E8EFE9] px-3 py-1 rounded-full border border-[#1B4332]/20">
+                0 de {targetWeeklyGoal} práticas concluídas esta semana
+              </span>
             </div>
-          ))}
-        </div>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 pt-1">
+            {visibleBadges.map((b) => (
+              <div
+                key={b.id}
+                className={`p-3 rounded-2xl border flex items-center gap-3 transition-all ${
+                  b.isUnlocked
+                    ? 'bg-[#E8EFE9]/80 border-[#1B4332]/40 text-[#19231E]'
+                    : 'bg-[#FAF8F5] border-[#E4DDD3] text-[#19231E]'
+                }`}
+              >
+                <div className="w-10 h-10 rounded-xl bg-white border border-[#E4DDD3] flex items-center justify-center text-xl shrink-0 shadow-2xs">
+                  {b.icon}
+                </div>
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-center gap-1.5">
+                    <p className="text-xs font-bold text-[#19231E]">{b.title}</p>
+                    {b.isUnlocked ? (
+                      <span className="text-[9px] font-black text-[#19231E] uppercase bg-[#D9F277] px-1.5 py-0.2 rounded-md">
+                        Conquistado
+                      </span>
+                    ) : (
+                      <span className="text-[9px] font-semibold text-[#1B4332] uppercase bg-[#E8EFE9] px-1.5 py-0.2 rounded-md">
+                        Próximo passo
+                      </span>
+                    )}
+                  </div>
+                  <p className="text-[11px] text-[#5D6E65] truncate">{b.desc}</p>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
       </section>
 
       {/* Galeria de Recordes Pessoais (PRs) */}
