@@ -246,7 +246,7 @@ export const ProposalView: React.FC<ProposalViewProps> = ({
               <Clock className="w-4 h-4 text-[#1B4332] mx-auto mb-1" />
               <span className="text-[10px] text-[#5D6E65] block">Duração</span>
               <span className="font-bold text-xs text-[#19231E]">
-                ~{primaryPlan?.estimatedDurationMinutes || currentProposal.sessionDurationMinutes} min
+                ~{primaryPlan?.estimatedDurationMinutes || currentProposal.sessionDurationMinutes} min (janela de {currentProposal.sessionDurationMinutes} min)
               </span>
             </div>
 

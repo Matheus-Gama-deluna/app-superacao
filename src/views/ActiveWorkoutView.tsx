@@ -108,6 +108,7 @@ export const ActiveWorkoutView: React.FC<ActiveWorkoutViewProps> = ({
   const [workoutNotes, setWorkoutNotes] = useState<string>('');
   const [copiedShare, setCopiedShare] = useState<boolean>(false);
   const [postMood, setPostMood] = useState<PostWorkoutMood | null>('orgulhoso');
+  const [localPreMood, setLocalPreMood] = useState<PreWorkoutMood | null>(activeSession.preMood || null);
   const [sessionEnjoyment, setSessionEnjoyment] = useState<SessionEnjoyment>('prazeroso');
   const [isFocusDismissed, setIsFocusDismissed] = useState<boolean>(false);
   const [isMobilityScheduled, setIsMobilityScheduled] = useState<boolean>(false);
@@ -804,8 +805,72 @@ export const ActiveWorkoutView: React.FC<ActiveWorkoutViewProps> = ({
       ) : (
         /* ÁREA PRINCIPAL DO EXERCÍCIO (S07) - ZERO ROLAGEM NO VIEWPORT 390×844 */
         <main className="flex-1 flex flex-col justify-between p-3.5 sm:p-4 max-w-md mx-auto w-full overflow-hidden select-none">
-          {/* Indicador discreto caso o usuário tenha optado por treino suavizado */}
-          {activeSession.preMood && (activeSession.preMood === 'cansado' || activeSession.preMood === 'tenso') && (
+          {/* Check-in Inicial de Sensação e Acolhimento caso ainda não informado */}
+          {activeSession.totalSetsCompleted === 0 && !localPreMood && !activeSession.preMood && (
+            <div className="bg-[#FAF8F5] p-2.5 rounded-2xl border border-[#E4DDD3] space-y-1 mb-1.5 shrink-0 animate-in fade-in">
+              <span className="text-[10px] font-bold text-[#19231E] block">
+                Como você está chegando hoje?
+              </span>
+              <div className="grid grid-cols-4 gap-1.5">
+                {[
+                  { id: 'cansado' as const, label: 'Cansado', icon: '🔋' },
+                  { id: 'tenso' as const, label: 'Tenso', icon: '🧘' },
+                  { id: 'disposto' as const, label: 'Disposto', icon: '⚡' },
+                  { id: 'normal' as const, label: 'Normal', icon: '🙂' },
+                ].map((m) => (
+                  <button
+                    key={m.id}
+                    type="button"
+                    onClick={() => {
+                      setLocalPreMood(m.id);
+                      setSessionPreMood(m.id);
+                    }}
+                    className="p-1 rounded-xl border border-[#E4DDD3] bg-white hover:border-[#1B4332] text-center cursor-pointer transition-colors"
+                  >
+                    <span className="text-sm block">{m.icon}</span>
+                    <span className="text-[10px] font-bold text-[#19231E]">{m.label}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Opção de Descanso Sem Culpa caso tenha chegado cansado/tenso na 1ª série */}
+          {activeSession.totalSetsCompleted === 0 && ((localPreMood || activeSession.preMood) === 'cansado' || (localPreMood || activeSession.preMood) === 'tenso') && (
+            <div className="bg-[#FDF3F0] p-2.5 rounded-2xl border border-[#E07A5F]/30 flex flex-col gap-2 mb-1.5 shrink-0 animate-in fade-in">
+              <div className="flex items-center justify-between text-xs">
+                <span className="text-[#E07A5F] font-bold flex items-center gap-1">
+                  <span>🌿</span>
+                  <span>Ritmo Suave sugerido (-25%)</span>
+                </span>
+                <span className="text-[10px] text-[#5D6E65]">Tudo bem estar assim!</span>
+              </div>
+              <div className="flex gap-2">
+                {!isSessionSoftened && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      softenActiveSessionTargets();
+                      setIsSessionSoftened(true);
+                    }}
+                    className="flex-1 py-1.5 px-2 bg-[#E8EFE9] border border-[#1B4332]/30 text-[#1B4332] rounded-xl text-xs font-bold hover:bg-[#1B4332] hover:text-white cursor-pointer shadow-2xs"
+                  >
+                    Suavizar metas
+                  </button>
+                )}
+                <button
+                  type="button"
+                  onClick={() => abandonWorkout()}
+                  className="flex-1 py-1.5 px-2 bg-white border border-[#E07A5F]/40 text-[#E07A5F] hover:bg-[#FDF3F0] rounded-xl text-xs font-semibold cursor-pointer shadow-2xs"
+                >
+                  🤍 Descansar hoje sem culpa
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* Indicador discreto após a 1ª série caso o usuário tenha optado por treino suavizado */}
+          {activeSession.totalSetsCompleted > 0 && (localPreMood || activeSession.preMood) && ((localPreMood || activeSession.preMood) === 'cansado' || (localPreMood || activeSession.preMood) === 'tenso') && (
             <div className="bg-[#FDF3F0] px-3 py-1 rounded-full border border-[#E07A5F]/30 flex items-center justify-between text-[11px] text-[#E07A5F] font-semibold mb-1 shrink-0">
               <span className="flex items-center gap-1.5">
                 <span>🌿</span>
@@ -821,11 +886,12 @@ export const ActiveWorkoutView: React.FC<ActiveWorkoutViewProps> = ({
             </div>
           )}
 
-          {/* Destaque do Foco Adaptativo da Sessão (T01 a T04 / C01 a C09) */}
+          {/* Destaque do Foco Adaptativo da Sessão (T01 a T04 / C01 a C09 / Micro-desafio) */}
           {isChallengeExercise && sessionFocus && !isFocusDismissed && (
             <div className="bg-[#E8EFE9] border border-[#1B4332]/30 px-3 py-1.5 rounded-2xl flex items-center justify-between text-xs mb-1.5 shrink-0">
               <div className="flex items-center gap-2 truncate">
-                <span className="text-[10px] font-extrabold uppercase px-2 py-0.5 rounded-full bg-[#1B4332] text-white">
+                <span className="text-xs">🎯</span>
+                <span className="text-[10px] font-extrabold uppercase px-2 py-0.5 rounded-full bg-[#1B4332] text-white shrink-0">
                   {sessionFocus.badgeText}
                 </span>
                 <span className="font-bold text-[#19231E] truncate">{sessionFocus.title}</span>

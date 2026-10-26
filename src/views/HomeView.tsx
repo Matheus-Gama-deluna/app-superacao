@@ -824,11 +824,28 @@ export const HomeView: React.FC<HomeViewProps> = ({
         onNavigateProgress={() => onNavigateTab('progress')}
       />
 
+      {/* Espelho de Bem-Estar (Estratégia D: Termômetro Antes vs Depois) */}
+      {wellbeingInsight && (
+        <section className="bg-white rounded-3xl p-4.5 border border-[#E4DDD3] flex items-start gap-3.5 shadow-2xs">
+          <div className="w-9 h-9 rounded-2xl bg-[#E8EFE9] text-[#1B4332] flex items-center justify-center shrink-0 text-base shadow-2xs">
+            ✨
+          </div>
+          <div className="flex-1 min-w-0">
+            <span className="text-[10px] font-extrabold text-[#1B4332] uppercase tracking-wider block">
+              Espelho de Bem-Estar & Sensação
+            </span>
+            <p className="text-xs text-[#19231E] mt-0.5 leading-relaxed font-medium">
+              {wellbeingInsight.message}
+            </p>
+          </div>
+        </section>
+      )}
+
       {/* Coach de IA Contextual */}
       <AICoachCard context={coachContext} />
 
       {/* Banner de Instalação PWA */}
-      <PWAInstallButton />
+      <PWAInstallButton variant="banner" />
 
       {/* ─────────────────────────────────────────────────────────────
           MODAIS E DIÁLOGOS DE APOIO
@@ -867,7 +884,9 @@ export const HomeView: React.FC<HomeViewProps> = ({
             <div className="flex items-center justify-between pb-2 border-b border-[#E4DDD3]">
               <div className="flex items-center gap-2">
                 <Footprints className="w-5 h-5 text-[#1B4332]" />
-                <h3 className="text-base font-bold text-[#19231E]">Registrar Prática Realizada</h3>
+                <h3 className="text-base font-bold text-[#19231E]">
+                  {practiceModality === 'caminhada_corrida' ? 'Registrar Caminhada' : 'Registrar Prática Realizada'}
+                </h3>
               </div>
               <button
                 onClick={() => setShowPracticeModal(false)}
@@ -912,11 +931,12 @@ export const HomeView: React.FC<HomeViewProps> = ({
 
             {/* Duração em Minutos */}
             <div className="space-y-1.5">
-              <label htmlFor="practice_duration_input" className="block text-xs font-bold text-[#19231E]">
+              <label htmlFor="walk_duration_input" className="block text-xs font-bold text-[#19231E]">
                 Duração da Prática (minutos)
               </label>
               <input
-                id="practice_duration_input"
+                id="walk_duration_input"
+                data-testid="practice_duration_input"
                 type="number"
                 min={5}
                 max={240}
