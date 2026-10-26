@@ -1,4 +1,4 @@
-﻿import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useWorkout } from '../context/WorkoutContext';
 import {
@@ -19,11 +19,22 @@ import {
   ArrowLeftRight,
   X,
 } from 'lucide-react';
-import { ExplainableProposal, WorkoutPlan, Exercise } from '../types';
+import { ExplainableProposal, WorkoutPlan, Exercise, OnboardingDraft } from '../types';
 import { allExercises, useFullCatalog } from '../data/catalog';
 import { ExerciseIllustration } from '../components/ExerciseIllustration';
-import { findSafeEquivalentExercises } from '../lib/workoutEngine';
-import { EQUIPMENT_LABELS, AVOIDANCE_LABELS, generateExplainableProposal } from '../lib/storage';
+import {
+  findSafeEquivalentExercises,
+  calculateRoutineDurationMinutes,
+  fitRoutineToTargetDuration,
+  buildRoutinePatternsText,
+} from '../lib/workoutEngine';
+import {
+  EQUIPMENT_LABELS,
+  AVOIDANCE_LABELS,
+  generateExplainableProposal,
+  getLocal,
+  STORAGE_KEYS,
+} from '../lib/storage';
 
 interface ProposalViewProps {
   proposal: ExplainableProposal;
@@ -48,6 +59,15 @@ export const ProposalView: React.FC<ProposalViewProps> = ({
   const [isConfirming, setIsConfirming] = useState<boolean>(false);
   const [showExercisesDetail, setShowExercisesDetail] = useState<boolean>(true);
   const [showOtherOptionsModal, setShowOtherOptionsModal] = useState<boolean>(false);
+
+  // Fallback para rascunho de onboarding caso o contexto de auth ainda esteja sincronizando na transição imediata
+  const latestDraft = useMemo(
+    () => getLocal<OnboardingDraft | null>(STORAGE_KEYS.ONBOARDING_DRAFT, null),
+    [profile]
+  );
+  const effectiveExpLevel = profile.experienceLevel || latestDraft?.experienceLevel || 'iniciante';
+  const effectiveReason = profile.exerciseReason || latestDraft?.exerciseReason || '';
+  const effectiveContextNotes = profile.userContextNotes || latestDraft?.userContextNotes || '';
 
   const daysLabels = ['Domingo', 'Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado'];
   const scheduledDaysIndices = Object.keys(currentProposal.weeklySchedule).map(Number);
@@ -100,13 +120,40 @@ export const ProposalView: React.FC<ProposalViewProps> = ({
       targetDurationSeconds: newEx.tracking === 'time' ? 30 : undefined,
     };
 
-    const updatedRoutines = currentProposal.routines.map((r, i) =>
-      i === 0 ? { ...r, exercises: updatedExercises } : r
+    const calibratedExercises = fitRoutineToTargetDuration(
+      updatedExercises,
+      currentProposal.sessionDurationMinutes
     );
+    const recalculatedMinutes = calculateRoutineDurationMinutes(calibratedExercises);
+    const updatedTitle = (primaryPlan.title || '').replace(/\(\d+\s*min\)/, `(${recalculatedMinutes} min)`);
+
+    const updatedRoutines = currentProposal.routines.map((r, i) =>
+      i === 0
+        ? {
+            ...r,
+            title: updatedTitle,
+            exercises: calibratedExercises,
+            estimatedDurationMinutes: recalculatedMinutes,
+          }
+        : r
+    );
+
+    const newPatternsText = buildRoutinePatternsText(calibratedExercises);
+    const baseJustification = currentProposal.justificationText || '';
+    const updatedJustification = baseJustification.replace(
+      /foco nos padrões de [^.]+\./,
+      `${newPatternsText}.`
+    );
+    const planB = updatedRoutines[1] || null;
+    const updatedTimeBreakdown = planB
+      ? `Treino A (${calibratedExercises.length} movimentos em séries calibradas, ~${recalculatedMinutes} min) e Treino B (${planB.exercises.length} movimentos em séries calibradas, ~${planB.estimatedDurationMinutes} min) alternados ao longo da semana.`
+      : `${calibratedExercises.length} exercícios × séries calibradas para ~${recalculatedMinutes} min por sessão com descansos e transições calculados.`;
 
     setCurrentProposal({
       ...currentProposal,
       routines: updatedRoutines,
+      justificationText: updatedJustification,
+      timeBreakdownText: updatedTimeBreakdown,
     });
     setSwappingExerciseIndex(null);
   };
@@ -194,26 +241,26 @@ export const ProposalView: React.FC<ProposalViewProps> = ({
           </div>
 
           {/* Card de Acolhimento do Momento Pessoal (Critério C04, C11) */}
-          {(profile.experienceLevel === 'retomando' || profile.exerciseReason || profile.userContextNotes) && (
+          {(effectiveExpLevel === 'retomando' || effectiveReason || effectiveContextNotes) && (
             <div className="p-4 rounded-2xl bg-amber-50/80 border border-amber-200/80 space-y-2">
               <div className="flex items-center gap-2 text-xs font-bold text-amber-900">
                 <span className="text-sm">🌱</span>
                 <span>Seu Momento e Motivação Pessoal</span>
               </div>
               <div className="text-xs text-amber-950 space-y-1 leading-relaxed">
-                {profile.experienceLevel === 'retomando' && (
+                {effectiveExpLevel === 'retomando' && (
                   <p>
                     <strong>Retomando após pausa:</strong> calibramos um volume acolhedor para que você construa consistência sem cansaço excessivo.
                   </p>
                 )}
-                {profile.exerciseReason && (
+                {effectiveReason && (
                   <p>
-                    <strong>Seu porquê:</strong> «{profile.exerciseReason}».
+                    <strong>Seu porquê:</strong> «{effectiveReason}».
                   </p>
                 )}
-                {profile.userContextNotes && (
+                {effectiveContextNotes && (
                   <p>
-                    <strong>Nota pessoal:</strong> «{profile.userContextNotes}».
+                    <strong>Nota pessoal:</strong> «{effectiveContextNotes}».
                   </p>
                 )}
               </div>
@@ -246,9 +293,9 @@ export const ProposalView: React.FC<ProposalViewProps> = ({
             <div className="p-3 rounded-2xl bg-[#EAF3EF] border border-[#125F55]/20 flex items-center gap-2.5">
               <Clock className="w-4 h-4 text-[#125F55] shrink-0" />
               <div className="text-xs">
-                <span className="text-[10px] text-[#5B7170] block font-medium">Duração real</span>
+                <span className="text-[10px] text-[#5B7170] block font-medium">Duração por sessão</span>
                 <span className="font-bold text-[#125F55]">
-                  ~{currentProposal.sessionDurationMinutes} min / treino
+                  ~{primaryPlan?.estimatedDurationMinutes || currentProposal.sessionDurationMinutes} min (janela de {currentProposal.sessionDurationMinutes} min)
                 </span>
               </div>
             </div>

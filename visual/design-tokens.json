@@ -1,24 +1,28 @@
 {
   "meta": {
     "project": "Superação",
-    "version": "v4.0",
-    "status": "direção visual proposta, sujeita à validação",
-    "visualIdentity": "Clareza + progresso sustentável"
+    "version": "v5.0",
+    "status": "direção visual ativa — Clareza em movimento (inspiração Gentler Streak)",
+    "visualIdentity": "Clareza em movimento + percurso pessoal acolhedor"
   },
   "colors": {
     "light": {
-      "background": "#F5F8F5",
+      "background": "#F7F9F7",
       "surface": "#FFFFFF",
       "surface_alt": "#EAF3EF",
+      "surface_warm": "#FAF7F2",
       "primary": "#125F55",
       "primary_hover": "#0C5148",
       "on_primary": "#FFFFFF",
       "ink": "#152A29",
       "secondary": "#5B7170",
       "outline": "#C9DBD3",
+      "outline_soft": "#DCE8E2",
       "accent": "#D9F277",
       "accent_ink": "#203826",
       "success": "#246747",
+      "rest_recovery": "#246747",
+      "partial_effort": "#91610D",
       "warning": "#91610D",
       "danger": "#B13D39",
       "pending": "#8B6019"

@@ -30,8 +30,9 @@ import {
 } from 'lucide-react';
 import { soundManager } from '../lib/audio';
 import { mediaSessionManager } from '../lib/backgroundWorkout';
-import { PostWorkoutMood, PreWorkoutMood } from '../types';
-import { generateDailyMicroChallenge, generateTomorrowBridge } from '../lib/storage';
+import { PostWorkoutMood, PreWorkoutMood, SessionEnjoyment } from '../types';
+import { generateTomorrowBridge } from '../lib/storage';
+import { generateSessionFocusInvite } from '../lib/motivationEngine';
 import { findSafeEquivalentExercises, analyzeSessionProgression } from '../lib/workoutEngine';
 import { ProgressionItemUpgrade, SessionProgressionAnalysis } from '../types';
 import {
@@ -106,6 +107,8 @@ export const ActiveWorkoutView: React.FC<ActiveWorkoutViewProps> = ({
   const [workoutNotes, setWorkoutNotes] = useState<string>('');
   const [copiedShare, setCopiedShare] = useState<boolean>(false);
   const [postMood, setPostMood] = useState<PostWorkoutMood | null>('orgulhoso');
+  const [sessionEnjoyment, setSessionEnjoyment] = useState<SessionEnjoyment>('prazeroso');
+  const [isFocusDismissed, setIsFocusDismissed] = useState<boolean>(false);
   const [isMobilityScheduled, setIsMobilityScheduled] = useState<boolean>(false);
   const [isSessionSoftened, setIsSessionSoftened] = useState<boolean>(false);
   // Fase 4: Adaptação Viva
@@ -154,10 +157,12 @@ export const ActiveWorkoutView: React.FC<ActiveWorkoutViewProps> = ({
   // Histórico anterior do exercício para desafio pessoal
   const previousPR = personalRecords.find((p) => p.exerciseId === currentExerciseItem?.exerciseId);
 
-  // Micro-Desafio do Dia (Estratégia C) e Ponte para Amanhã (Estratégia B)
+  // Foco Adaptativo da Sessão (T01 a T04 / C01 a C09) e Ponte para Amanhã (Estratégia B)
   const currentPlan = plans.find((p) => p.id === activeSession.planId) || null;
-  const dailyChallenge = currentPlan ? generateDailyMicroChallenge(currentPlan, personalRecords) : null;
-  const isChallengeExercise = Boolean(dailyChallenge && dailyChallenge.exerciseId === currentExerciseItem?.exerciseId);
+  const sessionFocus = currentPlan && !isFocusDismissed
+    ? generateSessionFocusInvite(currentPlan, personalRecords, profile, activeSession.preMood)
+    : null;
+  const isChallengeExercise = Boolean(sessionFocus && sessionFocus.exerciseId === currentExerciseItem?.exerciseId);
   const tomorrowBridge = generateTomorrowBridge(activeSession, calendar, plans, personalRecords);
 
   // Próximo exercício / série para preparação no descanso (E05)
@@ -298,7 +303,7 @@ export const ActiveWorkoutView: React.FC<ActiveWorkoutViewProps> = ({
   };
 
   const handleFinishWorkout = async () => {
-    await completeWorkout(effortScore, workoutNotes, postMood || undefined);
+    await completeWorkout(effortScore, workoutNotes, postMood || undefined, sessionEnjoyment);
   };
 
   const handleShareWorkout = async () => {
@@ -462,7 +467,7 @@ export const ActiveWorkoutView: React.FC<ActiveWorkoutViewProps> = ({
           </div>
 
           {/* Card de Evolução Consensual da Ficha (Fase 4 & 5 - Motor Adaptativo) */}
-          {progressionAnalysis && progressionAnalysis.upgrades.length > 0 && currentPlan && (
+          {progressionAnalysis && progressionAnalysis.upgrades.length > 0 && currentPlan && !currentPlan.isProfessional && profile.motivationStyle !== 'none' && (
             <div className="bg-emerald-50 rounded-2xl p-4 border border-emerald-300 text-left space-y-3 shadow-xs">
               <div className="flex items-center gap-2">
                 <span className="text-lg">📈</span>
@@ -536,17 +541,20 @@ export const ActiveWorkoutView: React.FC<ActiveWorkoutViewProps> = ({
             </div>
           )}
 
-          {/* Termômetro de Bem-Estar Após a Prática (Estratégia D) */}
+          {/* Termômetro de Bem-Estar Após a Prática (Estratégia D & T08 com opções honestas) */}
           <div className="bg-white p-4 rounded-2xl border border-[#C9DBD3] shadow-xs space-y-2">
             <label className="block text-xs font-bold text-[#152A29]">
               Como você está se sentindo após essa prática?
             </label>
-            <div className="grid grid-cols-4 gap-1.5 pt-1">
+            <div className="grid grid-cols-4 sm:grid-cols-7 gap-1.5 pt-1">
               {[
                 { mood: 'renovado' as const, label: 'Com energia', icon: '✨' },
                 { mood: 'leve' as const, label: 'Mais leve', icon: '🌿' },
-                { mood: 'orgulhoso' as const, label: 'Dever cumprido', icon: '🏅' },
-                { mood: 'cansado_bem' as const, label: 'Cansado e feliz', icon: '💪' },
+                { mood: 'orgulhoso' as const, label: 'Cumprido', icon: '🏅' },
+                { mood: 'cansado_bem' as const, label: 'Cansado e bem', icon: '💪' },
+                { mood: 'neutro' as const, label: 'Neutro/Igual', icon: '🙂' },
+                { mood: 'esgotado' as const, label: 'Exausto', icon: '🥱' },
+                { mood: 'desconforto' as const, label: 'Desconforto', icon: '⚠️' },
               ].map((m) => (
                 <button
                   key={m.mood}
@@ -561,6 +569,35 @@ export const ActiveWorkoutView: React.FC<ActiveWorkoutViewProps> = ({
                 >
                   <span className="text-sm">{m.icon}</span>
                   <span className="text-[10px] truncate">{m.label}</span>
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Vivência Subjetiva da Sessão (Separando Afeto/Prazer de Esforço RPE - T08) */}
+          <div className="bg-white p-4 rounded-2xl border border-[#C9DBD3] shadow-xs space-y-2">
+            <label className="block text-xs font-bold text-[#152A29]">
+              Vivência da Prática de Hoje (Sensação)
+            </label>
+            <div className="grid grid-cols-3 gap-2 pt-1">
+              {[
+                { id: 'prazeroso' as const, label: 'Prazerosa & Fluida', icon: '🌿' },
+                { id: 'neutro' as const, label: 'Neutra / Cumprida', icon: '⚖️' },
+                { id: 'dificil' as const, label: 'Custosa / Desafiadora', icon: '🧗' },
+              ].map((item) => (
+                <button
+                  key={item.id}
+                  type="button"
+                  aria-pressed={sessionEnjoyment === item.id}
+                  onClick={() => setSessionEnjoyment(item.id)}
+                  className={`py-2 px-2 rounded-xl text-center text-xs font-bold transition-all cursor-pointer flex flex-col items-center gap-0.5 ${
+                    sessionEnjoyment === item.id
+                      ? 'bg-[#125F55] text-white shadow-xs'
+                      : 'bg-[#F5F8F5] text-[#5B7170] border border-[#C9DBD3] hover:border-[#125F55]'
+                  }`}
+                >
+                  <span className="text-base">{item.icon}</span>
+                  <span className="text-[10px] truncate">{item.label}</span>
                 </button>
               ))}
             </div>
@@ -799,16 +836,25 @@ export const ActiveWorkoutView: React.FC<ActiveWorkoutViewProps> = ({
                     : 'Excelente! Vamos no seu ritmo, construindo constância dia a dia.'}
                 </p>
                 {(activeSession.preMood === 'cansado' || activeSession.preMood === 'tenso') && !isSessionSoftened && (
-                  <button
-                    type="button"
-                    onClick={() => {
-                      softenActiveSessionTargets();
-                      setIsSessionSoftened(true);
-                    }}
-                    className="w-full py-2 px-3 bg-[#EAF3EF] border border-[#125F55]/30 text-[#125F55] rounded-xl text-xs font-bold hover:bg-[#D9F277]/40 flex items-center justify-center gap-1.5 cursor-pointer shadow-2xs"
-                  >
-                    <span>🌿 Suavizar metas de hoje (-25% repetições/tempo)</span>
-                  </button>
+                  <div className="flex flex-col sm:flex-row gap-1.5 pt-0.5">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        softenActiveSessionTargets();
+                        setIsSessionSoftened(true);
+                      }}
+                      className="flex-1 py-2 px-3 bg-[#EAF3EF] border border-[#125F55]/30 text-[#125F55] rounded-xl text-xs font-bold hover:bg-[#D9F277]/40 flex items-center justify-center gap-1.5 cursor-pointer shadow-2xs"
+                    >
+                      <span>🌿 Suavizar metas de hoje (-25% repetições/tempo)</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => abandonWorkout()}
+                      className="py-2 px-3 bg-white border border-[#C9DBD3] text-[#5B7170] hover:text-[#152A29] rounded-xl text-xs font-semibold flex items-center justify-center gap-1 cursor-pointer"
+                    >
+                      <span>🤍 Descansar hoje sem culpa</span>
+                    </button>
+                  </div>
                 )}
                 {isSessionSoftened && (
                   <div className="py-1.5 px-2.5 bg-emerald-50 text-emerald-800 text-[11px] font-semibold rounded-lg border border-emerald-200 text-center">
@@ -843,34 +889,43 @@ export const ActiveWorkoutView: React.FC<ActiveWorkoutViewProps> = ({
             )
           )}
 
-          {/* Destaque do Micro-Desafio de Hoje se for neste exercício (Estratégia C) */}
-          {isChallengeExercise && dailyChallenge && (
+          {/* Destaque do Foco Adaptativo da Sessão (T01 a T04 / C01 a C09) */}
+          {isChallengeExercise && sessionFocus && !isFocusDismissed && (
             <div className="bg-[#D9F277]/25 border-2 border-[#125F55] p-3 rounded-2xl space-y-1 mb-2 shadow-xs animate-in fade-in">
-              <div className="flex items-center gap-1.5">
-                <span className="text-sm">🎯</span>
-                <span className="text-[10px] font-extrabold uppercase px-2 py-0.5 rounded-full bg-[#125F55] text-white">
-                  {dailyChallenge.badgeText}
-                </span>
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-1.5">
+                  <span className="text-sm">🎯</span>
+                  <span className="text-[10px] font-extrabold uppercase px-2 py-0.5 rounded-full bg-[#125F55] text-white">
+                    {sessionFocus.badgeText}
+                  </span>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setIsFocusDismissed(true)}
+                  className="text-[10px] text-[#5B7170] hover:text-[#125F55] font-semibold cursor-pointer"
+                >
+                  Hoje prefiro meu ritmo
+                </button>
               </div>
               <div className="flex items-center justify-between">
-                <h4 className="text-xs font-bold text-[#152A29] mt-0.5">{dailyChallenge.title}</h4>
-                {dailyChallenge.targetMark && (
+                <h4 className="text-xs font-bold text-[#152A29] mt-0.5">{sessionFocus.title}</h4>
+                {sessionFocus.targetMark && (
                   <button
                     type="button"
                     onClick={() => {
-                      if (dailyChallenge.targetMark) {
-                        updateActiveExerciseTarget(activeSession.currentExerciseIndex, dailyChallenge.targetMark);
-                        if (isTimeTracking) setActualDurationInput(dailyChallenge.targetMark);
-                        else setActualRepsInput(dailyChallenge.targetMark);
+                      if (sessionFocus.targetMark) {
+                        updateActiveExerciseTarget(activeSession.currentExerciseIndex, sessionFocus.targetMark);
+                        if (isTimeTracking) setActualDurationInput(sessionFocus.targetMark);
+                        else setActualRepsInput(sessionFocus.targetMark);
                       }
                     }}
                     className="px-2 py-0.5 rounded-lg bg-[#125F55] text-white text-[10px] font-bold hover:bg-[#0C5148] cursor-pointer"
                   >
-                    Assumir Meta ({dailyChallenge.targetMark} {isTimeTracking ? 's' : 'reps'})
+                    Assumir Meta ({sessionFocus.targetMark} {isTimeTracking ? 's' : 'reps'})
                   </button>
                 )}
               </div>
-              <p className="text-[11px] text-[#203826] leading-relaxed">{dailyChallenge.description}</p>
+              <p className="text-[11px] text-[#203826] leading-relaxed">{sessionFocus.description}</p>
             </div>
           )}
 

@@ -9,7 +9,7 @@ import {
 import { allExercises } from '../../data/catalog';
 import { enrichExercise, isExerciseSafeForUser } from './filters';
 import { getSlotsForGoal, normalizeGoalKey, RoutineTemplate } from './slots';
-import { calculateRoutineDurationMinutes, prescribeExerciseItem } from './prescriptions';
+import { calculateRoutineDurationMinutes, fitRoutineToTargetDuration, prescribeExerciseItem } from './prescriptions';
 import { EQUIPMENT_LABELS, AVOIDANCE_LABELS } from '../storage';
 
 export interface GenerationOptions {
@@ -32,6 +32,28 @@ function deterministicHash(str: string): number {
 }
 
 /**
+ * Extrai de forma determinística os padrões biomecânicos reais presentes nos itens de uma rotina.
+ */
+export function buildRoutinePatternsText(exercises: ExercisePlanItem[]): string {
+  const patternsSet = new Set<string>();
+  for (const item of exercises) {
+    const rawMatched = allExercises.find((e) => e.id === item.exerciseId);
+    const matched = rawMatched ? enrichExercise(rawMatched) : undefined;
+    const pat = matched?.functionalPattern || '';
+    if (pat.includes('squat') || pat.includes('lunge')) patternsSet.add('agachar');
+    else if (pat.includes('push')) patternsSet.add('empurrar');
+    else if (pat.includes('pull')) patternsSet.add('puxar');
+    else if (pat.includes('hinge')) patternsSet.add('quadril e posterior');
+    else if (pat.includes('core')) patternsSet.add('core e estabilidade');
+    else if (pat.includes('mobility')) patternsSet.add('mobilidade articular');
+    else if (pat.includes('cardio')) patternsSet.add('ativação cardiovascular');
+  }
+  return patternsSet.size > 0
+    ? `foco nos padrões de ${Array.from(patternsSet).join(', ')}`
+    : 'movimentos equilibrados';
+}
+
+/**
  * Motor canônico de geração explicável e determinística v2.
  */
 export function generateSmartWorkoutRoutine(
@@ -50,12 +72,19 @@ export function generateSmartWorkoutRoutine(
   const secondaryGoals = draft?.orderedGoals?.slice(1) || profile.secondaryGoals || [];
   const goalFocus = draft?.goalFocus || profile.goalFocus || 'foco_unico';
   const practiceObstacles = draft?.practiceObstacles || profile.practiceObstacles || [];
-  const healthNotes = draft?.healthNotes || profile.healthNotes || '';
+  const healthNotes = draft?.healthNotes ?? profile.healthNotes ?? '';
+  const userContextNotes = draft?.userContextNotes ?? profile.userContextNotes ?? '';
+  const exerciseReason = draft?.exerciseReason ?? profile.exerciseReason ?? '';
   const experienceLevel = draft?.experienceLevel || profile.experienceLevel || 'iniciante';
   const environment = (draft?.environmentPreference || profile.environmentPreference) === 'academia' ? 'na academia' : 'em casa';
   const userSeed = `${options.seed || profile.uid || 'guest'}_${goalKey}_${experienceLevel}`;
   const variationSeed = options.variationSeed || 0;
-  const extraRestSeconds = (practiceObstacles.includes('dor') || practiceObstacles.includes('cansaco')) ? 15 : 0;
+  const extraRestSeconds =
+    practiceObstacles.includes('dor') ||
+    practiceObstacles.includes('cansaco') ||
+    practiceObstacles.includes('cansaco_mental')
+      ? 15
+      : 0;
 
   // 1. Filtragem preliminar de todos os exercícios seguros
   const safeCatalog: Exercise[] = allExercises
@@ -64,8 +93,8 @@ export function generateSmartWorkoutRoutine(
       const check = isExerciseSafeForUser(ex, userEquipments, userAvoided, reportedLimitations);
       if (!check.safe) return false;
 
-      // Salvaguarda para iniciantes: sem exercícios avançados ou complexidade extrema
-      if (experienceLevel === 'iniciante') {
+      // Salvaguarda para iniciantes e praticantes em retomada: sem exercícios avançados ou complexidade extrema
+      if (experienceLevel === 'iniciante' || experienceLevel === 'retomando') {
         if (ex.difficulty_candidate === 'avancado' || ex.movementComplexity === 3) {
           return false;
         }
@@ -209,8 +238,8 @@ export function generateSmartWorkoutRoutine(
         const selected = sorted[0];
         usedExerciseIds.add(selected.id);
 
-        const normalizedExpLevel: 'iniciante' | 'intermediario' | 'avancado' =
-          experienceLevel === 'pratica' ? 'avancado' : experienceLevel === 'retomando' ? 'intermediario' : (experienceLevel || 'iniciante');
+        const normalizedExpLevel: 'iniciante' | 'intermediario' | 'avancado' | 'retomando' =
+          experienceLevel === 'pratica' ? 'avancado' : experienceLevel === 'retomando' ? 'retomando' : (experienceLevel || 'iniciante');
 
         const planItem = prescribeExerciseItem(
           selected,
@@ -226,7 +255,8 @@ export function generateSmartWorkoutRoutine(
       }
     }
 
-    const calculatedMinutes = calculateRoutineDurationMinutes(chosenItems);
+    const calibratedItems = fitRoutineToTargetDuration(chosenItems, targetDuration);
+    const calculatedMinutes = calculateRoutineDurationMinutes(calibratedItems);
     const routineId = `plan_${variant.toLowerCase()}_${Date.now()}_${Math.floor(Math.random() * 1000)}`;
 
     return {
@@ -239,7 +269,7 @@ export function generateSmartWorkoutRoutine(
       isTemplate: false,
       sourceKind: 'modelo_revisado',
       reviewStatus: 'revisado',
-      exercises: chosenItems,
+      exercises: calibratedItems,
       estimatedDurationMinutes: calculatedMinutes,
       category: userEquipments.includes('mini_band') ? 'mini_band' : 'casa',
       createdAt: Date.now(),
@@ -285,36 +315,35 @@ export function generateSmartWorkoutRoutine(
       : '';
 
   // Identifica os padrões funcionais reais presentes nos exercícios da rotina principal
-  const patternsSet = new Set<string>();
-  for (const item of planA.exercises) {
-    const matched = allExercises.find((e) => e.id === item.exerciseId);
-    const pat = matched?.functionalPattern || '';
-    if (pat.includes('squat')) patternsSet.add('agachar');
-    else if (pat.includes('push')) patternsSet.add('empurrar');
-    else if (pat.includes('pull')) patternsSet.add('puxar');
-    else if (pat.includes('hinge')) patternsSet.add('quadril e posterior');
-    else if (pat.includes('core')) patternsSet.add('core e estabilidade');
-    else if (pat.includes('mobility')) patternsSet.add('mobilidade articular');
-    else if (pat.includes('cardio')) patternsSet.add('ativação cardiovascular');
-  }
-  const patternsText =
-    patternsSet.size > 0
-      ? `foco nos padrões de ${Array.from(patternsSet).join(', ')}`
-      : 'movimentos equilibrados';
+  const patternsText = buildRoutinePatternsText(planA.exercises);
 
   let justificationText = `Você informou ${daysText} por semana com ${targetDuration} minutos ${environment}, com foco em "${rawGoal}", utilizando ${equipText}${avoidanceText}${limitationsText}. Esta proposta foi adaptada aos cuidados e preferências que você compartilhou, priorizando conforto articular e progresso gradual com ${patternsText}.`;
-  if (profile.experienceLevel === 'retomando') {
+  if (experienceLevel === 'retomando') {
     justificationText += ` Reconhecemos seu momento de retorno: calibramos um ritmo progressivo e acolhedor para você readquirir o hábito sem pressa nem cobrança excessiva.`;
   }
-  if (profile.userContextNotes && profile.userContextNotes.trim()) {
-    justificationText += ` Observação pessoal acolhida: "${profile.userContextNotes.trim()}".`;
+  if (exerciseReason && exerciseReason.trim()) {
+    justificationText += ` Seu motivo pessoal ("${exerciseReason.trim()}") inspira o ritmo desta jornada.`;
+  }
+  if (userContextNotes && userContextNotes.trim()) {
+    justificationText += ` Observação pessoal acolhida: "${userContextNotes.trim()}".`;
   }
   if (healthNotes && healthNotes.trim()) {
     justificationText += ` Consideração de saúde: Levamos em conta suas observações ("${healthNotes.trim().slice(0, 70)}${healthNotes.length > 70 ? '...' : ''}"), priorizando movimentos articulares gentis.`;
   }
   if (practiceObstacles.length > 0) {
-    if (practiceObstacles.includes('dor') || practiceObstacles.includes('cansaco') || practiceObstacles.includes('falta_tempo')) {
+    if (
+      practiceObstacles.includes('dor') ||
+      practiceObstacles.includes('cansaco') ||
+      practiceObstacles.includes('cansaco_mental') ||
+      practiceObstacles.includes('falta_tempo')
+    ) {
       justificationText += ' Intervalos de descanso foram ampliados para garantir recuperação tranquila sem exaustão.';
+    }
+    if (practiceObstacles.includes('dificuldade_comecar') || practiceObstacles.includes('desanimo_falhar')) {
+      justificationText += ' Pensada para vencer a inércia sem cobrança: qualquer prática parcial ou versão de 5 min já mantém sua constância viva.';
+    }
+    if (practiceObstacles.includes('exercicios_complexos')) {
+      justificationText += ' Priorizamos movimentos de execução direta e intuitiva, com instruções claras passo a passo.';
     }
   }
 

@@ -1356,4 +1356,151 @@ test.describe('Superação - Validação End-to-End Headless (Em Segundo Plano)'
       }
     }
   });
+
+  test('Teste 19: Fluxo Completo da Fase 10 - Validação de Duração <= 15 min, ActivityPath, Filtros Expansíveis e Descanso Sem Culpa', async ({ page }) => {
+    // 1. Configura usuário retomando com cansaço mental e proposta de 15 min
+    await page.goto('/');
+    await page.evaluate(() => {
+      localStorage.clear();
+      localStorage.setItem('superacao_access_choice', JSON.stringify('guest'));
+      localStorage.setItem(
+        'superacao_user_profile',
+        JSON.stringify({
+          uid: 'guest_user',
+          displayName: 'Camila Fase 10',
+          onboardingCompleted: true,
+          routineConfirmed: false,
+          experienceLevel: 'retomando',
+          exerciseReason: 'Voltar a me movimentar no meu ritmo',
+          availableDays: [1, 3, 5],
+          sessionDurationMinutes: 15,
+          equipments: ['peso_corporal'],
+          reportedLimitations: ['flexao_chao'],
+          practiceObstacles: ['cansaco_mental'],
+          primaryGoal: 'Construir o hábito e me sentir melhor',
+          stats: { streakDays: 2, totalWorkouts: 2 },
+        })
+      );
+      localStorage.setItem(
+        'superacao_proposal',
+        JSON.stringify({
+          id: 'prop_fase10',
+          title: 'Rotina Personalizada: Construir o hábito',
+          description: 'Treino equilibrado',
+          targetDaysCount: 3,
+          sessionDurationMinutes: 15,
+          environment: 'em casa',
+          equipmentsUsed: ['peso_corporal'],
+          avoidedMovements: [],
+          justificationText: 'Reconhecemos seu momento de retorno: «Voltar a me movimentar no meu ritmo». Intervalos de descanso foram ampliados para garantir recuperação tranquila sem exaustão.',
+          timeBreakdownText: 'Treino A (4 movimentos em séries calibradas, ~14 min) e Treino B (4 movimentos em séries calibradas, ~14 min) alternados ao longo da semana.',
+          routines: [
+            {
+              id: 'plan_a_fase10',
+              ownerUid: 'guest_user',
+              title: 'Treino A - Corpo Inteiro (14 min)',
+              description: 'Rotina A',
+              version: 1,
+              isProfessional: false,
+              isTemplate: false,
+              sourceKind: 'modelo_revisado',
+              reviewStatus: 'revisado',
+              estimatedDurationMinutes: 14,
+              exercises: [
+                {
+                  exerciseId: 'squat',
+                  exerciseName: 'Agachamento Livre',
+                  targetSets: 2,
+                  targetReps: 8,
+                  restSeconds: 60,
+                },
+                {
+                  exerciseId: 'wall_push_up',
+                  exerciseName: 'Flexão na Parede',
+                  targetSets: 2,
+                  targetReps: 8,
+                  restSeconds: 60,
+                },
+                {
+                  exerciseId: 'glute_bridge',
+                  exerciseName: 'Elevação Pélvica',
+                  targetSets: 2,
+                  targetReps: 8,
+                  restSeconds: 60,
+                },
+                {
+                  exerciseId: 'bird_dog',
+                  exerciseName: 'Perdigueiro Alternado',
+                  targetSets: 2,
+                  targetReps: 8,
+                  restSeconds: 60,
+                }
+              ]
+            }
+          ],
+          weeklySchedule: { 1: 'plan_a_fase10', 3: 'plan_a_fase10', 5: 'plan_a_fase10' },
+          hasCompatibleExercises: true,
+        })
+      );
+    });
+    await page.reload();
+
+    // 1. Valida que a proposta respeita a janela de 15 min (ex: ~14 min (janela de 15 min))
+    await expect(page.getByText('Proposta de Rotina')).toBeVisible();
+    await expect(page.getByText(/~14 min \(janela de 15 min\)/i)).toBeVisible();
+    await expect(page.getByText(/Seu Momento e Motivação Pessoal/i)).toBeVisible();
+    await expect(page.getByText(/Voltar a me movimentar no meu ritmo/i).first()).toBeVisible();
+
+    // 2. Confirma a proposta e transiciona para a Home
+    const confirmBtn = page.getByRole('button', { name: /Confirmar minha rotina/i });
+    await expect(confirmBtn).toBeVisible();
+    await confirmBtn.click();
+    await expect(page.getByText(/Camila Fase 10!/i)).toBeVisible();
+
+    // 3. Valida a Trilha de Atividade (ActivityPath) na Home
+    await expect(page.getByRole('region', { name: /Caminho da sua semana/i })).toBeVisible();
+
+    // 4. Inicia o Treino e testa o botão de Descanso Sem Culpa no Check-in pré-treino
+    const startTodayBtn = page.getByRole('button', { name: /Iniciar Treino de Hoje/i });
+    if (await startTodayBtn.isVisible()) {
+      await startTodayBtn.click();
+
+      // Seleciona sensação de cansaço no modal de check-in pré-treino
+      const tiredBtn = page.getByRole('button', { name: /Cansado/i });
+      await expect(tiredBtn).toBeVisible();
+      await tiredBtn.click();
+
+      // Valida que o botão "🤍 Descansar hoje sem culpa" é exibido
+      const restWithoutGuiltBtn = page.getByRole('button', { name: /Descansar hoje sem culpa/i });
+      await expect(restWithoutGuiltBtn).toBeVisible();
+      await restWithoutGuiltBtn.click();
+
+      // Valida que retornou para a Home com acolhimento
+      await expect(page.getByText(/Camila Fase 10!/i)).toBeVisible();
+    }
+
+    // 5. Navega para a aba "Treinos" -> Catálogo e valida filtro expansível
+    const navExploreBtn = page.locator('nav').getByRole('button', { name: 'Treinos', exact: true });
+    await navExploreBtn.click();
+
+    const catalogTabBtn = page.getByRole('button', { name: /Catálogo/i });
+    await expect(catalogTabBtn).toBeVisible();
+    await catalogTabBtn.click();
+
+    const filterToggleBtn = page.getByRole('button', { name: /Filtrar por equipamento ou músculo/i });
+    await expect(filterToggleBtn).toBeVisible();
+    await filterToggleBtn.click();
+    // Quando expande, exibe os filtros de Equipamento e Músculo Alvo
+    await expect(page.getByText(/Equipamento Disponível:/i)).toBeVisible();
+    await expect(page.getByText(/Músculo ou Região:/i)).toBeVisible();
+    await page.getByRole('button', { name: /Ocultar filtros de equipamento e músculo/i }).click(); // Recolhe
+
+    // 6. Navega para a aba "Progresso" e valida ActivityPath completo e trilhas
+    const navProgressBtn = page.locator('nav').getByRole('button', { name: 'Progresso', exact: true });
+    await navProgressBtn.click();
+
+    await expect(page.getByRole('region', { name: /Caminho Pessoal de Progresso/i })).toBeVisible();
+    await expect(page.getByText(/Etapa Atual & Próximo Marco Alcançável/i)).toBeVisible();
+    await expect(page.getByText(/Trilhas de Evolução Biomecânica/i)).toBeVisible();
+  });
 });

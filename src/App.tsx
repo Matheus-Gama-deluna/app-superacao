@@ -19,11 +19,26 @@ const ListeningJourneyView = React.lazy(() => import('./views/ListeningJourneyVi
 const ProposalView = React.lazy(() => import('./views/ProposalView').then((m) => ({ default: m.ProposalView })));
 
 const ViewLoadingFallback: React.FC = () => (
-  <div className="flex-1 flex flex-col items-center justify-center min-h-[50vh] p-6 text-center animate-pulse">
-    <div className="w-12 h-12 rounded-2xl bg-[#EAF3EF] flex items-center justify-center text-[#125F55] font-black text-xl mb-3 shadow-2xs">
-      S
+  <div
+    role="status"
+    aria-label="Preparando sua tela"
+    className="flex-1 max-w-xl mx-auto w-full px-4 py-6 space-y-4 animate-pulse"
+  >
+    <div className="bg-white/80 rounded-3xl p-5 border border-[#C9DBD3]/50 space-y-3">
+      <div className="flex items-center gap-3">
+        <div className="w-10 h-10 rounded-2xl bg-[#EAF3EF] flex items-center justify-center text-[#125F55] font-black text-base">
+          S
+        </div>
+        <div className="space-y-1.5 flex-1">
+          <div className="h-3 w-28 bg-[#EAF3EF] rounded-full" />
+          <div className="h-4 w-48 bg-[#C9DBD3]/50 rounded-full" />
+        </div>
+      </div>
+      <div className="h-16 w-full bg-[#F5F8F5] rounded-2xl" />
     </div>
-    <span className="text-xs font-semibold text-[#5B7170]">Carregando com cuidado...</span>
+    <span className="block text-center text-xs font-medium text-[#5B7170]">
+      Carregando com cuidado...
+    </span>
   </div>
 );
 import { WorkoutPlan, ExplainableProposal, OnboardingDraft } from './types';
@@ -339,7 +354,7 @@ const MainAppContent: React.FC = () => {
                 onStartWorkout={handleStartPlan}
                 onResumeWorkout={() => setIsFocusMode(true)}
                 onNavigateTab={handleSelectTab}
-                onOpenBuilder={(id) => handleOpenBuilder(id, false)}
+                onOpenBuilder={(id, isPro) => handleOpenBuilder(id, Boolean(isPro))}
                 onReviewProposal={
                   currentProposal
                     ? () => {

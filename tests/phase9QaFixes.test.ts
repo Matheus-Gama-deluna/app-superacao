@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { generateSmartWorkoutRoutine } from '../src/lib/workoutEngine';
+import { generateSmartWorkoutRoutine, buildRoutinePatternsText } from '../src/lib/workoutEngine';
 import { getExerciseById, ensureFullCatalogLoaded } from '../src/data/catalog';
 import { specializedHomeExercises } from '../src/data/specializedExercises';
 import { getHeuristicInsight, CoachContext } from '../src/lib/aiCoach';
@@ -304,5 +304,95 @@ describe('Fase 9: Correções de QA, Experiência, Acolhimento e Acessibilidade 
       routineConfirmed: true,
     };
     expect(updatedProfile.sessionDurationMinutes).toBe(15);
+  });
+
+  it('Critério 13 (Frente 1): Contexto de retorno, motivo e notas do draft aparecem na justificativa mesmo antes do profile sincronizar', () => {
+    const staleProfile: Partial<UserProfile> = {
+      uid: 'guest_user',
+      experienceLevel: 'iniciante',
+      userContextNotes: '',
+      exerciseReason: '',
+    };
+
+    const freshDraft = {
+      step: 7,
+      displayName: 'Helena',
+      experienceLevel: 'retomando' as const,
+      exerciseReason: 'Voltar a ter energia sem dor',
+      orderedGoals: ['Construir o hábito e consistência diária'],
+      goalFocus: 'foco_unico' as const,
+      availableDays: [1, 4],
+      sessionDurationMinutes: 15,
+      habitAnchor: 'Após o expediente',
+      equipments: ['peso_corporal'],
+      reportedLimitations: [],
+      avoidedMovements: [],
+      healthNotes: '',
+      practiceObstacles: ['cansaco_mental', 'desanimo_falhar'],
+      userContextNotes: 'Sessões leves, sem me cobrar',
+      planSourcePreference: 'modelo_revisado' as const,
+      savedAt: Date.now(),
+    };
+
+    const proposal = generateSmartWorkoutRoutine(staleProfile, freshDraft);
+
+    expect(proposal.justificationText).toContain('Reconhecemos seu momento de retorno');
+    expect(proposal.justificationText).toContain('Voltar a ter energia sem dor');
+    expect(proposal.justificationText).toContain('Sessões leves, sem me cobrar');
+    expect(proposal.justificationText).toContain('Intervalos de descanso foram ampliados');
+    expect(proposal.justificationText).toContain('vencer a inércia sem cobrança');
+  });
+
+  it('Critério 14 (Frente 1): Duração estimada para 15 min é coerente e buildRoutinePatternsText reflete os exercícios reais', () => {
+    const proposal15 = generateSmartWorkoutRoutine({
+      ...baseProfile,
+      sessionDurationMinutes: 15,
+      availableDays: [1, 3],
+    });
+
+    const estMinutes = proposal15.routines[0].estimatedDurationMinutes;
+    expect(estMinutes).toBeGreaterThanOrEqual(11);
+    expect(estMinutes).toBeLessThanOrEqual(17);
+
+    const patternsSummary = buildRoutinePatternsText(proposal15.routines[0].exercises);
+    expect(patternsSummary).toContain('foco nos padrões de');
+    expect(proposal15.justificationText).toContain(patternsSummary);
+  });
+
+  it('Critério 15 (Regressão PR #3): Proposta de 15 min para praticante retomando com cansaço mental e flexao_chao respeita rigorosamente a janela de 15 min no Treino A e B', () => {
+    const profileReviewer: Partial<UserProfile> = {
+      uid: 'reviewer_user',
+      experienceLevel: 'retomando',
+      exerciseReason: 'Voltar a me movimentar no meu ritmo',
+      availableDays: [1, 3, 5],
+      sessionDurationMinutes: 15,
+      equipments: ['peso_corporal'],
+      reportedLimitations: ['flexao_chao'],
+      practiceObstacles: ['cansaco_mental'],
+    };
+
+    const proposal = generateSmartWorkoutRoutine(profileReviewer);
+
+    // Ambas as rotinas (Treino A e Treino B) devem respeitar a janela de 15 min:
+    expect(proposal.routines.length).toBe(2);
+    const planA = proposal.routines[0];
+    const planB = proposal.routines[1];
+
+    expect(planA.estimatedDurationMinutes).toBeLessThanOrEqual(15);
+    expect(planA.estimatedDurationMinutes).toBeGreaterThanOrEqual(12);
+
+    expect(planB.estimatedDurationMinutes).toBeLessThanOrEqual(15);
+    expect(planB.estimatedDurationMinutes).toBeGreaterThanOrEqual(12);
+
+    // Flexão no solo deve ser excluída e substituto seguro presente
+    const hasFloorPushupA = planA.exercises.some((e) => e.exerciseId === 'push_up' || e.exerciseId === 'push_ups');
+    const hasFloorPushupB = planB.exercises.some((e) => e.exerciseId === 'push_up' || e.exerciseId === 'push_ups');
+    expect(hasFloorPushupA).toBe(false);
+    expect(hasFloorPushupB).toBe(false);
+
+    // Contexto de retorno e cansaço mental devem estar na justificativa
+    expect(proposal.justificationText).toContain('Reconhecemos seu momento de retorno');
+    expect(proposal.justificationText).toContain('Voltar a me movimentar no meu ritmo');
+    expect(proposal.justificationText).toContain('Intervalos de descanso foram ampliados');
   });
 });
