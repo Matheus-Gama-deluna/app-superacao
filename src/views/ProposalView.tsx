@@ -159,24 +159,24 @@ export const ProposalView: React.FC<ProposalViewProps> = ({
   };
 
   return (
-    <div className="min-h-screen bg-[#F5F8F5] text-[#152A29] flex flex-col justify-between font-sans">
+    <div className="min-h-screen bg-[#FAF8F5] text-[#19231E] flex flex-col justify-between font-sans">
       {/* Top Header */}
-      <header className="sticky top-0 z-20 bg-white/95 backdrop-blur-md border-b border-[#C9DBD3] px-4 py-3">
+      <header className="sticky top-0 z-20 bg-white/95 backdrop-blur-md border-b border-[#E4DDD3] px-4 py-3">
         <div className="max-w-xl mx-auto flex items-center justify-between">
           <button
             onClick={onAdjustAnswers}
-            className="flex items-center gap-1.5 text-xs font-semibold text-[#5B7170] hover:text-[#152A29] p-1.5 rounded-lg cursor-pointer"
+            className="flex items-center gap-1.5 text-xs font-semibold text-[#5D6E65] hover:text-[#19231E] p-1.5 rounded-lg cursor-pointer transition-colors"
           >
             <ArrowLeft className="w-4 h-4" />
             <span>Ajustar respostas</span>
           </button>
-          <span className="text-xs font-bold text-[#125F55] uppercase tracking-wider">
+          <span className="text-xs font-bold text-[#1B4332] uppercase tracking-wider">
             Proposta de Rotina
           </span>
           {onClose ? (
             <button
               onClick={onClose}
-              className="text-xs font-semibold text-[#5B7170] hover:text-[#152A29] p-1.5 rounded-lg cursor-pointer"
+              className="text-xs font-semibold text-[#5D6E65] hover:text-[#19231E] p-1.5 rounded-lg cursor-pointer transition-colors"
             >
               Voltar ao Início
             </button>
@@ -187,7 +187,7 @@ export const ProposalView: React.FC<ProposalViewProps> = ({
       </header>
 
       {/* Main Content */}
-      <main className="flex-1 max-w-xl mx-auto w-full px-4 py-6 space-y-6">
+      <main className="flex-1 max-w-xl mx-auto w-full px-4 py-6 space-y-5">
         {currentProposal.hasCompatibleExercises === false && (
           <section className="bg-white rounded-3xl p-6 border border-amber-300 shadow-xs space-y-4">
             <div className="flex items-start gap-3">
@@ -198,10 +198,10 @@ export const ProposalView: React.FC<ProposalViewProps> = ({
                 <span className="text-xs font-bold text-amber-800 uppercase tracking-wider">
                   Combinação sem cobertura direta
                 </span>
-                <h2 className="text-lg font-bold text-[#152A29]">
+                <h2 className="font-serif text-lg font-bold text-[#19231E]">
                   Não encontramos movimentos curados para estes critérios
                 </h2>
-                <p className="text-xs text-[#5B7170] leading-relaxed">
+                <p className="text-xs text-[#5D6E65] leading-relaxed">
                   {currentProposal.reasonIfUnavailable || 'A combinação atual de equipamentos e restrições não possui exercícios certificados no momento. Não geramos rotinas fictícias.'}
                 </p>
               </div>
@@ -210,13 +210,13 @@ export const ProposalView: React.FC<ProposalViewProps> = ({
             <div className="flex flex-col gap-2 pt-2">
               <button
                 onClick={onAdjustAnswers}
-                className="w-full py-3 bg-[#125F55] text-white rounded-xl text-xs font-bold hover:bg-[#0C5148] cursor-pointer"
+                className="w-full py-3 bg-[#1B4332] text-white rounded-xl text-xs font-bold hover:bg-[#12372A] cursor-pointer shadow-xs"
               >
                 Ajustar Equipamentos e Cuidados
               </button>
               <button
                 onClick={() => setShowOtherOptionsModal(true)}
-                className="w-full py-3 border border-[#C9DBD3] bg-[#F5F8F5] text-[#152A29] rounded-xl text-xs font-semibold hover:bg-white cursor-pointer"
+                className="w-full py-3 border border-[#E4DDD3] bg-[#FAF8F5] text-[#19231E] rounded-xl text-xs font-semibold hover:bg-white cursor-pointer"
               >
                 Montar Ficha Manual ou Cadastrar Plano de Profissional
               </button>
@@ -224,30 +224,59 @@ export const ProposalView: React.FC<ProposalViewProps> = ({
           </section>
         )}
 
-        {/* Banner de Apresentação Explicável (Seção 6, C10, C11) */}
-        <section className="bg-white rounded-3xl p-6 border border-[#C9DBD3] shadow-xs space-y-4">
+        {/* Banner de Apresentação Explicável com 3 Pílulas Sintéticas */}
+        <section className="bg-white rounded-3xl p-6 border border-[#E4DDD3] shadow-sm space-y-4">
           <div className="flex items-start gap-3">
-            <div className="w-12 h-12 rounded-2xl bg-[#EAF3EF] flex items-center justify-center text-[#125F55] shrink-0 mt-0.5">
-              <Sparkles className="w-6 h-6 text-[#125F55]" />
+            <div className="w-12 h-12 rounded-2xl bg-[#E8EFE9] flex items-center justify-center text-[#1B4332] shrink-0 mt-0.5">
+              <Sparkles className="w-6 h-6 text-[#1B4332]" />
             </div>
             <div>
-              <span className="text-[11px] font-bold text-[#125F55] uppercase tracking-wider">
+              <span className="text-[10px] font-bold text-[#1B4332] uppercase tracking-wider bg-[#E8EFE9] px-2.5 py-0.5 rounded-full">
                 Proposta Personalizada
               </span>
-              <h1 className="text-xl font-extrabold text-[#152A29] mt-0.5 leading-tight">
+              <h1 className="font-serif text-2xl font-bold text-[#19231E] mt-1 leading-tight">
                 {currentProposal.title}
               </h1>
             </div>
           </div>
 
+          {/* 3 Pílulas Sintéticas no Topo (Ritmo Natural) */}
+          <div className="grid grid-cols-3 gap-2 pt-1">
+            <div className="p-2.5 rounded-2xl bg-[#FAF8F5] border border-[#E4DDD3] text-center">
+              <Clock className="w-4 h-4 text-[#1B4332] mx-auto mb-1" />
+              <span className="text-[10px] text-[#5D6E65] block">Duração</span>
+              <span className="font-bold text-xs text-[#19231E]">
+                ~{primaryPlan?.estimatedDurationMinutes || currentProposal.sessionDurationMinutes} min
+              </span>
+            </div>
+
+            <div className="p-2.5 rounded-2xl bg-[#FAF8F5] border border-[#E4DDD3] text-center">
+              <Calendar className="w-4 h-4 text-[#1B4332] mx-auto mb-1" />
+              <span className="text-[10px] text-[#5D6E65] block">Frequência</span>
+              <span className="font-bold text-xs text-[#19231E]">
+                {currentProposal.targetDaysCount}x / semana
+              </span>
+            </div>
+
+            <div className="p-2.5 rounded-2xl bg-[#FAF8F5] border border-[#E4DDD3] text-center">
+              <Dumbbell className="w-4 h-4 text-[#1B4332] mx-auto mb-1" />
+              <span className="text-[10px] text-[#5D6E65] block truncate">Equipamentos</span>
+              <span className="font-bold text-xs text-[#19231E] truncate block">
+                {profile.equipments && profile.equipments.length > 0 && !profile.equipments.includes('nenhum')
+                  ? profile.equipments.map((e) => EQUIPMENT_LABELS[e] || e).slice(0, 1).join(', ')
+                  : 'Peso do corpo'}
+              </span>
+            </div>
+          </div>
+
           {/* Card de Acolhimento do Momento Pessoal (Critério C04, C11) */}
           {(effectiveExpLevel === 'retomando' || effectiveReason || effectiveContextNotes) && (
-            <div className="p-4 rounded-2xl bg-amber-50/80 border border-amber-200/80 space-y-2">
-              <div className="flex items-center gap-2 text-xs font-bold text-amber-900">
+            <div className="p-4 rounded-2xl bg-[#FDF3F0] border border-[#E07A5F]/30 space-y-1.5">
+              <div className="flex items-center gap-2 text-xs font-bold text-[#E07A5F]">
                 <span className="text-sm">🌱</span>
                 <span>Seu Momento e Motivação Pessoal</span>
               </div>
-              <div className="text-xs text-amber-950 space-y-1 leading-relaxed">
+              <div className="text-xs text-[#19231E]/90 space-y-1 leading-relaxed">
                 {effectiveExpLevel === 'retomando' && (
                   <p>
                     <strong>Retomando após pausa:</strong> calibramos um volume acolhedor para que você construa consistência sem cansaço excessivo.
@@ -268,65 +297,41 @@ export const ProposalView: React.FC<ProposalViewProps> = ({
           )}
 
           {/* Justificativa Clara e Verificável (Critério C11) */}
-          <div className="p-4 rounded-2xl bg-[#F5F8F5] border border-[#C9DBD3]/70 space-y-2">
-            <div className="flex items-center gap-2 text-xs font-bold text-[#125F55]">
+          <div className="p-4 rounded-2xl bg-[#FAF8F5] border border-[#E4DDD3] space-y-2">
+            <div className="flex items-center gap-2 text-xs font-bold text-[#1B4332]">
               <ShieldCheck className="w-4 h-4" />
               <span>Por que esta rotina foi pensada para você?</span>
             </div>
-            <p className="text-xs text-[#152A29] leading-relaxed">
+            <p className="text-xs text-[#19231E] leading-relaxed">
               {currentProposal.justificationText}
             </p>
           </div>
 
-          {/* Discriminação de Tempo e Sessões (Critério C10) */}
-          <div className="grid grid-cols-2 gap-2.5 pt-1">
-            <div className="p-3 rounded-2xl bg-[#EAF3EF] border border-[#125F55]/20 flex items-center gap-2.5">
-              <Calendar className="w-4 h-4 text-[#125F55] shrink-0" />
-              <div className="text-xs">
-                <span className="text-[10px] text-[#5B7170] block font-medium">Frequência</span>
-                <span className="font-bold text-[#125F55]">
-                  {currentProposal.targetDaysCount} {currentProposal.targetDaysCount === 1 ? 'dia por semana' : 'dias por semana'}
-                </span>
-              </div>
-            </div>
-
-            <div className="p-3 rounded-2xl bg-[#EAF3EF] border border-[#125F55]/20 flex items-center gap-2.5">
-              <Clock className="w-4 h-4 text-[#125F55] shrink-0" />
-              <div className="text-xs">
-                <span className="text-[10px] text-[#5B7170] block font-medium">Duração por sessão</span>
-                <span className="font-bold text-[#125F55]">
-                  ~{primaryPlan?.estimatedDurationMinutes || currentProposal.sessionDurationMinutes} min (janela de {currentProposal.sessionDurationMinutes} min)
-                </span>
-              </div>
-            </div>
-          </div>
-
           {/* Explicação da Duração com Séries e Descansos Somados (Seção 6) */}
-          <p className="text-[11px] text-[#5B7170] leading-snug px-1">
+          <p className="text-[11px] text-[#5D6E65] leading-snug px-1">
             {currentProposal.timeBreakdownText}
           </p>
 
           {/* Atalho para Hábito Mínimo (5 min) se a proposta atual for mais longa */}
-          {/* Alternância Dinâmica entre Versão Expressa (5 min) e Versão Completa Informada */}
           {currentProposal.sessionDurationMinutes === 5 && proposal.sessionDurationMinutes > 5 ? (
-            <div className="p-3 bg-[#EAF3EF] rounded-2xl border border-[#125F55]/20 flex items-center justify-between gap-3 text-xs">
-              <div className="text-[#125F55]">
+            <div className="p-3 bg-[#E8EFE9] rounded-2xl border border-[#1B4332]/20 flex items-center justify-between gap-3 text-xs">
+              <div className="text-[#1B4332]">
                 <span className="font-bold block">Versão Expressa de 5 min ativada</span>
-                <span className="text-[11px] text-[#5B7170]">Disponibilidade informada original: {proposal.sessionDurationMinutes} min.</span>
+                <span className="text-[11px] text-[#5D6E65]">Disponibilidade informada original: {proposal.sessionDurationMinutes} min.</span>
               </div>
               <button
                 type="button"
                 onClick={() => setCurrentProposal(proposal)}
-                className="px-3 py-1.5 bg-white text-[#125F55] border border-[#125F55]/40 rounded-xl text-xs font-bold shrink-0 hover:bg-[#EAF3EF] cursor-pointer shadow-2xs"
+                className="px-3 py-1.5 bg-white text-[#1B4332] border border-[#1B4332]/40 rounded-xl text-xs font-bold shrink-0 hover:bg-[#E8EFE9] cursor-pointer shadow-2xs"
               >
                 Restaurar {proposal.sessionDurationMinutes} min
               </button>
             </div>
           ) : currentProposal.sessionDurationMinutes > 5 ? (
-            <div className="p-3 bg-[#EAF3EF] rounded-2xl border border-[#125F55]/20 flex items-center justify-between gap-3 text-xs">
-              <div className="text-[#125F55]">
+            <div className="p-3 bg-[#E8EFE9] rounded-2xl border border-[#1B4332]/20 flex items-center justify-between gap-3 text-xs">
+              <div className="text-[#1B4332]">
                 <span className="font-bold block">Pouco tempo ou voltando aos poucos?</span>
-                <span className="text-[11px] text-[#5B7170]">Comece com 5 min de hábito diário.</span>
+                <span className="text-[11px] text-[#5D6E65]">Comece com 5 min de hábito diário.</span>
               </div>
               <button
                 type="button"
@@ -339,7 +344,7 @@ export const ProposalView: React.FC<ProposalViewProps> = ({
                   microProposal.justificationText = `Versão expressa (hábito mínimo): adaptamos esta rotina para aproximadamente 5 minutos por sessão com exercícios essenciais, preservando sua meta de ${microProposal.targetDaysCount} dias por semana e sua disponibilidade original informada de ${origMin} minutos. Foco em manter o hábito ativo sem sobrecarga articular.`;
                   setCurrentProposal(microProposal);
                 }}
-                className="px-3 py-1.5 bg-[#125F55] text-white rounded-xl text-xs font-bold shrink-0 hover:bg-[#0C5148] cursor-pointer shadow-2xs"
+                className="px-3 py-1.5 bg-[#1B4332] text-white rounded-xl text-xs font-bold shrink-0 hover:bg-[#12372A] cursor-pointer shadow-2xs"
               >
                 Versão 5 min
               </button>
@@ -410,17 +415,17 @@ export const ProposalView: React.FC<ProposalViewProps> = ({
             )}
 
             {/* Dias agendados */}
-            <div className="pt-2 border-t border-[#C9DBD3]/40 space-y-1.5">
-              <span className="text-xs font-semibold text-[#5B7170] block">
+            <div className="pt-2 border-t border-[#E4DDD3]/60 space-y-1.5">
+              <span className="text-xs font-semibold text-[#5D6E65] block">
                 Dias de treino sugeridos na sua semana:
               </span>
               <div className="flex flex-wrap gap-1.5">
                 {scheduledDaysIndices.map((d) => (
                   <span
                     key={d}
-                    className="px-2.5 py-1 rounded-xl bg-[#EAF3EF] border border-[#125F55]/30 text-[#125F55] text-xs font-bold"
+                    className="px-3 py-1 rounded-xl bg-[#E8EFE9] border border-[#1B4332]/30 text-[#1B4332] text-xs font-bold shadow-2xs"
                   >
-                    {daysLabels[d]}
+                    ✓ {daysLabels[d]}
                   </span>
                 ))}
               </div>
@@ -434,7 +439,7 @@ export const ProposalView: React.FC<ProposalViewProps> = ({
           <button
             onClick={handleConfirmRoutine}
             disabled={isConfirming}
-            className="w-full min-h-[56px] p-4 bg-[#125F55] text-white rounded-2xl font-bold text-sm flex items-center justify-center gap-2 hover:bg-[#0C5148] active:scale-[0.99] transition-all cursor-pointer shadow-md"
+            className="w-full min-h-[56px] p-4 bg-[#1B4332] text-white rounded-2xl font-bold text-sm flex items-center justify-center gap-2 hover:bg-[#12372A] active:scale-[0.99] transition-all cursor-pointer shadow-md"
           >
             <CheckCircle2 className="w-5 h-5 text-[#D9F277]" />
             <span>Confirmar minha rotina</span>
@@ -443,7 +448,7 @@ export const ProposalView: React.FC<ProposalViewProps> = ({
           {/* Botão 2: Ajustar Respostas */}
           <button
             onClick={onAdjustAnswers}
-            className="w-full min-h-[48px] p-3 bg-white border border-[#C9DBD3] text-[#152A29] rounded-2xl font-semibold text-xs flex items-center justify-center gap-2 hover:bg-slate-50 transition-all cursor-pointer"
+            className="w-full min-h-[48px] p-3 bg-white border border-[#E4DDD3] text-[#19231E] rounded-2xl font-semibold text-xs flex items-center justify-center gap-2 hover:bg-[#FAF8F5] transition-all cursor-pointer"
           >
             <span>Ajustar proposta ou respostas</span>
           </button>

@@ -262,16 +262,16 @@ export const ExploreView: React.FC<ExploreViewProps> = ({
   return (
     <div className="space-y-5 pb-24">
       {/* Banner Principal: Montador Inteligente & Ações */}
-      <div className="bg-gradient-to-r from-[#125F55] via-[#166B60] to-[#1E7D70] rounded-3xl p-5 text-white shadow-sm space-y-4">
+      <div className="bg-gradient-to-r from-[#1B4332] via-[#20513d] to-[#12372A] rounded-3xl p-5 text-white shadow-sm space-y-4">
         <div className="space-y-1">
           <div className="flex items-center gap-2 text-[#D9F277] font-black text-xs uppercase tracking-wider">
             <Sparkles className="w-4 h-4" />
             <span>Seleção Personalizada & Progressão Guiada</span>
           </div>
-          <h2 className="text-xl font-black text-white leading-snug">
+          <h2 className="font-serif text-xl font-bold text-white leading-snug">
             Monte Treinos Adaptáveis e Programas de Longo Prazo
           </h2>
-          <p className="text-xs text-[#FAF7F2]/90 leading-relaxed max-w-lg">
+          <p className="text-xs text-[#FAF8F5]/90 leading-relaxed max-w-lg">
             Rotinas para treinar em casa, cuidar da postura e consolidar hábitos saudáveis, ou mesociclos completos de hipertrofia na academia.
           </p>
         </div>
@@ -280,7 +280,7 @@ export const ExploreView: React.FC<ExploreViewProps> = ({
           <button
             type="button"
             onClick={() => handleOpenGeneratorWithFocus('habito')}
-            className="flex-1 py-3 px-4 bg-[#D9F277] hover:bg-[#c7e362] text-[#203826] font-black text-xs rounded-xl shadow-xs flex items-center justify-center gap-2 cursor-pointer transition-all active:scale-[0.98]"
+            className="flex-1 py-3 px-4 bg-[#D9F277] hover:bg-[#cbe65b] text-[#19231E] font-black text-xs rounded-xl shadow-xs flex items-center justify-center gap-2 cursor-pointer transition-all active:scale-[0.98]"
           >
             <Sparkles className="w-4 h-4 fill-current" />
             <span>Montar com Assistente Inteligente</span>
@@ -297,14 +297,14 @@ export const ExploreView: React.FC<ExploreViewProps> = ({
       </div>
 
       {/* Navegação Superior Tripla: Programas · Fichas · Exercícios */}
-      <div className="flex items-center gap-1 p-1 bg-white rounded-2xl border border-[#C9DBD3] shadow-xs">
+      <div className="flex items-center gap-1 p-1 bg-white rounded-2xl border border-[#E4DDD3] shadow-2xs">
         <button
           type="button"
           onClick={() => setActiveTab('programs')}
           className={`flex-1 py-2.5 text-xs font-bold rounded-xl transition-all cursor-pointer ${
             activeTab === 'programs'
-              ? 'bg-[#125F55] text-white shadow-xs'
-              : 'text-[#5B7170] hover:text-[#152A29]'
+              ? 'bg-[#1B4332] text-white shadow-xs'
+              : 'text-[#5D6E65] hover:text-[#19231E]'
           }`}
         >
           Programas ({programs.length})
@@ -314,8 +314,8 @@ export const ExploreView: React.FC<ExploreViewProps> = ({
           onClick={() => setActiveTab('plans')}
           className={`flex-1 py-2.5 text-xs font-bold rounded-xl transition-all cursor-pointer ${
             activeTab === 'plans'
-              ? 'bg-[#125F55] text-white shadow-xs'
-              : 'text-[#5B7170] hover:text-[#152A29]'
+              ? 'bg-[#1B4332] text-white shadow-xs'
+              : 'text-[#5D6E65] hover:text-[#19231E]'
           }`}
         >
           Fichas & Modelos ({plans.length})
@@ -325,8 +325,8 @@ export const ExploreView: React.FC<ExploreViewProps> = ({
           onClick={() => setActiveTab('exercises')}
           className={`flex-1 py-2.5 text-xs font-bold rounded-xl transition-all cursor-pointer ${
             activeTab === 'exercises'
-              ? 'bg-[#125F55] text-white shadow-xs'
-              : 'text-[#5B7170] hover:text-[#152A29]'
+              ? 'bg-[#1B4332] text-white shadow-xs'
+              : 'text-[#5D6E65] hover:text-[#19231E]'
           }`}
         >
           Catálogo ({catalogTotal || allExercises.length})
@@ -657,9 +657,9 @@ export const ExploreView: React.FC<ExploreViewProps> = ({
       {/* ───────────────────────────────────────────────────────────── */}
       {activeTab === 'exercises' && (
         <div className="space-y-4">
-          {/* Barra de Pesquisa */}
+          {/* Barra de Pesquisa no Topo do Catálogo */}
           <div className="relative">
-            <Search className="w-4 h-4 text-[#5B7170] absolute left-3.5 top-1/2 -translate-y-1/2" />
+            <Search className="w-4 h-4 text-[#5D6E65] absolute left-3.5 top-1/2 -translate-y-1/2" />
             <input
               type="text"
               value={searchQuery}
@@ -668,14 +668,14 @@ export const ExploreView: React.FC<ExploreViewProps> = ({
                 setVisibleCount(24);
               }}
               placeholder={`Buscar em ${catalogTotal || allExercises.length} exercícios por nome, músculo...`}
-              className="w-full pl-10 pr-4 py-3 bg-white rounded-2xl border border-[#C9DBD3] text-xs text-[#152A29] placeholder-[#5B7170] focus:outline-none focus:border-[#125F55] shadow-xs"
+              className="w-full pl-10 pr-4 py-3 bg-white rounded-2xl border border-[#E4DDD3] text-xs text-[#19231E] placeholder-[#5D6E65] focus:outline-none focus:border-[#1B4332] shadow-2xs transition-colors"
             />
           </div>
 
           {/* Pílulas Rápidas de Cuidado & Intenção */}
           <div className="space-y-1.5">
-            <div className="flex items-center gap-1.5 text-[11px] font-bold text-[#5B7170]">
-              <ShieldAlert className="w-3.5 h-3.5 text-[#125F55]" />
+            <div className="flex items-center gap-1.5 text-[11px] font-bold text-[#5D6E65]">
+              <ShieldAlert className="w-3.5 h-3.5 text-[#1B4332]" />
               <span>Cuidado & Intenção Rápida:</span>
             </div>
             <div className="flex items-center gap-1.5 overflow-x-auto pb-1 no-scrollbar">
@@ -696,8 +696,8 @@ export const ExploreView: React.FC<ExploreViewProps> = ({
                   }}
                   className={`px-3 py-1.5 text-xs rounded-xl whitespace-nowrap transition-colors cursor-pointer shrink-0 ${
                     selectedCareFilter === f.id
-                      ? 'bg-[#125F55] text-[#D9F277] shadow-xs font-bold'
-                      : 'bg-white border border-[#C9DBD3] text-[#5B7170] hover:border-[#125F55]'
+                      ? 'bg-[#1B4332] text-white shadow-xs font-bold'
+                      : 'bg-white border border-[#E4DDD3] text-[#5D6E65] hover:border-[#1B4332]'
                   }`}
                 >
                   {f.label}
