@@ -35,6 +35,7 @@ import { generateTomorrowBridge } from '../lib/storage';
 import { generateSessionFocusInvite } from '../lib/motivationEngine';
 import { findSafeEquivalentExercises, analyzeSessionProgression } from '../lib/workoutEngine';
 import { ProgressionItemUpgrade, SessionProgressionAnalysis } from '../types';
+import { SetConfirmDrawer } from '../components/superacao/SetConfirmDrawer';
 import {
   requestWorkoutWakeLock,
   releaseWorkoutWakeLock,
@@ -801,159 +802,69 @@ export const ActiveWorkoutView: React.FC<ActiveWorkoutViewProps> = ({
           </div>
         </div>
       ) : (
-        /* ÁREA PRINCIPAL DO EXERCÍCIO (S07) */
-        <main className="flex-1 flex flex-col justify-between p-4 max-w-md mx-auto w-full overflow-y-auto">
-          {/* Check-in Inicial de Sensação e Acolhimento */}
-          {activeSession.totalSetsCompleted === 0 && (
-            activeSession.preMood ? (
-              <div className="bg-[#FAF7F2] p-3.5 rounded-2xl border border-[#C9DBD3] space-y-2 mb-2 shadow-2xs animate-in fade-in">
-                <div className="flex items-start justify-between gap-2">
-                  <div className="flex items-center gap-2">
-                    <span className="text-base">
-                      {activeSession.preMood === 'cansado' ? '🔋' : activeSession.preMood === 'tenso' ? '🧘' : activeSession.preMood === 'disposto' ? '⚡' : '🙂'}
-                    </span>
-                    <span className="text-xs font-bold text-[#152A29]">
-                      {activeSession.preMood === 'cansado'
-                        ? 'Chegando com pouca energia hoje'
-                        : activeSession.preMood === 'tenso'
-                        ? 'Chegando com tensão muscular'
-                        : activeSession.preMood === 'disposto'
-                        ? 'Chegando com disposição alta'
-                        : 'Chegando no ritmo habitual'}
-                    </span>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => setSessionPreMood(undefined as any)}
-                    className="text-[10px] text-[#5B7170] hover:text-[#125F55] cursor-pointer"
-                  >
-                    Alterar
-                  </button>
-                </div>
-                <p className="text-[11px] text-[#5B7170] leading-relaxed">
-                  {activeSession.preMood === 'cansado' || activeSession.preMood === 'tenso'
-                    ? 'Tudo bem estar assim! Presença e movimento leve valem muito mais do que intensidade.'
-                    : 'Excelente! Vamos no seu ritmo, construindo constância dia a dia.'}
-                </p>
-                {(activeSession.preMood === 'cansado' || activeSession.preMood === 'tenso') && !isSessionSoftened && (
-                  <div className="flex flex-col sm:flex-row gap-1.5 pt-0.5">
-                    <button
-                      type="button"
-                      onClick={() => {
-                        softenActiveSessionTargets();
-                        setIsSessionSoftened(true);
-                      }}
-                      className="flex-1 py-2 px-3 bg-[#EAF3EF] border border-[#125F55]/30 text-[#125F55] rounded-xl text-xs font-bold hover:bg-[#D9F277]/40 flex items-center justify-center gap-1.5 cursor-pointer shadow-2xs"
-                    >
-                      <span>🌿 Suavizar metas de hoje (-25% repetições/tempo)</span>
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => abandonWorkout()}
-                      className="py-2 px-3 bg-white border border-[#C9DBD3] text-[#5B7170] hover:text-[#152A29] rounded-xl text-xs font-semibold flex items-center justify-center gap-1 cursor-pointer"
-                    >
-                      <span>🤍 Descansar hoje sem culpa</span>
-                    </button>
-                  </div>
-                )}
-                {isSessionSoftened && (
-                  <div className="py-1.5 px-2.5 bg-emerald-50 text-emerald-800 text-[11px] font-semibold rounded-lg border border-emerald-200 text-center">
-                    ✓ Metas de hoje suavizadas com carinho para o seu ritmo!
-                  </div>
-                )}
-              </div>
-            ) : (
-              <div className="bg-[#FAF7F2] p-3 rounded-2xl border border-[#C9DBD3] space-y-1.5 mb-2 shadow-2xs">
-                <span className="text-[11px] font-bold text-[#152A29] block">
-                  Como você está chegando hoje?
-                </span>
-                <div className="grid grid-cols-4 gap-1.5">
-                  {[
-                    { mood: 'cansado' as const, label: 'Cansado', icon: '🔋' },
-                    { mood: 'tenso' as const, label: 'Tenso', icon: '🧘' },
-                    { mood: 'normal' as const, label: 'Normal', icon: '🙂' },
-                    { mood: 'disposto' as const, label: 'Disposto', icon: '⚡' },
-                  ].map((m) => (
-                    <button
-                      key={m.mood}
-                      type="button"
-                      onClick={() => setSessionPreMood(m.mood)}
-                      className="py-1.5 px-1 rounded-xl bg-white border border-[#C9DBD3] hover:border-[#125F55] text-center text-[10px] font-semibold flex flex-col items-center gap-0.5 cursor-pointer shadow-2xs"
-                    >
-                      <span className="text-sm">{m.icon}</span>
-                      <span className="text-[#5B7170] truncate">{m.label}</span>
-                    </button>
-                  ))}
-                </div>
-              </div>
-            )
+        /* ÁREA PRINCIPAL DO EXERCÍCIO (S07) - ZERO ROLAGEM NO VIEWPORT 390×844 */
+        <main className="flex-1 flex flex-col justify-between p-3.5 sm:p-4 max-w-md mx-auto w-full overflow-hidden select-none">
+          {/* Indicador discreto caso o usuário tenha optado por treino suavizado */}
+          {activeSession.preMood && (activeSession.preMood === 'cansado' || activeSession.preMood === 'tenso') && (
+            <div className="bg-[#FDF3F0] px-3 py-1 rounded-full border border-[#E07A5F]/30 flex items-center justify-between text-[11px] text-[#E07A5F] font-semibold mb-1 shrink-0">
+              <span className="flex items-center gap-1.5">
+                <span>🌿</span>
+                <span>Ritmo Suave ativo (-25%)</span>
+              </span>
+              <button
+                type="button"
+                onClick={() => abandonWorkout()}
+                className="text-[10px] text-[#5D6E65] hover:text-[#19231E] underline cursor-pointer"
+              >
+                Descansar hoje
+              </button>
+            </div>
           )}
 
           {/* Destaque do Foco Adaptativo da Sessão (T01 a T04 / C01 a C09) */}
           {isChallengeExercise && sessionFocus && !isFocusDismissed && (
-            <div className="bg-[#D9F277]/25 border-2 border-[#125F55] p-3 rounded-2xl space-y-1 mb-2 shadow-xs animate-in fade-in">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-1.5">
-                  <span className="text-sm">🎯</span>
-                  <span className="text-[10px] font-extrabold uppercase px-2 py-0.5 rounded-full bg-[#125F55] text-white">
-                    {sessionFocus.badgeText}
-                  </span>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => setIsFocusDismissed(true)}
-                  className="text-[10px] text-[#5B7170] hover:text-[#125F55] font-semibold cursor-pointer"
-                >
-                  Hoje prefiro meu ritmo
-                </button>
+            <div className="bg-[#E8EFE9] border border-[#1B4332]/30 px-3 py-1.5 rounded-2xl flex items-center justify-between text-xs mb-1.5 shrink-0">
+              <div className="flex items-center gap-2 truncate">
+                <span className="text-[10px] font-extrabold uppercase px-2 py-0.5 rounded-full bg-[#1B4332] text-white">
+                  {sessionFocus.badgeText}
+                </span>
+                <span className="font-bold text-[#19231E] truncate">{sessionFocus.title}</span>
               </div>
-              <div className="flex items-center justify-between">
-                <h4 className="text-xs font-bold text-[#152A29] mt-0.5">{sessionFocus.title}</h4>
-                {sessionFocus.targetMark && (
-                  <button
-                    type="button"
-                    onClick={() => {
-                      if (sessionFocus.targetMark) {
-                        updateActiveExerciseTarget(activeSession.currentExerciseIndex, sessionFocus.targetMark);
-                        if (isTimeTracking) setActualDurationInput(sessionFocus.targetMark);
-                        else setActualRepsInput(sessionFocus.targetMark);
-                      }
-                    }}
-                    className="px-2 py-0.5 rounded-lg bg-[#125F55] text-white text-[10px] font-bold hover:bg-[#0C5148] cursor-pointer"
-                  >
-                    Assumir Meta ({sessionFocus.targetMark} {isTimeTracking ? 's' : 'reps'})
-                  </button>
-                )}
-              </div>
-              <p className="text-[11px] text-[#203826] leading-relaxed">{sessionFocus.description}</p>
+              <button
+                type="button"
+                onClick={() => setIsFocusDismissed(true)}
+                className="text-[10px] text-[#5D6E65] hover:text-[#19231E] shrink-0 ml-2 cursor-pointer font-bold"
+              >
+                ✕
+              </button>
             </div>
           )}
 
           {/* Ilustração e Nome */}
-          <div className="space-y-3">
+          <div className="space-y-2 flex-1 flex flex-col justify-center min-h-0">
             <ExerciseIllustration
               movementPattern={exerciseDetails?.movement_pattern}
               modality={exerciseDetails?.modality}
               images={exerciseDetails?.images}
               exerciseName={currentExerciseItem.exerciseName}
-              className="w-full h-44 shadow-xs"
+              className="w-full h-36 sm:h-44 shadow-2xs rounded-2xl border border-[#E4DDD3]"
             />
 
             <div>
-              <div className="flex items-center justify-between text-xs text-[#125F55] font-bold">
-                <span>{exerciseDetails?.target_muscle || 'Corpo todo'}</span>
-                <span className="px-2 py-0.5 rounded-full bg-[#EAF3EF] text-[11px]">
+              <div className="flex items-center justify-between text-xs text-[#1B4332] font-bold">
+                <span className="text-[#5D6E65]">{exerciseDetails?.target_muscle || 'Corpo todo'}</span>
+                <span className="px-2.5 py-0.5 rounded-full bg-[#E8EFE9] text-[11px] font-bold">
                   Série {activeSession.currentSetIndex} de {currentExerciseItem.targetSets}
                 </span>
               </div>
-              <div className="flex items-center justify-between gap-2 mt-1">
-                <h2 className="text-xl font-black text-[#152A29]">
+              <div className="flex items-center justify-between gap-2 mt-0.5">
+                <h2 className="font-serif text-xl font-bold text-[#19231E] truncate">
                   {currentExerciseItem.exerciseName}
                 </h2>
                 <button
                   type="button"
                   onClick={() => setShowSwapModal(true)}
-                  className="px-2.5 py-1 rounded-xl bg-white border border-[#C9DBD3] text-xs font-bold text-[#125F55] hover:bg-[#EAF3EF] hover:border-[#125F55] flex items-center gap-1 transition-all shadow-2xs cursor-pointer shrink-0"
+                  className="px-2.5 py-1 rounded-xl bg-white border border-[#E4DDD3] text-xs font-bold text-[#1B4332] hover:bg-[#E8EFE9] hover:border-[#1B4332] flex items-center gap-1 transition-all shadow-2xs cursor-pointer shrink-0"
                   title="Trocar este exercício por outro equivalente"
                 >
                   <ArrowLeftRight className="w-3.5 h-3.5" />
@@ -962,56 +873,53 @@ export const ActiveWorkoutView: React.FC<ActiveWorkoutViewProps> = ({
               </div>
             </div>
 
-            {/* Dica de Micro-Superação (Última marca vs Meta de hoje) */}
-            <div className="bg-[#EAF3EF] p-3 rounded-2xl border border-[#C9DBD3] text-xs space-y-1">
-              <div className="flex items-center justify-between font-semibold text-[#125F55]">
-                <span className="flex items-center gap-1.5">
-                  <Sparkles className="w-3.5 h-3.5" />
-                  Meta desta série:
-                </span>
-                <span className="font-black text-sm tabular-nums">
+            {/* Meta desta Série e Recorde Pessoal Compacto */}
+            <div className="bg-[#FAF8F5] p-2.5 rounded-2xl border border-[#E4DDD3] text-xs flex items-center justify-between">
+              <div className="flex items-center gap-1.5 font-semibold text-[#19231E]">
+                <Sparkles className="w-3.5 h-3.5 text-[#E07A5F]" />
+                <span>Meta da série:</span>
+              </div>
+              <div className="flex items-center gap-2">
+                {previousPR && (
+                  <span className="text-[10px] text-[#5D6E65]">
+                    Melhor: {previousPR.bestReps > 0 ? `${previousPR.bestReps} reps` : `${previousPR.bestDurationSeconds}s`}
+                  </span>
+                )}
+                <span className="font-black text-sm tabular-nums text-[#1B4332] bg-[#E8EFE9] px-2 py-0.5 rounded-lg">
                   {isTimeTracking
                     ? `${currentExerciseItem.targetDurationSeconds || 30}s`
                     : `${currentExerciseItem.targetReps} reps`}
                 </span>
               </div>
-              {previousPR && (
-                <p className="text-[11px] text-[#5B7170]">
-                  Seu melhor histórico: <strong>{previousPR.bestReps > 0 ? `${previousPR.bestReps} reps` : `${previousPR.bestDurationSeconds}s`}</strong>. Supere por 1 repetição se for possível hoje!
-                </p>
-              )}
             </div>
 
             {/* Instrução Rápida de Execução com clique para detalhes */}
             {exerciseDetails?.instructions_pt && (
               <div
                 onClick={() => setShowExerciseDetail(true)}
-                className="bg-white p-3 rounded-2xl border border-[#C9DBD3]/70 hover:border-[#125F55] cursor-pointer transition-all group shadow-2xs"
+                className="bg-white p-2.5 rounded-2xl border border-[#E4DDD3] hover:border-[#1B4332] cursor-pointer transition-all group shadow-2xs"
                 title="Clique para ver o passo a passo completo e cuidados"
               >
-                <div className="flex items-center justify-between text-[11px] font-bold text-[#125F55] mb-1">
+                <div className="flex items-center justify-between text-[11px] font-bold text-[#1B4332]">
                   <span className="flex items-center gap-1.5">
                     <Info className="w-3.5 h-3.5" />
                     Como Executar o Movimento:
                   </span>
-                  <span className="text-[10px] text-[#5B7170] group-hover:text-[#125F55] underline font-semibold">
+                  <span className="text-[10px] text-[#5D6E65] group-hover:text-[#1B4332] underline font-semibold">
                     Ver passos
                   </span>
                 </div>
-                <p className="text-xs text-[#5B7170] line-clamp-3 leading-relaxed">
-                  {exerciseDetails.instructions_pt}
-                </p>
               </div>
             )}
           </div>
 
           {/* Navegação entre movimentos e CTA Principal */}
-          <div className="pt-4 space-y-3">
-            <div className="flex items-center justify-between text-xs text-[#5B7170] px-1">
+          <div className="pt-2 space-y-2 shrink-0">
+            <div className="flex items-center justify-between text-xs text-[#5D6E65] px-1">
               <button
                 onClick={previousExercise}
                 disabled={activeSession.currentExerciseIndex <= 0}
-                className="flex items-center gap-1 font-semibold disabled:opacity-30 hover:text-[#125F55] cursor-pointer"
+                className="flex items-center gap-1 font-semibold disabled:opacity-30 hover:text-[#1B4332] cursor-pointer"
               >
                 <ChevronLeft className="w-4 h-4" />
                 <span>Anterior</span>
@@ -1019,17 +927,17 @@ export const ActiveWorkoutView: React.FC<ActiveWorkoutViewProps> = ({
               <button
                 onClick={nextExercise}
                 disabled={activeSession.currentExerciseIndex >= activeSession.exercisesSnapshot.length - 1}
-                className="flex items-center gap-1 font-semibold disabled:opacity-30 hover:text-[#125F55] cursor-pointer"
+                className="flex items-center gap-1 font-semibold disabled:opacity-30 hover:text-[#1B4332] cursor-pointer"
               >
                 <span>Próximo</span>
                 <ChevronRight className="w-4 h-4" />
               </button>
             </div>
 
-            {/* BOTÃO PRINCIPAL GIGANTE (56px) / CRONÔMETRO ISOMÉTRICO AO VIVO (Fase 8) */}
+            {/* BOTÃO PRINCIPAL GIGANTE (56px) / CRONÔMETRO ISOMÉTRICO AO VIVO */}
             {isTimeTracking ? (
               isoTimerActive ? (
-                <div className="bg-[#125F55] text-white p-4 rounded-3xl shadow-md space-y-3 animate-in fade-in duration-200">
+                <div className="bg-[#1B4332] text-white p-4 rounded-3xl shadow-md space-y-3 animate-in fade-in duration-200">
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2">
                       <Timer className="w-5 h-5 text-[#D9F277] animate-pulse" />
@@ -1042,8 +950,7 @@ export const ActiveWorkoutView: React.FC<ActiveWorkoutViewProps> = ({
                     </span>
                   </div>
 
-                  {/* Barra de Progresso Isométrica */}
-                  <div className="w-full h-2.5 bg-white/20 rounded-full overflow-hidden">
+                  <div className="w-full h-2 bg-white/20 rounded-full overflow-hidden">
                     <div
                       className="h-full bg-[#D9F277] transition-all duration-300 rounded-full"
                       style={{
@@ -1065,7 +972,7 @@ export const ActiveWorkoutView: React.FC<ActiveWorkoutViewProps> = ({
                     <button
                       type="button"
                       onClick={handleStopIsoTimerEarly}
-                      className="flex-1 py-2.5 bg-[#D9F277] hover:bg-[#cbe65b] text-[#203826] font-black text-xs rounded-xl flex items-center justify-center gap-1.5 cursor-pointer shadow-xs transition-colors"
+                      className="flex-1 py-2.5 bg-[#D9F277] hover:bg-[#cbe65b] text-[#19231E] font-black text-xs rounded-xl flex items-center justify-center gap-1.5 cursor-pointer shadow-xs transition-colors"
                     >
                       <Check className="w-4 h-4 stroke-[3]" />
                       <span>Concluir ({isoTargetSeconds - isoTimeRemaining}s)</span>
@@ -1083,11 +990,11 @@ export const ActiveWorkoutView: React.FC<ActiveWorkoutViewProps> = ({
                   </div>
                 </div>
               ) : (
-                <div className="space-y-2">
+                <div className="space-y-1.5">
                   <button
                     type="button"
                     onClick={() => handleStartIsoTimer(currentExerciseItem?.targetDurationSeconds || 30)}
-                    className="w-full h-14 bg-[#125F55] text-white font-bold text-base rounded-2xl flex items-center justify-center gap-2 hover:bg-[#0C5148] active:scale-[0.98] transition-all shadow-md cursor-pointer"
+                    className="w-full h-14 bg-[#1B4332] text-white font-bold text-base rounded-2xl flex items-center justify-center gap-2 hover:bg-[#12372A] active:scale-[0.98] transition-all shadow-md cursor-pointer"
                   >
                     <Timer className="w-5 h-5 text-[#D9F277]" />
                     <span>Iniciar Contagem ({currentExerciseItem?.targetDurationSeconds || 30}s)</span>
@@ -1095,7 +1002,7 @@ export const ActiveWorkoutView: React.FC<ActiveWorkoutViewProps> = ({
                   <button
                     type="button"
                     onClick={() => handleOpenConfirm()}
-                    className="w-full py-2 text-xs font-semibold text-[#5B7170] hover:text-[#125F55] cursor-pointer text-center"
+                    className="w-full py-1 text-xs font-semibold text-[#5D6E65] hover:text-[#1B4332] cursor-pointer text-center"
                   >
                     Ou registrar série manualmente sem cronômetro
                   </button>
@@ -1105,7 +1012,7 @@ export const ActiveWorkoutView: React.FC<ActiveWorkoutViewProps> = ({
               <button
                 type="button"
                 onClick={() => handleOpenConfirm()}
-                className="w-full h-14 bg-[#125F55] text-white font-bold text-base rounded-2xl flex items-center justify-center gap-2 hover:bg-[#0C5148] active:scale-[0.98] transition-all shadow-md cursor-pointer"
+                className="w-full h-14 bg-[#1B4332] text-white font-bold text-base rounded-2xl flex items-center justify-center gap-2 hover:bg-[#12372A] active:scale-[0.98] transition-all shadow-md cursor-pointer"
               >
                 <Check className="w-6 h-6 stroke-[3]" />
                 <span>Concluir Série</span>
@@ -1309,210 +1216,30 @@ export const ActiveWorkoutView: React.FC<ActiveWorkoutViewProps> = ({
         </div>
       )}
 
-      {/* MODAL SHEET DE CONFIRMAÇÃO DO REGISTRO REAL (S08) */}
-      {showConfirmSheet && (
-        <div
-          onClick={() => setShowConfirmSheet(false)}
-          className="fixed inset-0 z-50 flex items-end justify-center bg-black/60 p-3 backdrop-blur-xs animate-in fade-in duration-200 cursor-pointer"
-        >
-          <div
-            onClick={(e) => e.stopPropagation()}
-            className="w-full max-w-md bg-white rounded-3xl p-5 border border-[#C9DBD3] text-[#152A29] space-y-4 shadow-2xl cursor-default"
-          >
-            <div className="flex items-center justify-between pb-2 border-b border-[#C9DBD3]/60">
-              <div>
-                <h4 className="text-sm font-bold text-[#152A29]">Confirmar Execução Real</h4>
-                <p className="text-[11px] text-[#5B7170]">
-                  Série {activeSession.currentSetIndex} · {currentExerciseItem.exerciseName}
-                </p>
-              </div>
-              <button
-                onClick={() => setShowConfirmSheet(false)}
-                className="p-1 rounded-full text-[#5B7170] hover:bg-slate-100 cursor-pointer"
-              >
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-
-            {/* Ajustador de Repetições ou Tempo */}
-            <div className="bg-[#F5F8F5] p-4 rounded-2xl text-center space-y-3">
-              <label className="text-xs font-bold text-[#5B7170] uppercase tracking-wider block">
-                {isTimeTracking ? 'Tempo Real Sustentado' : 'Repetições Reais Executadas'}
-              </label>
-
-              <div className="flex items-center justify-center gap-4">
-                <button
-                  onClick={() => {
-                    if (isTimeTracking) {
-                      setActualDurationInput((prev) => Math.max(0, prev - 5));
-                    } else {
-                      setActualRepsInput((prev) => Math.max(0, prev - 1));
-                    }
-                  }}
-                  className="w-12 h-12 rounded-2xl bg-white border border-[#C9DBD3] flex items-center justify-center text-lg font-bold text-[#125F55] active:scale-95 shadow-xs cursor-pointer"
-                >
-                  <Minus className="w-5 h-5" />
-                </button>
-
-                <div className="w-24">
-                  <span className="text-4xl font-black text-[#125F55] tabular-nums">
-                    {isTimeTracking ? actualDurationInput : actualRepsInput}
-                  </span>
-                  <span className="block text-[10px] text-[#5B7170] font-semibold mt-0.5">
-                    {isTimeTracking ? 'segundos' : 'repetições'}
-                  </span>
-                </div>
-
-                <button
-                  onClick={() => {
-                    if (isTimeTracking) {
-                      setActualDurationInput((prev) => prev + 5);
-                    } else {
-                      setActualRepsInput((prev) => prev + 1);
-                    }
-                  }}
-                  className="w-12 h-12 rounded-2xl bg-white border border-[#C9DBD3] flex items-center justify-center text-lg font-bold text-[#125F55] active:scale-95 shadow-xs cursor-pointer"
-                >
-                  <Plus className="w-5 h-5" />
-                </button>
-              </div>
-
-              {/* Botões Rápidos */}
-              <div className="flex items-center justify-center gap-2 pt-1">
-                {[8, 10, 12, 15, 20].map((num) => (
-                  <button
-                    key={num}
-                    onClick={() => {
-                      if (isTimeTracking) {
-                        setActualDurationInput(num * 2);
-                      } else {
-                        setActualRepsInput(num);
-                      }
-                    }}
-                    className="px-2.5 py-1 text-xs font-bold rounded-lg bg-white border border-[#C9DBD3] text-[#5B7170] hover:text-[#125F55] hover:border-[#125F55] cursor-pointer"
-                  >
-                    {isTimeTracking ? `${num * 2}s` : num}
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            {/* Ajuste de Carga / Peso (kg) para Sobrecarga Progressiva (E06, Fase 8) */}
-            {supportsExternalWeight(exerciseDetails) ? (
-              (() => {
-                const isMainlyBodyweight = !exerciseDetails?.equipment?.some((eq: string) =>
-                  ['halteres', 'kettlebell', 'barra', 'anilhas', 'maquina', 'cabo', 'polia', 'caneleira'].includes(eq.toLowerCase())
-                );
-                const shouldCollapse = isMainlyBodyweight && actualWeightInput === 0 && !showExtraWeightInput;
-
-                if (shouldCollapse) {
-                  return (
-                    <div className="text-center py-1">
-                      <button
-                        type="button"
-                        onClick={() => setShowExtraWeightInput(true)}
-                        className="text-[11px] font-bold text-[#125F55] bg-[#EAF3EF] hover:bg-[#dbeee4] border border-[#125F55]/20 px-3 py-1.5 rounded-xl transition-all cursor-pointer inline-flex items-center gap-1.5 shadow-xs"
-                      >
-                        <Plus className="w-3.5 h-3.5" />
-                        <span>Adicionar carga extra (opcional)</span>
-                      </button>
-                    </div>
-                  );
-                }
-
-                return (
-                  <div className="bg-[#F5F8F5] p-3.5 rounded-2xl text-center space-y-2">
-                    <div className="flex items-center justify-between px-1">
-                      <label className="text-xs font-bold text-[#5B7170] uppercase tracking-wider block">
-                        Carga Utilizada (kg)
-                      </label>
-                      {previousPR?.bestWeightKg ? (
-                        <span className="text-[10px] text-[#125F55] font-bold">
-                          Última marca: {previousPR.bestWeightKg} kg
-                        </span>
-                      ) : (
-                        <span className="text-[10px] text-[#5B7170]">
-                          Peso corporal ou halteres
-                        </span>
-                      )}
-                    </div>
-
-                    <div className="flex items-center justify-center gap-4">
-                      <button
-                        type="button"
-                        onClick={() => setActualWeightInput((prev) => Math.max(0, prev - 2))}
-                        className="w-10 h-10 rounded-xl bg-white border border-[#C9DBD3] flex items-center justify-center font-bold text-xs text-[#125F55] active:scale-95 shadow-xs cursor-pointer"
-                      >
-                        -2
-                      </button>
-                      <div className="w-24">
-                        <span className="text-3xl font-black text-[#125F55] tabular-nums">
-                          {actualWeightInput}
-                        </span>
-                        <span className="block text-[10px] text-[#5B7170] font-semibold mt-0.5">
-                          {actualWeightInput > 0 ? 'kg utilizados' : 'peso do corpo'}
-                        </span>
-                      </div>
-                      <button
-                        type="button"
-                        onClick={() => setActualWeightInput((prev) => prev + 2)}
-                        className="w-10 h-10 rounded-xl bg-white border border-[#C9DBD3] flex items-center justify-center font-bold text-xs text-[#125F55] active:scale-95 shadow-xs cursor-pointer"
-                      >
-                        +2
-                      </button>
-                    </div>
-
-                    {/* Atalhos rápidos de carga */}
-                    <div className="flex items-center justify-center gap-1.5 pt-0.5 flex-wrap">
-                      {[0, 4, 8, 12, 16, 20, 30].map((w) => (
-                        <button
-                          key={w}
-                          type="button"
-                          onClick={() => setActualWeightInput(w)}
-                          className={`px-2 py-0.5 text-[11px] font-bold rounded-lg border cursor-pointer transition-colors ${
-                            actualWeightInput === w
-                              ? 'bg-[#125F55] text-white border-[#125F55]'
-                              : 'bg-white border-[#C9DBD3] text-[#5B7170] hover:border-[#125F55]'
-                          }`}
-                        >
-                          {w === 0 ? 'Livre' : `${w}k`}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                );
-              })()
-            ) : (
-              <div className="bg-[#F5F8F5] p-3 rounded-2xl text-center space-y-1">
-                <span className="text-xs font-bold text-[#125F55] uppercase tracking-wider block">
-                  Peso Corporal & Execução Técnica
-                </span>
-                <p className="text-[11px] text-[#5B7170]">
-                  Exercício executado com o peso do próprio corpo. Foco em controle articular e amplitude.
-                </p>
-              </div>
-            )}
-
-            {/* Tempo de Descanso a Iniciar */}
-            <div className="flex items-center justify-between text-xs text-[#5B7170] px-1">
-              <span>Descanso após esta série:</span>
-              <div className="flex items-center gap-1.5 font-bold text-[#125F55] tabular-nums">
-                <Clock className="w-3.5 h-3.5" />
-                <span>{confirmRestSeconds} segundos</span>
-              </div>
-            </div>
-
-            {/* Salvar Série */}
-            <button
-              onClick={handleSaveSet}
-              className="w-full h-13 bg-[#125F55] text-white font-bold text-sm rounded-2xl flex items-center justify-center gap-2 hover:bg-[#0C5148] active:scale-[0.98] transition-all shadow-md cursor-pointer"
-            >
-              <Check className="w-5 h-5" />
-              <span>Salvar Registro & Iniciar Descanso</span>
-            </button>
-          </div>
-        </div>
-      )}
+      {/* BOTTOM SHEET DE CONFIRMAÇÃO DO REGISTRO REAL (S08) */}
+      <SetConfirmDrawer
+        isOpen={showConfirmSheet}
+        onClose={() => setShowConfirmSheet(false)}
+        exerciseName={currentExerciseItem?.exerciseName || ''}
+        setIndex={activeSession.currentSetIndex}
+        totalSets={currentExerciseItem?.targetSets || 1}
+        isTimeTracking={Boolean(isTimeTracking)}
+        actualReps={actualRepsInput}
+        onRepsChange={setActualRepsInput}
+        actualDuration={actualDurationInput}
+        onDurationChange={setActualDurationInput}
+        actualWeight={actualWeightInput}
+        onWeightChange={setActualWeightInput}
+        supportsWeight={supportsExternalWeight(exerciseDetails)}
+        previousPR={previousPR ? {
+          bestWeightKg: previousPR.bestWeightKg,
+          bestReps: previousPR.bestReps,
+          bestDurationSeconds: previousPR.bestDurationSeconds,
+        } : undefined}
+        restSeconds={confirmRestSeconds}
+        onRestSecondsChange={setConfirmRestSeconds}
+        onSaveSet={handleSaveSet}
+      />
 
       {/* DIÁLOGO DE CONFIRMAÇÃO DE ABANDONO DE TREINO */}
       {showAbandonConfirm && (
