@@ -57,12 +57,12 @@ export const CalendarView: React.FC<CalendarViewProps> = ({ onStartPlanById }) =
   };
 
   const activityBadges: Record<ActivityType, { label: string; icon: React.ElementType; color: string; bg: string }> = {
-    strength: { label: 'Treino de Força', icon: Dumbbell, color: '#125F55', bg: '#EAF3EF' },
-    active_recovery: { label: 'Recuperação Ativa (Mobilidade)', icon: Sparkles, color: '#203826', bg: '#D9F277' },
-    rest: { label: 'Descanso Total', icon: Heart, color: '#246747', bg: '#EAF3EF' },
-    walk: { label: 'Caminhada & Respiração', icon: Footprints, color: '#125F55', bg: '#F5F8F5' },
-    mobility: { label: 'Mobilidade & Postura', icon: Sparkles, color: '#246747', bg: '#EAF3EF' },
-    unassigned: { label: 'Livre / Não definido', icon: Circle, color: '#5B7170', bg: '#F5F8F5' },
+    strength: { label: 'Treino de Força', icon: Dumbbell, color: '#1B4332', bg: '#E8EFE9' },
+    active_recovery: { label: 'Recuperação Ativa (Mobilidade)', icon: Sparkles, color: '#19231E', bg: '#D9F277' },
+    rest: { label: 'Descanso Total', icon: Heart, color: '#E07A5F', bg: '#FDF3F0' },
+    walk: { label: 'Caminhada & Respiração', icon: Footprints, color: '#1B4332', bg: '#FAF8F5' },
+    mobility: { label: 'Mobilidade & Postura', icon: Sparkles, color: '#1B4332', bg: '#E8EFE9' },
+    unassigned: { label: 'Livre / Não definido', icon: Circle, color: '#5D6E65', bg: '#FAF8F5' },
   };
 
   const handleSaveDayEdit = async (
@@ -90,21 +90,21 @@ export const CalendarView: React.FC<CalendarViewProps> = ({ onStartPlanById }) =
   };
 
   return (
-    <div className="space-y-5 pb-24">
+    <div className="space-y-4.5 pb-24">
       {/* Header da Agenda */}
-      <div className="bg-white rounded-3xl p-5 border border-[#C9DBD3] shadow-xs space-y-2">
-        <div className="flex items-center gap-2 text-xs font-bold text-[#125F55] uppercase tracking-wider">
+      <div className="bg-white rounded-3xl p-5 border border-[#E4DDD3] shadow-sm space-y-2">
+        <div className="flex items-center gap-2 text-xs font-bold text-[#1B4332] uppercase tracking-wider">
           <CalendarIcon className="w-4 h-4" />
           <span>Planejamento Sustentável</span>
         </div>
-        <h2 className="text-xl font-bold text-[#152A29]">Sua Agenda Semanal</h2>
-        <p className="text-xs text-[#5B7170] leading-relaxed">
+        <h1 className="font-serif text-2xl font-bold text-[#19231E]">Sua Agenda Semanal</h1>
+        <p className="text-xs text-[#5D6E65] leading-relaxed">
           Alterne dias de treino de força com <strong>Recuperação Ativa (alongamento/mobilidade)</strong> ou <strong>Descanso Total</strong>. Reagende quando a vida real exigir, sem cobranças.
         </p>
       </div>
 
       {/* Cartão Informativo sobre Recuperação Ativa */}
-      <div className="bg-[#EAF3EF] border border-[#C9DBD3] p-3.5 rounded-2xl flex items-start gap-2.5 text-xs text-[#125F55]">
+      <div className="bg-[#E8EFE9] border border-[#1B4332]/20 p-3.5 rounded-2xl flex items-start gap-2.5 text-xs text-[#1B4332]">
         <Info className="w-4 h-4 shrink-0 mt-0.5" />
         <p className="leading-relaxed">
           <strong>Dica do Hábito:</strong> Nos dias sem treino de força, a Recuperação Ativa (5 a 8 minutos de mobilidade) mantém seu corpo flexível e a rotina viva sem cansar os músculos.
@@ -122,45 +122,45 @@ export const CalendarView: React.FC<CalendarViewProps> = ({ onStartPlanById }) =
           return (
             <div
               key={day.id}
-              className={`p-4 rounded-2xl border transition-all ${
+              className={`p-4 rounded-3xl border transition-all ${
                 isToday
-                  ? 'bg-white border-2 border-[#125F55] shadow-xs ring-2 ring-[#125F55]/10'
+                  ? 'bg-white border-2 border-[#1B4332] shadow-sm ring-2 ring-[#1B4332]/10'
                   : day.isCompleted
-                  ? 'bg-[#EAF3EF]/40 border-[#246747]/40'
+                  ? 'bg-[#E8EFE9]/40 border-[#1B4332]/30'
                   : isRest
-                  ? 'bg-[#F7F9F7] border-[#C9DBD3]/60'
-                  : 'bg-white border-[#C9DBD3] hover:border-[#125F55]/60'
+                  ? 'bg-[#FAF8F5] border-[#E4DDD3]'
+                  : 'bg-white border-[#E4DDD3] hover:border-[#1B4332]/60'
               }`}
             >
               <div className="flex items-start justify-between gap-2">
                 <div className="space-y-1">
                   <div className="flex items-center gap-2 flex-wrap">
-                    <span className="text-xs font-bold text-[#152A29] shrink-0">
+                    <span className="text-xs font-bold text-[#19231E] shrink-0">
                       {daysLabels[day.dayOfWeek]}
                       {day.dateStr && (
-                        <span className="text-[11px] font-normal text-[#5B7170] ml-1.5">
+                        <span className="text-[11px] font-normal text-[#5D6E65] ml-1.5">
                           ({formatDateLabel(day.dateStr)})
                         </span>
                       )}
                     </span>
                     {isToday && (
-                      <span className="px-2 py-0.5 rounded-full bg-[#125F55] text-white text-[10px] font-bold">
+                      <span className="px-2.5 py-0.5 rounded-full bg-[#1B4332] text-white text-[10px] font-bold">
                         Hoje
                       </span>
                     )}
                     <span
-                      className="px-2 py-0.5 rounded-full text-[10px] font-bold flex items-center gap-1 shrink-0 whitespace-nowrap"
+                      className="px-2.5 py-0.5 rounded-full text-[10px] font-bold flex items-center gap-1 shrink-0 whitespace-nowrap"
                       style={{ backgroundColor: cfg.bg, color: cfg.color }}
                     >
                       <Icon className="w-3 h-3 shrink-0" />
                       {cfg.label}
                     </span>
                   </div>
-                  <h4 className="text-sm font-semibold text-[#152A29]">
+                  <h3 className="font-serif text-base font-bold text-[#19231E]">
                     {day.activityType === 'unassigned'
                       ? (day.planTitle && day.planTitle !== 'Livre / Não definido' ? day.planTitle : 'Dia livre para descanso ou atividade leve')
                       : (day.planTitle || cfg.label)}
-                  </h4>
+                  </h3>
                 </div>
 
                 {/* Botão de Marcar como Feito ou Estado do Dia */}
@@ -169,30 +169,30 @@ export const CalendarView: React.FC<CalendarViewProps> = ({ onStartPlanById }) =
                     onClick={() => toggleCalendarDayCompleted(day.id)}
                     className={`p-1.5 rounded-xl transition-all cursor-pointer ${
                       day.isCompleted
-                        ? 'text-[#246747] bg-emerald-50'
-                        : 'text-[#5B7170] hover:text-[#125F55]'
+                        ? 'text-[#1B4332] bg-[#E8EFE9]'
+                        : 'text-[#5D6E65] hover:text-[#1B4332]'
                     }`}
                     title={day.isCompleted ? 'Desmarcar' : 'Marcar como concluído'}
                     aria-label={day.isCompleted ? 'Desmarcar' : 'Marcar como concluído'}
                   >
                     {day.isCompleted ? (
-                      <CheckCircle2 className="w-6 h-6 fill-emerald-100" />
+                      <CheckCircle2 className="w-6 h-6 fill-[#E8EFE9]" />
                     ) : (
                       <Circle className="w-6 h-6" />
                     )}
                   </button>
                 ) : (
-                  <div className="p-1.5 text-[11px] font-medium text-[#5B7170] bg-[#F5F8F5] px-2 py-0.5 rounded-lg border border-[#C9DBD3]/50 shrink-0">
+                  <div className="p-1.5 text-[11px] font-medium text-[#5D6E65] bg-white px-2.5 py-0.5 rounded-lg border border-[#E4DDD3] shrink-0">
                     {day.activityType === 'rest' ? 'Descanso' : 'Livre'}
                   </div>
                 )}
               </div>
 
               {/* Ações do dia */}
-              <div className="mt-3 pt-2.5 border-t border-[#C9DBD3]/40 flex items-center justify-between text-xs">
+              <div className="mt-3 pt-2.5 border-t border-[#E4DDD3]/60 flex items-center justify-between text-xs">
                 <button
                   onClick={() => setEditingDay(day)}
-                  className="text-[#5B7170] hover:text-[#125F55] font-semibold flex items-center gap-1 cursor-pointer"
+                  className="text-[#5D6E65] hover:text-[#1B4332] font-semibold flex items-center gap-1 cursor-pointer"
                 >
                   <Edit2 className="w-3 h-3" />
                   <span>Ajustar atividade</span>
@@ -201,7 +201,7 @@ export const CalendarView: React.FC<CalendarViewProps> = ({ onStartPlanById }) =
                 {(day.activityType === 'strength' || day.activityType === 'mobility' || day.activityType === 'active_recovery') && day.planId && (
                   <button
                     onClick={() => onStartPlanById(day.planId!, day.id)}
-                    className="text-[#125F55] font-bold hover:underline flex items-center gap-0.5 cursor-pointer"
+                    className="text-[#1B4332] font-bold hover:underline flex items-center gap-0.5 cursor-pointer"
                   >
                     <span>Iniciar rotina do dia</span>
                     <ChevronRight className="w-3.5 h-3.5" />
