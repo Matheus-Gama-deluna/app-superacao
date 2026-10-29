@@ -387,3 +387,100 @@ export function generateWeeklyProcessReview(
     suggestedDaysTarget,
   };
 }
+
+/**
+ * 6. Espelho de Bem-Estar Imediato: Gera a síntese científica de virada de humor (T08, T09).
+ */
+export function generateTurnaroundMessage(
+  preMood: PreWorkoutMood,
+  postMood: PostWorkoutMood,
+  durationMinutes: number
+): {
+  headline: string;
+  explanation: string;
+  isPositiveShift: boolean;
+} {
+  const isDifficultStart = preMood === 'cansado' || preMood === 'tenso';
+  const isPositiveEnd = postMood === 'renovado' || postMood === 'leve' || postMood === 'orgulhoso' || postMood === 'cansado_bem';
+
+  if (isDifficultStart && isPositiveEnd) {
+    const preText = preMood === 'cansado' ? 'sem energia e cansado(a)' : 'com o corpo tenso(a)';
+    const postText =
+      postMood === 'renovado'
+        ? 'com mais energia e renovado(a)'
+        : postMood === 'leve'
+        ? 'mais leve e relaxado(a)'
+        : postMood === 'orgulhoso'
+        ? 'com dever cumprido'
+        : 'cansado(a), mas feliz';
+
+    return {
+      headline: 'A Transformação de Hoje: O poder de comparecer!',
+      explanation: `Você iniciou sentindo-se ${preText} e concluiu em ${durationMinutes} min no seu ritmo. Sensação relatada: ${postText}. Essa virada neuroquímica é o maior benefício do movimento consciente!`,
+      isPositiveShift: true,
+    };
+  }
+
+  if (isDifficultStart && (postMood === 'esgotado' || postMood === 'desconforto')) {
+    return {
+      headline: 'Escuta e Respeito aos Sinais do Corpo',
+      explanation: `Obrigado pela sua sinceridade. O cansaço ou desconforto sinalizam necessidade de repouso e hidratação. Nas próximas práticas, priorize o Ritmo Suave e movimentos restaurativos.`,
+      isPositiveShift: false,
+    };
+  }
+
+  if (postMood === 'neutro') {
+    return {
+      headline: 'Vitória de Constância e Piloto Automático',
+      explanation: `Nem todo treino precisa trazer euforia. Praticar com serenidade no ritmo neutro é o alicerce mais resistente para um hábito que dura a vida toda.`,
+      isPositiveShift: true,
+    };
+  }
+
+  return {
+    headline: 'Energia Honrada e Multiplicada',
+    explanation: `Você canalizou sua disposição em ${durationMinutes} min de presença consciente. Cada movimento conta na sua trajetória de vitalidade e autonomia!`,
+    isPositiveShift: true,
+  };
+}
+
+/**
+ * 7. Formata cartão de compartilhamento textual acolhedor (T13 - Social/Compromisso Compartilhado).
+ */
+export function formatWorkoutShareSummary(params: {
+  planTitle: string;
+  durationMinutes: number;
+  setsCompleted: number;
+  preMood?: PreWorkoutMood;
+  postMood?: PostWorkoutMood;
+  prsAchieved?: number;
+  totalVolumeKg?: number;
+}): { title: string; text: string } {
+  const title = `Superação Concluída • ${params.planTitle}`;
+  const lines: string[] = [
+    `🏆 Superação Concluída!`,
+    `📋 ${params.planTitle}`,
+    `⏱️ ${params.durationMinutes} min | ${params.setsCompleted} série(s) feitas`,
+  ];
+
+  if (params.totalVolumeKg && params.totalVolumeKg > 0) {
+    lines.push(`🏋️ ${params.totalVolumeKg.toLocaleString('pt-BR')} kg superados em volume`);
+  }
+
+  if (params.prsAchieved && params.prsAchieved > 0) {
+    lines.push(`🔥 ${params.prsAchieved} Recorde(s) Pessoal(is) superado(s)!`);
+  }
+
+  if (params.preMood && params.postMood) {
+    lines.push(`✨ Sensação: de '${params.preMood}' para '${params.postMood}'`);
+  } else if (params.postMood) {
+    lines.push(`✨ Sensação: '${params.postMood}'`);
+  }
+
+  lines.push(`\n🌿 Cada movimento conta no Superação.`);
+
+  return {
+    title,
+    text: lines.join('\n'),
+  };
+}
