@@ -14,12 +14,14 @@ function getGitToken() {
   return process.env.GITHUB_TOKEN || null;
 }
 
-const prNumber = process.argv[2] || '4';
+const prNumber = process.argv[2] || '5';
+const customTitle = process.argv[3] || `Merge pull request #${prNumber}`;
+const customMessage = process.argv[4] || `Merge PR #${prNumber} into main`;
 const token = getGitToken();
 
 const payload = JSON.stringify({
-  commit_title: `Merge pull request #${prNumber} from Matheus-Gama-deluna/feat/visual-redesign-ritmo-natural`,
-  commit_message: `Redesign visual 'Ritmo Natural' (Sprints 1 a 6) convergindo motivacao adaptativa, ergonomia mobile 390x844 e integridade de dados.`,
+  commit_title: customTitle,
+  commit_message: customMessage,
   merge_method: 'merge'
 });
 
