@@ -35,6 +35,7 @@ import { generateTomorrowBridge, PRE_MOOD_LABELS, POST_MOOD_LABELS } from '../li
 import { generateSessionFocusInvite, generateTurnaroundMessage, formatWorkoutShareSummary } from '../lib/motivationEngine';
 import { findSafeEquivalentExercises, analyzeSessionProgression } from '../lib/workoutEngine';
 import { ProgressionItemUpgrade, SessionProgressionAnalysis } from '../types';
+import { getPersonalizedExerciseCue } from '../lib/aiStudentAssistant';
 import { SetConfirmDrawer } from '../components/superacao/SetConfirmDrawer';
 import {
   requestWorkoutWakeLock,
@@ -635,23 +636,24 @@ export const ActiveWorkoutView: React.FC<ActiveWorkoutViewProps> = ({
             </label>
             <div className="grid grid-cols-3 gap-2 pt-1">
               {[
-                { id: 'prazeroso' as const, label: 'Prazerosa & Fluida', icon: '🌿' },
-                { id: 'neutro' as const, label: 'Neutra / Cumprida', icon: '⚖️' },
-                { id: 'dificil' as const, label: 'Custosa / Desafiadora', icon: '🧗' },
+                { id: 'prazeroso' as const, label: 'Prazerosa', sub: 'Fluida & Boa', icon: '🌿' },
+                { id: 'neutro' as const, label: 'Neutra', sub: 'Cumprida', icon: '⚖️' },
+                { id: 'dificil' as const, label: 'Custosa', sub: 'Desafiadora', icon: '🧗' },
               ].map((item) => (
                 <button
                   key={item.id}
                   type="button"
                   aria-pressed={sessionEnjoyment === item.id}
                   onClick={() => setSessionEnjoyment(item.id)}
-                  className={`py-2 px-2 rounded-xl text-center text-xs font-bold transition-all cursor-pointer flex flex-col items-center gap-0.5 ${
+                  className={`py-2 px-1.5 rounded-xl text-center transition-all cursor-pointer flex flex-col items-center gap-0.5 ${
                     sessionEnjoyment === item.id
                       ? 'bg-[#125F55] text-white shadow-xs'
                       : 'bg-[#F5F8F5] text-[#5B7170] border border-[#C9DBD3] hover:border-[#125F55]'
                   }`}
                 >
                   <span className="text-base">{item.icon}</span>
-                  <span className="text-[10px] truncate">{item.label}</span>
+                  <span className="text-xs font-bold leading-tight">{item.label}</span>
+                  <span className="text-[9px] opacity-80 leading-none">{item.sub}</span>
                 </button>
               ))}
             </div>
@@ -975,20 +977,28 @@ export const ActiveWorkoutView: React.FC<ActiveWorkoutViewProps> = ({
                   Série {activeSession.currentSetIndex} de {currentExerciseItem.targetSets}
                 </span>
               </div>
-              <div className="flex items-center justify-between gap-2 mt-0.5">
-                <h2 className="font-serif text-xl font-bold text-[#19231E] truncate">
+              <div className="flex items-start justify-between gap-2 mt-0.5">
+                <h2 className="font-serif text-lg sm:text-xl font-bold text-[#19231E] line-clamp-2 leading-snug flex-1">
                   {currentExerciseItem.exerciseName}
                 </h2>
                 <button
                   type="button"
                   onClick={() => setShowSwapModal(true)}
-                  className="px-2.5 py-1 rounded-xl bg-white border border-[#E4DDD3] text-xs font-bold text-[#1B4332] hover:bg-[#E8EFE9] hover:border-[#1B4332] focus-visible:ring-2 focus-visible:ring-[#1B4332] focus-visible:outline-none flex items-center gap-1 transition-all shadow-2xs cursor-pointer shrink-0"
+                  className="px-2.5 py-1 rounded-xl bg-white border border-[#E4DDD3] text-xs font-bold text-[#1B4332] hover:bg-[#E8EFE9] hover:border-[#1B4332] focus-visible:ring-2 focus-visible:ring-[#1B4332] focus-visible:outline-none flex items-center gap-1 transition-all shadow-2xs cursor-pointer shrink-0 mt-0.5"
                   title="Trocar este exercício por outro equivalente"
                   aria-label="Trocar exercício por equivalente seguro"
                 >
                   <ArrowLeftRight className="w-3.5 h-3.5" />
                   <span>Trocar</span>
                 </button>
+              </div>
+
+              {/* Dica Biomecânica do Assistente IA */}
+              <div className="mt-1.5 px-2.5 py-1 bg-[#EAF3EF]/70 rounded-xl border border-[#125F55]/20 flex items-center gap-1.5 text-[11px] text-[#125F55]">
+                <span>💡</span>
+                <span className="line-clamp-1 font-medium">
+                  {getPersonalizedExerciseCue(currentExerciseItem.exerciseName, profile.reportedLimitations)}
+                </span>
               </div>
             </div>
 

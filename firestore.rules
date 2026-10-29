@@ -58,5 +58,38 @@ service cloud.firestore {
         allow delete: if signedInAs(uid);
       }
     }
+
+    // Vínculos entre Professor e Aluno
+    match /teacher_student_links/{linkId} {
+      allow read: if request.auth != null && (
+        resource.data.teacherUid == request.auth.uid ||
+        resource.data.studentUid == request.auth.uid
+      );
+      allow create, update: if request.auth != null && (
+        request.resource.data.teacherUid == request.auth.uid ||
+        request.resource.data.studentUid == request.auth.uid
+      );
+      allow delete: if request.auth != null && resource.data.teacherUid == request.auth.uid;
+    }
+
+    // Modelos de Anamnese Customizada do Professor
+    match /anamnesis_templates/{templateId} {
+      allow read: if true; // Alunos precisam ler o template para responder
+      allow create, update, delete: if request.auth != null && request.resource.data.teacherUid == request.auth.uid;
+    }
+
+    // Submissões de Anamnese (Respostas e Fotos)
+    match /anamnesis_submissions/{submissionId} {
+      allow read: if request.auth != null && (
+        resource.data.studentUid == request.auth.uid ||
+        resource.data.teacherUid == request.auth.uid
+      );
+      allow create: if request.auth != null && request.resource.data.studentUid == request.auth.uid;
+      allow update: if request.auth != null && (
+        resource.data.teacherUid == request.auth.uid ||
+        resource.data.studentUid == request.auth.uid
+      );
+      allow delete: if request.auth != null && resource.data.teacherUid == request.auth.uid;
+    }
   }
 }

@@ -15,7 +15,7 @@ export const PreparationCard: React.FC<PreparationCardProps> = ({
   habitAnchor,
   onComplete,
 }) => {
-  const [isExpanded, setIsExpanded] = useState<boolean>(true);
+  const [isExpanded, setIsExpanded] = useState<boolean>(false);
 
   return (
     <section className="bg-white border border-[#E4DDD3] rounded-3xl p-4.5 shadow-2xs space-y-2.5 transition-all">

@@ -70,6 +70,11 @@ import { speakWorkoutCue, sendRestFinishedNotification } from '../lib/pwaNative'
 import { allTemplates, getExerciseById } from '../data/catalog';
 import { applyUpgradesToWorkoutPlan } from '../lib/workoutEngine';
 import { premadePrograms } from '../data/premadePrograms';
+import {
+  subscribeToLiveSync,
+  applyTeacherPrescriptionToCalendar,
+  getStudentActiveLink,
+} from '../lib/teacherStudentSync';
 import confetti from 'canvas-confetti';
 
 
@@ -414,6 +419,32 @@ export const WorkoutProvider: React.FC<{ children: React.ReactNode }> = ({ child
       stopRecords();
     };
   }, [user, isGuest]);
+
+  // Escuta atualizações de prescrição do professor em tempo real (Live Sync)
+  useEffect(() => {
+    const currentUid = profile?.uid || (user ? user.uid : 'guest_user');
+    const unsub = subscribeToLiveSync(currentUid, (msg) => {
+      if (msg.type === 'PLAN_UPDATED' && msg.payload) {
+        const link = msg.payload;
+        if (link.assignedPlans && link.assignedPlans.length > 0) {
+          setPlans(link.assignedPlans);
+          setLocal(STORAGE_KEYS.PLANS, link.assignedPlans);
+        }
+        if (link.weeklyPrescriptions && link.weeklyPrescriptions.length > 0) {
+          const updatedCalendar = applyTeacherPrescriptionToCalendar(
+            currentUid,
+            link.weeklyPrescriptions,
+            link.assignedPlans || [],
+            calendar
+          );
+          setCalendar(updatedCalendar);
+          setLocal(STORAGE_KEYS.CALENDAR, updatedCalendar);
+        }
+      }
+    });
+
+    return unsub;
+  }, [profile?.uid, user, calendar]);
 
   // Reconstrói Recordes Pessoais (PRs) a partir dos eventos apenas se a lista estiver vazia
   useEffect(() => {

@@ -42,7 +42,7 @@ const ViewLoadingFallback: React.FC = () => (
     </span>
   </div>
 );
-import { WorkoutPlan, ExplainableProposal, OnboardingDraft, PreWorkoutMood } from './types';
+import { WorkoutPlan, ExplainableProposal, OnboardingDraft, PreWorkoutMood, CustomAnamnesisTemplate } from './types';
 import { premadeWorkouts } from './data/premadeWorkouts';
 import {
   getLocal,
@@ -50,8 +50,12 @@ import {
   STORAGE_KEYS,
   generateExplainableProposal,
 } from './lib/storage';
+import { QuickIdentificationView } from './views/QuickIdentificationView';
+import { TeacherDashboardView } from './views/TeacherDashboardView';
+import { LinkTeacherModal } from './components/LinkTeacherModal';
+import { CustomAnamnesisFlowView } from './views/CustomAnamnesisFlowView';
 
-type AppFlowState = 'welcome' | 'onboarding' | 'proposal' | 'main';
+type AppFlowState = 'welcome' | 'quick_id' | 'teacher_dashboard' | 'custom_anamnesis' | 'onboarding' | 'proposal' | 'main';
 
 const MainAppContent: React.FC = () => {
   const { user, profile, isGuest, isLoading: authLoading, updateUserProfile } = useAuth();
@@ -83,24 +87,47 @@ const MainAppContent: React.FC = () => {
   const [isBuilderPro, setIsBuilderPro] = useState<boolean>(false);
   const [isProfileOpen, setIsProfileOpen] = useState<boolean>(false);
 
-  // Calcula o estado determinístico de fluxo (Seção 4, Critérios C01, C02, C09)
+  // Estados para Professor, Anamnese Personalizada e Identificação Rápida
+  const [isTeacherPersonalMode, setIsTeacherPersonalMode] = useState<boolean>(false);
+  const [showLinkTeacherModal, setShowLinkTeacherModal] = useState<boolean>(false);
+  const [customAnamnesisTemplate, setCustomAnamnesisTemplate] = useState<CustomAnamnesisTemplate | null>(null);
+  const [customAnamnesisTeacherUid, setCustomAnamnesisTeacherUid] = useState<string | null>(null);
+  const [isListeningOpen, setIsListeningOpen] = useState<boolean>(false);
+  const [builderStudentCallback, setBuilderStudentCallback] = useState<((plan: WorkoutPlan) => void) | null>(null);
+
+  // Calcula o estado determinístico de fluxo (Seção 4, Critérios C01, C02, C09 + Sprint 1 a 4)
   const flowState: AppFlowState = (() => {
     // 1. Não houve escolha explícita de acesso e não está logado
     if (!user && !accessChoice) {
       return 'welcome';
     }
 
-    // 2. Onboarding / escuta em andamento
-    if (!profile.onboardingCompleted) {
+    // 2. Identificação rápida pendente (usuário sem papel definido)
+    if (!profile.userRole) {
+      return 'quick_id';
+    }
+
+    // 3. Painel do Professor ativo (quando o usuário é professor e não está no modo treino pessoal)
+    if (profile.userRole === 'teacher' && !isTeacherPersonalMode) {
+      return 'teacher_dashboard';
+    }
+
+    // 4. Fluxo de Anamnese Customizada do Professor em andamento
+    if (customAnamnesisTemplate && customAnamnesisTeacherUid) {
+      return 'custom_anamnesis';
+    }
+
+    // 5. Escuta / Onboarding aberto explicitamente
+    if (isListeningOpen) {
       return 'onboarding';
     }
 
-    // 3. Proposta gerada aguardando confirmação explícita ou aberta explicitamente para revisão (Critério C09)
+    // 6. Proposta gerada aguardando confirmação explícita ou aberta explicitamente para revisão (Critério C09)
     if (currentProposal && (!profile.routineConfirmed || isViewingProposal)) {
       return 'proposal';
     }
 
-    // 4. Experiência principal (usuário com rotina confirmada ou explorando)
+    // 7. Experiência principal (usuário com rotina confirmada ou explorando)
     return 'main';
   })();
 
@@ -229,12 +256,65 @@ const MainAppContent: React.FC = () => {
     );
   }
 
-  // 2. ESCUTA INICIAL / ONBOARDING PROGRESSIVO (Seção 5, Critérios C04, C05, C06, C07, C08)
+  // 2. IDENTIFICAÇÃO RÁPIDA (Nome + Papel Aluno vs Professor, sem registro prévio)
+  if (flowState === 'quick_id') {
+    return (
+      <QuickIdentificationView
+        initialName={profile.displayName && profile.displayName !== 'Praticante' ? profile.displayName : ''}
+        onComplete={async (data) => {
+          await updateUserProfile({
+            displayName: data.displayName,
+            userRole: data.userRole,
+            onboardingCompleted: true,
+            routineConfirmed: false,
+          });
+        }}
+        onBack={accessChoice ? () => setAccessChoice(null) : undefined}
+      />
+    );
+  }
+
+  // 3. PAINEL DO PROFESSOR / TREINADOR
+  if (flowState === 'teacher_dashboard') {
+    return (
+      <TeacherDashboardView
+        teacherUid={profile.uid}
+        teacherName={profile.displayName}
+        onOpenPersonalWorkout={() => setIsTeacherPersonalMode(true)}
+        onOpenBuilderForStudent={(_lims, _eqs, onSavePlan) => {
+          setBuilderStudentCallback(() => onSavePlan);
+          handleOpenBuilder(undefined, true);
+        }}
+      />
+    );
+  }
+
+  // 4. FLUXO DE ANAMNESE PERSONALIZADA COM FOTOS (Aluno respondendo ao professor)
+  if (flowState === 'custom_anamnesis' && customAnamnesisTemplate && customAnamnesisTeacherUid) {
+    return (
+      <CustomAnamnesisFlowView
+        template={customAnamnesisTemplate}
+        teacherUid={customAnamnesisTeacherUid}
+        onFinish={() => {
+          setCustomAnamnesisTemplate(null);
+          setCustomAnamnesisTeacherUid(null);
+          handleSelectTab('home');
+        }}
+        onCancel={() => {
+          setCustomAnamnesisTemplate(null);
+          setCustomAnamnesisTeacherUid(null);
+        }}
+      />
+    );
+  }
+
+  // 5. ESCUTA INICIAL / ONBOARDING PROGRESSIVO (Seção 5, Critérios C04, C05, C06, C07, C08)
   if (flowState === 'onboarding') {
     return (
       <React.Suspense fallback={<ViewLoadingFallback />}>
         <ListeningJourneyView
         onCompleteListening={(draft, nextAction) => {
+          setIsListeningOpen(false);
           if (nextAction === 'proposal') {
             const prop = generateExplainableProposal(profile, draft);
             setCurrentProposal(prop);
@@ -248,7 +328,7 @@ const MainAppContent: React.FC = () => {
             handleOpenBuilder(undefined, false);
           }
         }}
-        onCancel={accessChoice ? () => setAccessChoice(null) : undefined}
+        onCancel={() => setIsListeningOpen(false)}
         />
       </React.Suspense>
     );
@@ -329,6 +409,23 @@ const MainAppContent: React.FC = () => {
   // 5. EXPERIÊNCIA PRINCIPAL (Seção 7, 8, 9, 10, 11)
   return (
     <div className="min-h-screen bg-[#FAF8F5] text-[#19231E] flex flex-col justify-between font-sans">
+      {/* Banner de Alternância do Professor para Modo Pessoal */}
+      {profile.userRole === 'teacher' && isTeacherPersonalMode && (
+        <div className="bg-[#125F55] text-white px-4 py-2 text-xs font-bold flex items-center justify-between shadow-xs sticky top-0 z-40">
+          <span className="flex items-center gap-1.5">
+            <span>🏋️</span>
+            <span>Você está visualizando seu Treino Pessoal</span>
+          </span>
+          <button
+            type="button"
+            onClick={() => setIsTeacherPersonalMode(false)}
+            className="px-3 py-1 bg-white text-[#125F55] rounded-full hover:bg-[#FAF8F5] transition-colors"
+          >
+            ← Voltar ao Painel do Treinador
+          </button>
+        </div>
+      )}
+
       {/* Barra de Status e Cabeçalho Superior */}
       <TopStatusBar onOpenProfile={handleOpenProfile} />
 
@@ -345,8 +442,13 @@ const MainAppContent: React.FC = () => {
               setIsBuilderOpen(false);
               setEditingPlanId(null);
               setIsBuilderPro(false);
+              setBuilderStudentCallback(null);
             }}
             onStartWorkout={(plan) => {
+              if (builderStudentCallback) {
+                builderStudentCallback(plan);
+                setBuilderStudentCallback(null);
+              }
               setIsBuilderOpen(false);
               setEditingPlanId(null);
               setIsBuilderPro(false);
@@ -361,6 +463,8 @@ const MainAppContent: React.FC = () => {
                 onResumeWorkout={() => setIsFocusMode(true)}
                 onNavigateTab={handleSelectTab}
                 onOpenBuilder={(id, isPro) => handleOpenBuilder(id, Boolean(isPro))}
+                onOpenListening={() => setIsListeningOpen(true)}
+                onOpenLinkTeacher={() => setShowLinkTeacherModal(true)}
                 onReviewProposal={
                   currentProposal
                     ? () => {
@@ -384,6 +488,21 @@ const MainAppContent: React.FC = () => {
         )}
       </React.Suspense>
       </main>
+
+      {/* Modal para Aluno Conectar ao Professor */}
+      <LinkTeacherModal
+        isOpen={showLinkTeacherModal}
+        onClose={() => setShowLinkTeacherModal(false)}
+        onStartCustomAnamnesis={(tmpl, tUid) => {
+          setShowLinkTeacherModal(false);
+          setCustomAnamnesisTemplate(tmpl);
+          setCustomAnamnesisTeacherUid(tUid);
+        }}
+        onLinkSuccess={(link) => {
+          setShowLinkTeacherModal(false);
+          handleSelectTab('home');
+        }}
+      />
 
       {/* Banner de Atualização Segura do Service Worker */}
       <SWUpdateBanner isWorkoutActive={Boolean(activeSession && isFocusMode)} />

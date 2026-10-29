@@ -21,6 +21,7 @@ export interface ActivityPathProps {
   targetWeeklyGoal: number;
   completedThisWeek: number;
   todayDayOfWeek: number;
+  hideWeeklyNodes?: boolean;
   onNavigateCalendar?: () => void;
   onNavigateProgress?: () => void;
 }
@@ -44,6 +45,7 @@ export const ActivityPath: React.FC<ActivityPathProps> = ({
   targetWeeklyGoal,
   completedThisWeek,
   todayDayOfWeek,
+  hideWeeklyNodes = false,
   onNavigateCalendar,
   onNavigateProgress,
 }) => {
@@ -187,79 +189,81 @@ export const ActivityPath: React.FC<ActivityPathProps> = ({
         </div>
 
         {/* Trilha Conectada da Semana (Activity Path Compacto) */}
-        <div className="relative px-1 py-1.5">
-          {/* Linha orgânica contínua ao fundo (nunca quebra no descanso) */}
-          <div
-            aria-hidden="true"
-            className="absolute left-5 right-5 top-[22px] h-1 rounded-full bg-gradient-to-r from-[#EAF3EF] via-[#C9DBD3]/70 to-[#EAF3EF]"
-          />
+        {!hideWeeklyNodes && (
+          <div className="relative px-1 py-1.5">
+            {/* Linha orgânica contínua ao fundo (nunca quebra no descanso) */}
+            <div
+              aria-hidden="true"
+              className="absolute left-5 right-5 top-[22px] h-1 rounded-full bg-gradient-to-r from-[#EAF3EF] via-[#C9DBD3]/70 to-[#EAF3EF]"
+            />
 
-          <div className="relative z-10 grid grid-cols-7 gap-1">
-            {calendar.map((cDay, idx) => {
-              const isToday = cDay.dayOfWeek === todayDayOfWeek;
-              const isDone = cDay.isCompleted;
-              const isRest = cDay.activityType === 'rest';
-              const isWalk = cDay.activityType === 'walk';
-              const isVitality = Boolean(
-                cDay.vitalityBonusCompleted || (isRest && (cDay.careMinutes || 0) > 0)
-              );
+            <div className="relative z-10 grid grid-cols-7 gap-1">
+              {calendar.map((cDay, idx) => {
+                const isToday = cDay.dayOfWeek === todayDayOfWeek;
+                const isDone = cDay.isCompleted;
+                const isRest = cDay.activityType === 'rest';
+                const isWalk = cDay.activityType === 'walk';
+                const isVitality = Boolean(
+                  cDay.vitalityBonusCompleted || (isRest && (cDay.careMinutes || 0) > 0)
+                );
 
-              const stateLabel = isDone
-                ? 'Concluído'
-                : isVitality
-                ? 'Elo de Vitalidade'
-                : isRest
-                ? 'Descanso planejado'
-                : isWalk
-                ? 'Caminhada planejada'
-                : 'Prática planejada';
+                const stateLabel = isDone
+                  ? 'Concluído'
+                  : isVitality
+                  ? 'Elo de Vitalidade'
+                  : isRest
+                  ? 'Descanso planejado'
+                  : isWalk
+                  ? 'Caminhada planejada'
+                  : 'Prática planejada';
 
-              return (
-                <div
-                  key={cDay.id || idx}
-                  aria-label={`${daysFull[cDay.dayOfWeek]}: ${stateLabel}${isToday ? ' (Hoje)' : ''}`}
-                  className="flex flex-col items-center text-center"
-                >
-                  {/* Nó do Caminho */}
+                return (
                   <div
-                    className={`w-8 h-8 rounded-full flex items-center justify-center transition-all ${
-                      isDone
-                        ? 'bg-[#125F55] text-white shadow-xs'
-                        : isVitality
-                        ? 'bg-[#D9F277] text-[#203826] border border-[#125F55]/30 shadow-2xs'
-                        : isToday
-                        ? 'bg-white text-[#125F55] border-2 border-[#125F55] ring-4 ring-[#125F55]/15 font-black'
-                        : isRest
-                        ? 'bg-[#EAF3EF] text-[#246747] border border-[#C9DBD3]/80'
-                        : 'bg-white text-[#5B7170] border border-[#C9DBD3]'
-                    }`}
+                    key={cDay.id || idx}
+                    aria-label={`${daysFull[cDay.dayOfWeek]}: ${stateLabel}${isToday ? ' (Hoje)' : ''}`}
+                    className="flex flex-col items-center text-center"
                   >
-                    {isDone ? (
-                      <CheckCircle2 className="w-4 h-4" />
-                    ) : isVitality ? (
-                      <Sparkles className="w-3.5 h-3.5" />
-                    ) : isRest ? (
-                      <Heart className="w-3.5 h-3.5 opacity-80" />
-                    ) : isWalk ? (
-                      <Footprints className="w-3.5 h-3.5" />
-                    ) : (
-                      <span className="text-[11px] font-bold">{daysShort[cDay.dayOfWeek]}</span>
-                    )}
-                  </div>
+                    {/* Nó do Caminho */}
+                    <div
+                      className={`w-8 h-8 rounded-full flex items-center justify-center transition-all ${
+                        isDone
+                          ? 'bg-[#125F55] text-white shadow-xs'
+                          : isVitality
+                          ? 'bg-[#D9F277] text-[#203826] border border-[#125F55]/30 shadow-2xs'
+                          : isToday
+                          ? 'bg-white text-[#125F55] border-2 border-[#125F55] ring-4 ring-[#125F55]/15 font-black'
+                          : isRest
+                          ? 'bg-[#EAF3EF] text-[#246747] border border-[#C9DBD3]/80'
+                          : 'bg-white text-[#5B7170] border border-[#C9DBD3]'
+                      }`}
+                    >
+                      {isDone ? (
+                        <CheckCircle2 className="w-4 h-4" />
+                      ) : isVitality ? (
+                        <Sparkles className="w-3.5 h-3.5" />
+                      ) : isRest ? (
+                        <Heart className="w-3.5 h-3.5 opacity-80" />
+                      ) : isWalk ? (
+                        <Footprints className="w-3.5 h-3.5" />
+                      ) : (
+                        <span className="text-[11px] font-bold">{daysShort[cDay.dayOfWeek]}</span>
+                      )}
+                    </div>
 
-                  {/* Legenda do Dia */}
-                  <span
-                    className={`mt-1 text-[10px] leading-tight ${
-                      isToday ? 'font-black text-[#125F55]' : 'font-semibold text-[#5B7170]'
-                    }`}
-                  >
-                    {isToday ? 'Hoje' : daysShort[cDay.dayOfWeek]}
-                  </span>
-                </div>
-              );
-            })}
+                    {/* Legenda do Dia */}
+                    <span
+                      className={`mt-1 text-[10px] leading-tight ${
+                        isToday ? 'font-black text-[#125F55]' : 'font-semibold text-[#5B7170]'
+                      }`}
+                    >
+                      {isToday ? 'Hoje' : daysShort[cDay.dayOfWeek]}
+                    </span>
+                  </div>
+                );
+              })}
+            </div>
           </div>
-        </div>
+        )}
 
         <p className="text-[11px] text-[#5B7170] leading-relaxed">{rhythm.message}</p>
       </div>

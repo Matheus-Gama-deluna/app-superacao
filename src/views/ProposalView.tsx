@@ -242,29 +242,35 @@ export const ProposalView: React.FC<ProposalViewProps> = ({
 
           {/* 3 Pílulas Sintéticas no Topo (Ritmo Natural) */}
           <div className="grid grid-cols-3 gap-2 pt-1">
-            <div className="p-2.5 rounded-2xl bg-[#FAF8F5] border border-[#E4DDD3] text-center">
+            <div className="p-2.5 rounded-2xl bg-[#FAF8F5] border border-[#E4DDD3] text-center flex flex-col justify-between">
               <Clock className="w-4 h-4 text-[#1B4332] mx-auto mb-1" />
               <span className="text-[10px] text-[#5D6E65] block">Duração</span>
-              <span className="font-bold text-xs text-[#19231E]">
-                ~{primaryPlan?.estimatedDurationMinutes || currentProposal.sessionDurationMinutes} min (janela de {currentProposal.sessionDurationMinutes} min)
+              <span className="font-bold text-xs text-[#19231E] block leading-tight">
+                ~{primaryPlan?.estimatedDurationMinutes || currentProposal.sessionDurationMinutes} min
+              </span>
+              <span className="text-[9px] text-[#5D6E65] block mt-0.5">
+                (janela {currentProposal.sessionDurationMinutes}m)
               </span>
             </div>
 
-            <div className="p-2.5 rounded-2xl bg-[#FAF8F5] border border-[#E4DDD3] text-center">
+            <div className="p-2.5 rounded-2xl bg-[#FAF8F5] border border-[#E4DDD3] text-center flex flex-col justify-between">
               <Calendar className="w-4 h-4 text-[#1B4332] mx-auto mb-1" />
               <span className="text-[10px] text-[#5D6E65] block">Frequência</span>
-              <span className="font-bold text-xs text-[#19231E]">
-                {currentProposal.targetDaysCount}x / semana
+              <span className="font-bold text-xs text-[#19231E] block leading-tight">
+                {currentProposal.targetDaysCount}x / sem
+              </span>
+              <span className="text-[9px] text-[#5D6E65] block mt-0.5">
+                dias ativos
               </span>
             </div>
 
-            <div className="p-2.5 rounded-2xl bg-[#FAF8F5] border border-[#E4DDD3] text-center">
+            <div className="p-2.5 rounded-2xl bg-[#FAF8F5] border border-[#E4DDD3] text-center flex flex-col justify-between">
               <Dumbbell className="w-4 h-4 text-[#1B4332] mx-auto mb-1" />
-              <span className="text-[10px] text-[#5D6E65] block truncate">Equipamentos</span>
-              <span className="font-bold text-xs text-[#19231E] truncate block">
+              <span className="text-[10px] text-[#5D6E65] block">Materiais</span>
+              <span className="font-bold text-xs text-[#19231E] block leading-tight line-clamp-2">
                 {profile.equipments && profile.equipments.length > 0 && !profile.equipments.includes('nenhum')
                   ? profile.equipments.map((e) => EQUIPMENT_LABELS[e] || e).slice(0, 1).join(', ')
-                  : 'Peso do corpo'}
+                  : 'Peso corporal'}
               </span>
             </div>
           </div>
@@ -378,27 +384,29 @@ export const ProposalView: React.FC<ProposalViewProps> = ({
                 {primaryPlan.exercises.map((ex, idx) => (
                   <div
                     key={ex.exerciseId || idx}
-                    className="p-3 rounded-2xl bg-[#F5F8F5] border border-[#C9DBD3]/60 flex items-center justify-between gap-3 text-xs"
+                    className="p-3 rounded-2xl bg-[#F5F8F5] border border-[#C9DBD3]/60 flex items-start justify-between gap-2.5 text-xs"
                   >
-                    <div className="flex items-center gap-3 min-w-0">
-                      <span className="w-6 h-6 rounded-full bg-white border border-[#C9DBD3] text-[#125F55] font-black flex items-center justify-center text-[11px] shrink-0">
+                    <div className="flex items-start gap-2.5 min-w-0 flex-1">
+                      <span className="w-6 h-6 rounded-full bg-white border border-[#C9DBD3] text-[#125F55] font-black flex items-center justify-center text-[11px] shrink-0 mt-0.5">
                         {idx + 1}
                       </span>
-                      <div className="min-w-0">
-                        <span className="font-bold text-[#152A29] block truncate">
+                      <div className="min-w-0 flex-1">
+                        <span className="font-bold text-[#152A29] block line-clamp-2 leading-snug">
                           {ex.exerciseName}
                         </span>
-                        <span className="text-[11px] text-[#5B7170]">
-                          {ex.targetSets} séries · {ex.targetReps > 0 ? `${ex.targetReps} reps` : `${ex.targetDurationSeconds}s`} · {ex.restSeconds}s descanso
-                        </span>
+                        <div className="flex items-center gap-1.5 flex-wrap mt-0.5">
+                          <span className="text-[11px] text-[#5B7170]">
+                            {ex.targetSets} séries · {ex.targetReps > 0 ? `${ex.targetReps} reps` : `${ex.targetDurationSeconds}s`} · {ex.restSeconds}s descanso
+                          </span>
+                          {ex.notes && (
+                            <span className="text-[9px] text-[#91610D] font-bold bg-amber-50 px-1.5 py-0.2 rounded border border-amber-200">
+                              Atenção
+                            </span>
+                          )}
+                        </div>
                       </div>
                     </div>
-                    <div className="flex items-center gap-2 shrink-0">
-                      {ex.notes && (
-                      <span className="text-[10px] text-[#91610D] font-medium shrink-0 bg-amber-50 px-2 py-0.5 rounded-md border border-amber-200">
-                        Atenção
-                      </span>
-                      )}
+                    <div className="flex items-center gap-1 shrink-0 pt-0.5">
                       <button
                         type="button"
                         onClick={() => setSwappingExerciseIndex(idx)}

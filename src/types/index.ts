@@ -390,6 +390,11 @@ export interface UserProfile {
   accessChoice?: 'guest' | 'login' | 'signup' | null;
   onboardingCompleted?: boolean;
   needsReviewPrompt?: boolean;
+  userRole?: UserRole;
+  hasCompletedAnamnesis?: boolean;
+  linkedTeacherId?: string;
+  linkedTeacherName?: string;
+  teacherInviteCode?: string;
   createdAt: number;
   updatedAt: number;
 }
@@ -543,3 +548,125 @@ export interface MovementLadderUserProgress {
     status: 'completed' | 'current' | 'locked';
   }[];
 }
+
+// -------------------------------------------------------------
+// Tipos para Plataforma do Professor & Anamnese Progressiva
+// -------------------------------------------------------------
+
+export type UserRole = 'student' | 'teacher';
+
+export type AnamnesisQuestionType =
+  | 'text_short'
+  | 'text_long'
+  | 'single_choice'
+  | 'multiple_choice'
+  | 'scale_1_10'
+  | 'photo_upload';
+
+export type AnamnesisPhotoCategory =
+  | 'posture_front'
+  | 'posture_side'
+  | 'posture_back'
+  | 'equipments'
+  | 'general';
+
+export interface AnamnesisQuestionOption {
+  label: string;
+  value: string;
+  flagsArticular?: string[];
+}
+
+export interface AnamnesisQuestion {
+  id: string;
+  title: string;
+  subtitle?: string;
+  type: AnamnesisQuestionType;
+  required: boolean;
+  options?: AnamnesisQuestionOption[];
+  photoCategory?: AnamnesisPhotoCategory;
+  minScale?: number;
+  maxScale?: number;
+  scaleLabels?: { min: string; max: string };
+}
+
+export interface CustomAnamnesisTemplate {
+  id: string;
+  teacherUid: string;
+  teacherName?: string;
+  title: string;
+  description: string;
+  questions: AnamnesisQuestion[];
+  createdAt: number;
+  updatedAt: number;
+}
+
+export interface AnamnesisPhotoAttachment {
+  id: string;
+  questionId: string;
+  category: AnamnesisPhotoCategory;
+  dataUrl: string; // Base64 comprimido client-side WebP/JPEG <= 90KB
+  caption?: string;
+  uploadedAt: number;
+}
+
+export interface AiAnamnesisAnalysis {
+  suggestedLimitations: string[];
+  avoidedMovements: string[];
+  posturalFlags: string[];
+  detectedEquipments: string[];
+  clinicalSummary: string;
+  suggestedSplit: 'full_body' | 'upper_lower' | 'abc';
+  suggestedFrequencyDays: number;
+  confidenceScore: number;
+  analyzedAt: number;
+  source: 'ai_model' | 'clinical_heuristics';
+}
+
+export interface AnamnesisSubmission {
+  id: string;
+  studentUid: string;
+  studentName: string;
+  teacherUid: string;
+  templateId: string;
+  answers: Record<string, any>;
+  photos: AnamnesisPhotoAttachment[];
+  aiAnalysis?: AiAnamnesisAnalysis;
+  submittedAt: number;
+  status: 'pending_review' | 'reviewed' | 'plan_assigned';
+}
+
+export type TeacherDayRegime = 'workout' | 'rest_total' | 'rest_active' | 'unassigned';
+
+export type ActiveRestActivityType =
+  | 'caminhada_leve'
+  | 'mobilidade_articular'
+  | 'alongamento_suave'
+  | 'respiracao_relaxamento'
+  | 'outro';
+
+export interface TeacherDayPrescription {
+  dayOfWeek: number; // 0 (Domingo) a 6 (Sábado)
+  regime: TeacherDayRegime;
+  planId?: string;
+  planTitle?: string;
+  activeRestActivity?: ActiveRestActivityType;
+  activeRestCustomLabel?: string;
+  activeRestDurationMinutes?: number;
+  teacherNotes?: string;
+}
+
+export interface TeacherStudentLink {
+  id: string;
+  teacherUid: string;
+  teacherName: string;
+  studentUid: string;
+  studentName: string;
+  studentEmail?: string;
+  status: 'active' | 'pending' | 'archived';
+  weeklyPrescriptions: TeacherDayPrescription[];
+  assignedPlans: WorkoutPlan[];
+  lastSubmissionId?: string;
+  lastPrescribedAt?: number;
+  updatedAt: number;
+}
+

@@ -152,19 +152,68 @@ export const ProgressView: React.FC = () => {
 
   return (
     <div className="space-y-6 pb-24">
-      {/* 1. Caminho Pessoal de Progresso & Próximo Marco Alcançável (Gentler Streak / Clareza em Movimento) */}
-      <ActivityPath
-        variant="full"
-        calendar={calendar}
-        sessions={sessions}
-        metrics={metrics}
-        personalRecords={personalRecords}
-        targetWeeklyGoal={targetWeeklyGoal}
-        completedThisWeek={completedThisWeek}
-        todayDayOfWeek={new Date().getDay()}
-      />
+      {/* Cabeçalho do Progresso */}
+      <div className="flex items-center justify-between pt-1">
+        <div>
+          <h1 className="font-serif text-2xl font-bold text-[#19231E]">
+            Seu Progresso & Constância
+          </h1>
+          <p className="text-xs text-[#5D6E65]">
+            Cada movimento conta. Veja como seu corpo está respondendo.
+          </p>
+        </div>
+        <button
+          type="button"
+          onClick={handleShareProgress}
+          className="py-2 px-3.5 bg-[#E8EFE9] text-[#1B4332] rounded-xl text-xs font-bold hover:bg-[#1B4332] hover:text-white transition-all flex items-center gap-1.5 shadow-2xs shrink-0"
+        >
+          <Share2 className="w-3.5 h-3.5" />
+          <span>{copiedShare ? 'Copiado!' : 'Compartilhar'}</span>
+        </button>
+      </div>
 
-      {/* 1.1 Revisão Semanal Acolhedora & Autonomia de Meta (T17) */}
+      {/* 1. Indicadores Pessoais Enxutos em Destaque no Topo */}
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
+        <div className="bg-white p-3.5 rounded-2xl border border-[#E4DDD3] shadow-2xs text-center">
+          <span className="text-[10px] text-[#5D6E65] font-medium block">Treinos Concluídos</span>
+          <span className="text-xl font-black text-[#1B4332] tabular-nums mt-0.5 block">
+            {metrics.completedWorkoutsCount}
+          </span>
+          {metrics.partialWorkoutsCount > 0 && (
+            <span className="text-[9px] text-[#5D6E65] block font-normal">
+              + {metrics.partialWorkoutsCount} {metrics.partialWorkoutsCount === 1 ? 'parcial' : 'parciais'}
+            </span>
+          )}
+        </div>
+        <div className="bg-white p-3.5 rounded-2xl border border-[#E4DDD3] shadow-2xs text-center">
+          <span className="text-[10px] text-[#5D6E65] font-medium block">Recordes Reais (PRs)</span>
+          <span className="text-xl font-black text-[#1B4332] tabular-nums mt-0.5 block">
+            {metrics.prsAchievedCount}
+          </span>
+          {personalRecords.length > metrics.prsAchievedCount && (
+            <span className="text-[9px] text-[#5D6E65] block font-normal">
+              {personalRecords.length - metrics.prsAchievedCount}{' '}
+              {personalRecords.length - metrics.prsAchievedCount === 1 ? 'marca inicial' : 'marcas iniciais'}
+            </span>
+          )}
+        </div>
+        <div className="bg-white p-3.5 rounded-2xl border border-[#E4DDD3] shadow-2xs text-center">
+          <span className="text-[10px] text-[#5D6E65] font-medium block">Repetições Totais</span>
+          <span className="text-xl font-black text-[#1B4332] tabular-nums mt-0.5 block">
+            {totalReps}
+          </span>
+        </div>
+        <div className="bg-white p-3.5 rounded-2xl border border-[#E4DDD3] shadow-2xs text-center">
+          <span className="text-[10px] text-[#5D6E65] font-medium block">
+            {totalVolumeKg > 0 ? 'Volume Total (kg)' : 'Recuperações'}
+          </span>
+          <span className="text-xl font-black text-[#19231E] tabular-nums mt-0.5 block">
+            {totalVolumeKg > 0 ? totalVolumeKg.toLocaleString('pt-BR') : recoveryDaysCompleted}
+          </span>
+        </div>
+      </div>
+
+      {/* 2. Revisão Semanal Acolhedora & Autonomia de Meta (T17) */}
       <section className="bg-gradient-to-r from-[#E8EFE9] to-white rounded-3xl p-4.5 border border-[#1B4332]/20 shadow-xs space-y-3">
         <div className="flex items-start justify-between gap-3">
           <div className="flex items-center gap-2">
@@ -222,46 +271,17 @@ export const ProgressView: React.FC = () => {
         </div>
       </section>
 
-      {/* 2. Indicadores Pessoais Enxutos (E03 / Seção 5) */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
-        <div className="bg-white p-3.5 rounded-2xl border border-[#E4DDD3] shadow-2xs text-center">
-          <span className="text-[10px] text-[#5D6E65] font-medium block">Treinos Concluídos</span>
-          <span className="text-xl font-black text-[#1B4332] tabular-nums mt-0.5 block">
-            {metrics.completedWorkoutsCount}
-          </span>
-          {metrics.partialWorkoutsCount > 0 && (
-            <span className="text-[9px] text-[#5D6E65] block font-normal">
-              + {metrics.partialWorkoutsCount} {metrics.partialWorkoutsCount === 1 ? 'parcial' : 'parciais'}
-            </span>
-          )}
-        </div>
-        <div className="bg-white p-3.5 rounded-2xl border border-[#E4DDD3] shadow-2xs text-center">
-          <span className="text-[10px] text-[#5D6E65] font-medium block">Recordes Reais (PRs)</span>
-          <span className="text-xl font-black text-[#1B4332] tabular-nums mt-0.5 block">
-            {metrics.prsAchievedCount}
-          </span>
-          {personalRecords.length > metrics.prsAchievedCount && (
-            <span className="text-[9px] text-[#5D6E65] block font-normal">
-              {personalRecords.length - metrics.prsAchievedCount}{' '}
-              {personalRecords.length - metrics.prsAchievedCount === 1 ? 'marca inicial' : 'marcas iniciais'}
-            </span>
-          )}
-        </div>
-        <div className="bg-white p-3.5 rounded-2xl border border-[#E4DDD3] shadow-2xs text-center">
-          <span className="text-[10px] text-[#5D6E65] font-medium block">Repetições Totais</span>
-          <span className="text-xl font-black text-[#1B4332] tabular-nums mt-0.5 block">
-            {totalReps}
-          </span>
-        </div>
-        <div className="bg-white p-3.5 rounded-2xl border border-[#E4DDD3] shadow-2xs text-center">
-          <span className="text-[10px] text-[#5D6E65] font-medium block">
-            {totalVolumeKg > 0 ? 'Volume Total (kg)' : 'Recuperações'}
-          </span>
-          <span className="text-xl font-black text-[#19231E] tabular-nums mt-0.5 block">
-            {totalVolumeKg > 0 ? totalVolumeKg.toLocaleString('pt-BR') : recoveryDaysCompleted}
-          </span>
-        </div>
-      </div>
+      {/* 3. Caminho Pessoal de Progresso & Próximo Marco Alcançável */}
+      <ActivityPath
+        variant="full"
+        calendar={calendar}
+        sessions={sessions}
+        metrics={metrics}
+        personalRecords={personalRecords}
+        targetWeeklyGoal={targetWeeklyGoal}
+        completedThisWeek={completedThisWeek}
+        todayDayOfWeek={new Date().getDay()}
+      />
 
       {/* Cartão de Cuidado & Vitalidade Semanal (Estratégia A e E) */}
       {(metrics.careMinutesTotal > 0 || metrics.weeklyVitalityLinksCount > 0) && (

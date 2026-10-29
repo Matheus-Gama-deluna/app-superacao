@@ -61,6 +61,8 @@ interface HomeViewProps {
   onNavigateTab: (tab: 'home' | 'workouts' | 'calendar' | 'progress') => void;
   onOpenBuilder?: (existingPlanId?: string, isPro?: boolean) => void;
   onReviewProposal?: () => void;
+  onOpenListening?: () => void;
+  onOpenLinkTeacher?: () => void;
 }
 
 export const HomeView: React.FC<HomeViewProps> = ({
@@ -69,6 +71,8 @@ export const HomeView: React.FC<HomeViewProps> = ({
   onNavigateTab,
   onOpenBuilder,
   onReviewProposal,
+  onOpenListening,
+  onOpenLinkTeacher,
 }) => {
   const { profile } = useAuth();
   const {
@@ -541,7 +545,101 @@ export const HomeView: React.FC<HomeViewProps> = ({
             />
           </div>
         </section>
-      ) : null}
+      ) : todaySchedule?.activityType === 'active_recovery' ? (
+        /* CARD: DESCANSO ATIVO ORIENTADO PELO PROFESSOR */
+        <section className="bg-white border border-[#E4DDD3] rounded-3xl p-5 shadow-sm space-y-3.5">
+          <div className="flex items-center justify-between text-xs">
+            <span className="font-bold text-[#1B4332] uppercase tracking-wider text-[11px] flex items-center gap-1.5">
+              <span>🚶</span>
+              <span>Descanso Ativo Orientado pelo Professor</span>
+            </span>
+            <span className="text-[#5D6E65] text-[11px]">Recuperação Leve</span>
+          </div>
+
+          <div>
+            <h3 className="font-serif text-xl font-bold text-[#19231E]">
+              Movimento Suave & Regeneração
+            </h3>
+            <p className="text-xs text-[#5D6E65] mt-1 leading-relaxed">
+              {todaySchedule.notes ||
+                'Dia planejado para estimular sua circulação e flexibilidade sem fadiga muscular.'}
+            </p>
+          </div>
+
+          <div className="pt-1 flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
+            <button
+              onClick={() => {
+                setPracticeModality('caminhada_corrida');
+                setShowPracticeModal(true);
+              }}
+              className="flex-1 h-12 bg-[#1B4332] text-white font-bold text-xs rounded-xl flex items-center justify-center gap-2 hover:bg-[#12372A] transition-all cursor-pointer shadow-sm"
+            >
+              <Footprints className="w-4 h-4 text-[#D9F277]" />
+              <span>Registrar Caminhada Leve / Prática</span>
+            </button>
+            {recoveryPlan && (
+              <button
+                onClick={() => onStartWorkout(recoveryPlan, todaySchedule?.id, 'ad_hoc')}
+                className="flex-1 h-12 bg-[#E8EFE9] text-[#1B4332] font-bold text-xs rounded-xl flex items-center justify-center gap-2 hover:bg-[#1B4332] hover:text-white transition-all cursor-pointer border border-[#1B4332]/20"
+              >
+                <Sparkles className="w-4 h-4 text-[#E07A5F]" />
+                <span>Mobilidade Guiada (8 min)</span>
+              </button>
+            )}
+          </div>
+        </section>
+      ) : (
+        /* FOLD 1: DOIS CARDS CLAROS PARA ALUNO NOVO OU SEM ROTINA */
+        <section className="space-y-3">
+          {/* Card 1: Montar Meu Treino Personalizado */}
+          <div className="bg-gradient-to-br from-[#E8EFE9] to-white rounded-3xl p-5 border border-[#1B4332]/30 shadow-sm space-y-3">
+            <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-[#1B4332]">
+              <span className="text-base">✨</span>
+              <span>Montar Meu Treino Personalizado</span>
+            </div>
+            <div>
+              <h2 className="font-serif text-lg sm:text-xl font-bold text-[#19231E]">
+                Crie um plano feito sob medida para você
+              </h2>
+              <p className="text-xs text-[#5D6E65] mt-1 leading-relaxed">
+                Responda perguntas rápidas sobre seu corpo, tempo e espaço para gerarmos uma rotina segura e livre de sobrecargas articulares.
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={onOpenListening || onReviewProposal}
+              className="w-full h-12 bg-[#1B4332] hover:bg-[#12372A] text-white font-bold text-xs sm:text-sm rounded-2xl flex items-center justify-center gap-2 shadow-sm transition-all"
+            >
+              <Sparkles className="w-4 h-4 text-[#D9F277]" />
+              <span>Responder e Criar Meu Plano</span>
+            </button>
+          </div>
+
+          {/* Card 2: Treinar com um Professor */}
+          <div className="bg-white rounded-3xl p-5 border border-[#E4DDD3] shadow-xs space-y-3">
+            <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-[#5D6E65]">
+              <span className="text-base">👨‍🏫</span>
+              <span>Treinar com um Professor</span>
+            </div>
+            <div>
+              <h3 className="font-serif text-base sm:text-lg font-bold text-[#19231E]">
+                Conectar com Personal ou Ficha de Treinador
+              </h3>
+              <p className="text-xs text-[#5D6E65] mt-1 leading-relaxed">
+                Preencha a ficha de avaliação enviada pelo seu professor (com envio de fotos) ou insira o código de convite para receber suas fichas.
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={onOpenLinkTeacher}
+              className="w-full h-12 bg-[#FAF8F5] border border-[#1B4332]/30 text-[#1B4332] hover:bg-[#E8EFE9] font-bold text-xs sm:text-sm rounded-2xl flex items-center justify-center gap-2 transition-all"
+            >
+              <span>Inserir Código do Professor</span>
+              <ChevronRight className="w-4 h-4" />
+            </button>
+          </div>
+        </section>
+      )}
 
       {/* ─────────────────────────────────────────────────────────────
           FOLD 2: RITUAL DE PREPARAÇÃO, CAMINHO SEMANAL & EXTRAS
@@ -830,6 +928,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
         targetWeeklyGoal={targetWeeklyGoal}
         completedThisWeek={completedThisWeek}
         todayDayOfWeek={dayOfWeek}
+        hideWeeklyNodes={true}
         onNavigateCalendar={() => onNavigateTab('calendar')}
         onNavigateProgress={() => onNavigateTab('progress')}
       />
