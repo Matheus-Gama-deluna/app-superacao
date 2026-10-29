@@ -575,7 +575,7 @@ export const TeacherDashboardView: React.FC<TeacherDashboardViewProps> = ({
                     <button
                       type="button"
                       onClick={handleGenerateAiDraft}
-                      className="py-2 px-3 rounded-full bg-[#EAF3EF] text-[#125F55] text-xs font-bold hover:bg-[#125F55] hover:text-white transition-all flex items-center gap-1"
+                      className="py-2 px-3 rounded-full bg-[#EAF3EF] text-[#125F55] text-xs font-bold hover:bg-[#125F55] hover:text-white transition-all flex items-center gap-1 cursor-pointer"
                     >
                       <span>⚡</span> Sugerir com IA
                     </button>

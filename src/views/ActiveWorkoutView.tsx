@@ -1286,6 +1286,7 @@ export const ActiveWorkoutView: React.FC<ActiveWorkoutViewProps> = ({
               <button
                 type="button"
                 onClick={() => setShowSwapModal(false)}
+                aria-label="Fechar substituição"
                 className="p-1 rounded-full text-slate-400 hover:bg-slate-100 cursor-pointer"
               >
                 <X className="w-5 h-5" />

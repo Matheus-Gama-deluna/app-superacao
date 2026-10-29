@@ -405,10 +405,17 @@ export const HomeView: React.FC<HomeViewProps> = ({
         /* CARD: TREINO DE FORÇA PLANEJADO PARA HOJE */
         <section className="bg-white border border-[#E4DDD3] rounded-3xl p-5 shadow-sm space-y-3.5 transition-all">
           {/* Cabeçalho do Card */}
-          <div className="flex items-center justify-between text-xs">
-            <span className="font-bold uppercase tracking-wider text-[10px] text-[#1B4332] bg-[#E8EFE9] px-2.5 py-1 rounded-full">
-              Treino Planejado para Hoje
-            </span>
+          <div className="flex items-center justify-between text-xs flex-wrap gap-2">
+            <div className="flex items-center gap-1.5 flex-wrap">
+              <span className="font-bold uppercase tracking-wider text-[10px] text-[#1B4332] bg-[#E8EFE9] px-2.5 py-1 rounded-full">
+                Treino Planejado para Hoje
+              </span>
+              {profile.linkedTeacherName && (
+                <span className="font-bold text-[10px] text-[#125F55] bg-[#EAF3EF] border border-[#125F55]/20 px-2 py-0.5 rounded-full flex items-center gap-1">
+                  <span>👨‍🏫</span> Prescrito por {profile.linkedTeacherName}
+                </span>
+              )}
+            </div>
             <span className="flex items-center gap-1 text-[#5D6E65] font-semibold text-xs">
               <Clock className="w-3.5 h-3.5 text-[#1B4332]" />
               {todayPlan.estimatedDurationMinutes} min · {todayPlan.exercises.length} {todayPlan.exercises.length === 1 ? 'exercício' : 'exercícios'}
@@ -617,26 +624,44 @@ export const HomeView: React.FC<HomeViewProps> = ({
 
           {/* Card 2: Treinar com um Professor */}
           <div className="bg-white rounded-3xl p-5 border border-[#E4DDD3] shadow-xs space-y-3">
-            <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-[#5D6E65]">
-              <span className="text-base">👨‍🏫</span>
-              <span>Treinar com um Professor</span>
+            <div className="flex items-center justify-between text-xs">
+              <div className="flex items-center gap-2 font-bold uppercase tracking-wider text-[#5D6E65]">
+                <span className="text-base">👨‍🏫</span>
+                <span>{profile.linkedTeacherName ? 'Conectado com seu Treinador' : 'Treinar com um Professor'}</span>
+              </div>
+              {profile.linkedTeacherName && (
+                <span className="px-2 py-0.5 rounded-full bg-amber-100 text-amber-800 text-[10px] font-bold">
+                  Em Análise
+                </span>
+              )}
             </div>
             <div>
               <h3 className="font-serif text-base sm:text-lg font-bold text-[#19231E]">
-                Conectar com Personal ou Ficha de Treinador
+                {profile.linkedTeacherName
+                  ? `Avaliação entregue a ${profile.linkedTeacherName}`
+                  : 'Conectar com Personal ou Ficha de Treinador'}
               </h3>
               <p className="text-xs text-[#5D6E65] mt-1 leading-relaxed">
-                Preencha a ficha de avaliação enviada pelo seu professor (com envio de fotos) ou insira o código de convite para receber suas fichas.
+                {profile.linkedTeacherName
+                  ? `Seu treinador já recebeu suas respostas e fotos. Assim que a prescrição semanal for publicada, seus treinos e descansos aparecerão aqui automaticamente.`
+                  : 'Preencha a ficha de avaliação enviada pelo seu professor (com envio de fotos) ou insira o código de convite para receber suas fichas.'}
               </p>
             </div>
-            <button
-              type="button"
-              onClick={onOpenLinkTeacher}
-              className="w-full h-12 bg-[#FAF8F5] border border-[#1B4332]/30 text-[#1B4332] hover:bg-[#E8EFE9] font-bold text-xs sm:text-sm rounded-2xl flex items-center justify-center gap-2 transition-all"
-            >
-              <span>Inserir Código do Professor</span>
-              <ChevronRight className="w-4 h-4" />
-            </button>
+            {profile.linkedTeacherName ? (
+              <div className="p-3 bg-[#FAF8F5] rounded-2xl border border-[#E4DDD3]/60 flex items-center justify-between text-xs">
+                <span className="text-[#5D6E65] font-medium">Sincronização em tempo real ativa</span>
+                <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse" title="Sincronização ativa" />
+              </div>
+            ) : (
+              <button
+                type="button"
+                onClick={onOpenLinkTeacher}
+                className="w-full h-12 bg-[#FAF8F5] border border-[#1B4332]/30 text-[#1B4332] hover:bg-[#E8EFE9] font-bold text-xs sm:text-sm rounded-2xl flex items-center justify-center gap-2 transition-all cursor-pointer"
+              >
+                <span>Inserir Código do Professor</span>
+                <ChevronRight className="w-4 h-4" />
+              </button>
+            )}
           </div>
         </section>
       )}
