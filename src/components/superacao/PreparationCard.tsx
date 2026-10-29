@@ -43,7 +43,7 @@ export const PreparationCard: React.FC<PreparationCardProps> = ({
             <button
               type="button"
               onClick={onComplete}
-              className="text-xs font-bold text-[#1B4332] bg-[#E8EFE9] border border-[#1B4332]/30 px-3 py-1.5 rounded-xl hover:bg-[#1B4332] hover:text-white transition-all cursor-pointer shadow-2xs"
+              className="text-xs font-bold text-[#1B4332] bg-[#E8EFE9] border border-[#1B4332]/30 px-3 py-1.5 rounded-xl hover:bg-[#1B4332] hover:text-white transition-all cursor-pointer shadow-2xs focus-visible:ring-2 focus-visible:ring-[#1B4332] focus-visible:outline-none"
             >
               Concluir preparação
             </button>
@@ -53,7 +53,7 @@ export const PreparationCard: React.FC<PreparationCardProps> = ({
             type="button"
             onClick={() => setIsExpanded((prev) => !prev)}
             aria-label={isExpanded ? 'Recolher detalhes do ritual' : 'Expandir detalhes do ritual'}
-            className="w-7 h-7 rounded-lg text-[#5D6E65] hover:text-[#19231E] hover:bg-[#F5F3EF] flex items-center justify-center cursor-pointer transition-colors"
+            className="w-7 h-7 rounded-lg text-[#5D6E65] hover:text-[#19231E] hover:bg-[#F5F3EF] flex items-center justify-center cursor-pointer transition-colors focus-visible:ring-2 focus-visible:ring-[#1B4332] focus-visible:outline-none"
           >
             {isExpanded ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
           </button>

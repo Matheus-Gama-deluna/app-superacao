@@ -3,6 +3,8 @@ import { useWorkout } from '../context/WorkoutContext';
 import { useAuth } from '../context/AuthContext';
 import { calculateCanonicalMetrics, getCanonicalWeeklyGoal, PRE_MOOD_LABELS, POST_MOOD_LABELS } from '../lib/storage';
 import { calculateMovementLaddersProgress } from '../lib/workoutEngine';
+import { generateWeeklyProcessReview } from '../lib/motivationEngine';
+import { shareWorkoutVictory } from '../lib/pwaNative';
 import {
   Trophy,
   Sparkles,
@@ -14,6 +16,7 @@ import {
   Heart,
   ChevronDown,
   ChevronUp,
+  Share2,
 } from 'lucide-react';
 import { ActivityPath } from '../components/ActivityPath';
 
@@ -24,11 +27,13 @@ export const ProgressView: React.FC = () => {
     setEvents,
     calendar,
     exportBackup,
+    applyWeeklyReviewDecision,
   } = useWorkout();
 
   const [expandedSessionId, setExpandedSessionId] = useState<string | null>(null);
   const [showAllBadges, setShowAllBadges] = useState<boolean>(false);
   const [showAllLadders, setShowAllLadders] = useState<boolean>(false);
+  const [copiedShare, setCopiedShare] = useState<boolean>(false);
 
   // Métricas canônicas unificadas (E03 / Seção 5 / T18)
   // Fase 4: Trilhas de Evolução Biomecânica (Escadas de 4 degraus)
@@ -41,6 +46,25 @@ export const ProgressView: React.FC = () => {
   const canonicalWeekly = getCanonicalWeeklyGoal(profile, calendar);
   const targetWeeklyGoal = canonicalWeekly.targetWeeklyGoal;
   const completedThisWeek = metrics.weeklyCompletedCount;
+  const weeklyReview = generateWeeklyProcessReview(sessions, calendar, targetWeeklyGoal);
+
+  const handleShareProgress = async () => {
+    const summary = [
+      `🌱 Minha Consistência no Superação`,
+      `✅ ${metrics.completedWorkoutsCount} treinos realizados no meu ritmo`,
+      `🏆 ${metrics.prsAchievedCount} recordes pessoais superados`,
+      `🎯 Meta da semana: ${completedThisWeek} de ${targetWeeklyGoal} dias concluídos`,
+      `\nConstruindo saúde e vitalidade todos os dias!`,
+    ].join('\n');
+    const status = await shareWorkoutVictory({
+      title: 'Minha Consistência no Superação',
+      text: summary,
+    });
+    if (status === 'copied' || status === 'shared') {
+      setCopiedShare(true);
+      setTimeout(() => setCopiedShare(false), 3000);
+    }
+  };
 
   // Regras estritas e auditáveis de conquistas (E01, E02, Seção 5)
   const badges = [
@@ -140,6 +164,64 @@ export const ProgressView: React.FC = () => {
         todayDayOfWeek={new Date().getDay()}
       />
 
+      {/* 1.1 Revisão Semanal Acolhedora & Autonomia de Meta (T17) */}
+      <section className="bg-gradient-to-r from-[#E8EFE9] to-white rounded-3xl p-4.5 border border-[#1B4332]/20 shadow-xs space-y-3">
+        <div className="flex items-start justify-between gap-3">
+          <div className="flex items-center gap-2">
+            <span className="text-xl">📊</span>
+            <div>
+              <h3 className="text-xs font-black uppercase tracking-wider text-[#1B4332]">
+                Ritmo Semanal Consciente
+              </h3>
+              <p className="text-xs text-[#19231E] font-medium mt-0.5">
+                {weeklyReview.completedCount} completos · {weeklyReview.expressOrPartialCount} parciais/rápidos · {weeklyReview.externalCount} práticas externas
+              </p>
+            </div>
+          </div>
+          <span className="px-2.5 py-1 rounded-full bg-[#D9F277] text-[#19231E] text-[10px] font-bold shrink-0">
+            Esforço médio {weeklyReview.averageRpe}/5
+          </span>
+        </div>
+
+        <p className="text-xs text-[#5D6E65] leading-relaxed">
+          {weeklyReview.suggestedAction === 'advance'
+            ? `Você está com ritmo constante e sensação leve! Deseja calibrar sua meta para ${weeklyReview.suggestedDaysTarget} dias?`
+            : weeklyReview.suggestedAction === 'soften'
+            ? `Sua rotina exigiu mais energia esta semana. Você tem total liberdade para calibrar sua meta para ${weeklyReview.suggestedDaysTarget} dias sem peso.`
+            : `Sua meta atual de ${targetWeeklyGoal} ${targetWeeklyGoal === 1 ? 'dia' : 'dias'} por semana está equilibrada com sua rotina.`}
+        </p>
+
+        <div className="flex flex-wrap items-center gap-2 pt-1">
+          {weeklyReview.suggestedAction !== 'maintain' && (
+            <button
+              type="button"
+              onClick={() => applyWeeklyReviewDecision(weeklyReview.suggestedAction, weeklyReview.suggestedDaysTarget)}
+              className="py-2 px-3.5 bg-[#1B4332] text-white rounded-xl text-xs font-bold hover:bg-[#12372A] focus-visible:ring-2 focus-visible:ring-[#1B4332] focus-visible:outline-none cursor-pointer shadow-xs transition-colors"
+            >
+              {weeklyReview.suggestedAction === 'advance'
+                ? `Avançar para ${weeklyReview.suggestedDaysTarget} dias`
+                : `Suavizar para ${weeklyReview.suggestedDaysTarget} dias sem culpa`}
+            </button>
+          )}
+          <button
+            type="button"
+            onClick={() => applyWeeklyReviewDecision('maintain', targetWeeklyGoal)}
+            className="py-2 px-3 bg-white border border-[#E4DDD3] text-[#5D6E65] rounded-xl text-xs font-semibold hover:bg-slate-50 focus-visible:ring-2 focus-visible:ring-[#1B4332] focus-visible:outline-none cursor-pointer transition-colors"
+          >
+            Manter meta ({targetWeeklyGoal} {targetWeeklyGoal === 1 ? 'dia' : 'dias'})
+          </button>
+          {targetWeeklyGoal > 1 && weeklyReview.suggestedAction === 'maintain' && (
+            <button
+              type="button"
+              onClick={() => applyWeeklyReviewDecision('soften', Math.max(1, targetWeeklyGoal - 1))}
+              className="py-2 px-3 bg-white border border-[#E4DDD3] text-[#5D6E65] hover:text-[#1B4332] rounded-xl text-xs font-semibold hover:bg-slate-50 focus-visible:ring-2 focus-visible:ring-[#1B4332] focus-visible:outline-none cursor-pointer transition-colors"
+            >
+              Suavizar (-1 dia)
+            </button>
+          )}
+        </div>
+      </section>
+
       {/* 2. Indicadores Pessoais Enxutos (E03 / Seção 5) */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
         <div className="bg-white p-3.5 rounded-2xl border border-[#E4DDD3] shadow-2xs text-center">
@@ -217,14 +299,26 @@ export const ProgressView: React.FC = () => {
                 : 'Seus primeiros marcos serão iluminados conforme você pratica'}
             </p>
           </div>
-          <button
-            type="button"
-            onClick={() => setShowAllBadges(!showAllBadges)}
-            className="text-xs text-[#1B4332] font-bold hover:underline flex items-center gap-1 cursor-pointer shrink-0"
-          >
-            <span>{showAllBadges ? 'Mostrar resumo' : `Ver todos (${badges.length})`}</span>
-            {showAllBadges ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={handleShareProgress}
+              className="px-2.5 py-1 rounded-xl bg-[#E8EFE9] text-[#1B4332] hover:bg-[#1B4332] hover:text-white text-xs font-bold transition-all flex items-center gap-1 cursor-pointer shadow-2xs focus-visible:ring-2 focus-visible:ring-[#1B4332] focus-visible:outline-none"
+              title="Compartilhar suas vitórias de constância"
+              aria-label="Compartilhar resumo de conquistas"
+            >
+              <Share2 className="w-3.5 h-3.5" />
+              <span>{copiedShare ? '✓ Copiado!' : 'Compartilhar'}</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => setShowAllBadges(!showAllBadges)}
+              className="text-xs text-[#1B4332] font-bold hover:underline flex items-center gap-1 cursor-pointer shrink-0 focus-visible:ring-2 focus-visible:ring-[#1B4332] focus-visible:outline-none rounded-lg p-1"
+            >
+              <span>{showAllBadges ? 'Mostrar resumo' : `Ver todos (${badges.length})`}</span>
+              {showAllBadges ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
+            </button>
+          </div>
         </div>
 
         {/* Estado Vazio Honesto: quando não houver conquistas ainda */}

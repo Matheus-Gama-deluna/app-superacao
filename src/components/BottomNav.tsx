@@ -27,7 +27,7 @@ export const BottomNav: React.FC<BottomNavProps> = ({ currentTab, onSelectTab })
             <button
               key={tab.id}
               onClick={() => onSelectTab(tab.id)}
-              className={`flex flex-col items-center justify-center h-full min-h-[48px] transition-all cursor-pointer relative ${
+              className={`flex flex-col items-center justify-center h-full min-h-[48px] transition-all cursor-pointer relative focus-visible:ring-2 focus-visible:ring-[#125F55] focus-visible:outline-none rounded-2xl ${
                 isActive ? 'text-[#125F55]' : 'text-[#5B7170] hover:text-[#152A29]'
               }`}
               aria-label={tab.label}

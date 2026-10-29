@@ -627,18 +627,30 @@ export const HomeView: React.FC<HomeViewProps> = ({
           </div>
 
           <div className="flex flex-wrap items-center gap-2 pt-1">
-            <button
-              onClick={() => applyWeeklyReviewDecision(weeklyReview.suggestedAction, weeklyReview.suggestedDaysTarget)}
-              className="py-2 px-3.5 bg-[#1B4332] text-white rounded-xl text-xs font-bold hover:bg-[#12372A] cursor-pointer shadow-xs"
-            >
-              Aceitar recomendação ({weeklyReview.suggestedDaysTarget} dias)
-            </button>
+            {weeklyReview.suggestedAction !== 'maintain' && (
+              <button
+                onClick={() => applyWeeklyReviewDecision(weeklyReview.suggestedAction, weeklyReview.suggestedDaysTarget)}
+                className="py-2 px-3.5 bg-[#1B4332] text-white rounded-xl text-xs font-bold hover:bg-[#12372A] focus-visible:ring-2 focus-visible:ring-[#1B4332] focus-visible:outline-none cursor-pointer shadow-xs transition-colors"
+              >
+                {weeklyReview.suggestedAction === 'advance'
+                  ? `Avançar para ${weeklyReview.suggestedDaysTarget} dias`
+                  : `Suavizar para ${weeklyReview.suggestedDaysTarget} dias sem culpa`}
+              </button>
+            )}
             <button
               onClick={() => applyWeeklyReviewDecision('maintain', targetWeeklyGoal)}
-              className="py-2 px-3 bg-white border border-[#E4DDD3] text-[#5D6E65] rounded-xl text-xs font-semibold hover:bg-slate-50 cursor-pointer"
+              className="py-2 px-3 bg-white border border-[#E4DDD3] text-[#5D6E65] rounded-xl text-xs font-semibold hover:bg-slate-50 focus-visible:ring-2 focus-visible:ring-[#1B4332] focus-visible:outline-none cursor-pointer transition-colors"
             >
-              Manter meta atual
+              Manter meta ({targetWeeklyGoal} {targetWeeklyGoal === 1 ? 'dia' : 'dias'})
             </button>
+            {weeklyReview.suggestedAction === 'maintain' && targetWeeklyGoal > 1 && (
+              <button
+                onClick={() => applyWeeklyReviewDecision('soften', Math.max(1, targetWeeklyGoal - 1))}
+                className="py-2 px-3 bg-white border border-[#E4DDD3] text-[#5D6E65] hover:text-[#1B4332] rounded-xl text-xs font-semibold hover:bg-slate-50 focus-visible:ring-2 focus-visible:ring-[#1B4332] focus-visible:outline-none cursor-pointer transition-colors"
+              >
+                Suavizar (-1 dia)
+              </button>
+            )}
           </div>
         </section>
       )}

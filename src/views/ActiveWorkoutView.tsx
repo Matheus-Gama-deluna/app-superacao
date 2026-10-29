@@ -31,8 +31,8 @@ import {
 import { soundManager } from '../lib/audio';
 import { mediaSessionManager } from '../lib/backgroundWorkout';
 import { PostWorkoutMood, PreWorkoutMood, SessionEnjoyment } from '../types';
-import { generateTomorrowBridge } from '../lib/storage';
-import { generateSessionFocusInvite } from '../lib/motivationEngine';
+import { generateTomorrowBridge, PRE_MOOD_LABELS, POST_MOOD_LABELS } from '../lib/storage';
+import { generateSessionFocusInvite, generateTurnaroundMessage, formatWorkoutShareSummary } from '../lib/motivationEngine';
 import { findSafeEquivalentExercises, analyzeSessionProgression } from '../lib/workoutEngine';
 import { ProgressionItemUpgrade, SessionProgressionAnalysis } from '../types';
 import { SetConfirmDrawer } from '../components/superacao/SetConfirmDrawer';
@@ -310,10 +310,19 @@ export const ActiveWorkoutView: React.FC<ActiveWorkoutViewProps> = ({
   };
 
   const handleShareWorkout = async () => {
-    const shareText = `🔥 Mais um treino concluído no Superação!\n📋 ${activeSession.planTitle}\n⏱️ ${Math.max(1, Math.round(activeSession.durationSeconds / 60))} minutos dedicados\n💪 ${activeSession.totalSetsCompleted} séries concluídas\n${activeSession.totalVolumeKg ? `🏋️ ${activeSession.totalVolumeKg} kg superados em volume\n` : ''}${activeSession.prsAchieved > 0 ? `🏆 ${activeSession.prsAchieved} novos recordes pessoais!\n` : ''}\nConstruindo minha melhor versão todos os dias!`;
+    const effectivePre = localPreMood || activeSession.preMood;
+    const shareData = formatWorkoutShareSummary({
+      planTitle: activeSession.planTitle,
+      durationMinutes: Math.max(1, Math.round(activeSession.durationSeconds / 60)),
+      setsCompleted: activeSession.totalSetsCompleted,
+      preMood: effectivePre || undefined,
+      postMood: postMood || undefined,
+      prsAchieved: activeSession.prsAchieved,
+      totalVolumeKg: activeSession.totalVolumeKg,
+    });
     const status = await shareWorkoutVictory({
-      title: 'Superação Diária',
-      text: shareText,
+      title: shareData.title,
+      text: shareData.text,
     });
     if (status === 'copied' || status === 'shared') {
       setCopiedShare(true);
@@ -577,6 +586,48 @@ export const ActiveWorkoutView: React.FC<ActiveWorkoutViewProps> = ({
             </div>
           </div>
 
+          {/* Espelho de Bem-Estar Imediato (Antes x Depois - T08 & T09) */}
+          {(() => {
+            const effectivePre = localPreMood || activeSession.preMood;
+            if (!effectivePre || !postMood) return null;
+            const turnaround = generateTurnaroundMessage(
+              effectivePre,
+              postMood,
+              Math.max(1, Math.round(activeSession.durationSeconds / 60))
+            );
+            const preInfo = PRE_MOOD_LABELS[effectivePre];
+            const postInfo = POST_MOOD_LABELS[postMood];
+
+            return (
+              <div className="bg-gradient-to-br from-[#EAF3EF] to-[#D9F277]/25 border border-[#125F55]/30 p-4 rounded-2xl space-y-2.5 shadow-2xs animate-in fade-in duration-200">
+                <div className="flex items-center gap-1.5 text-xs font-bold text-[#125F55]">
+                  <Sparkles className="w-4 h-4 text-[#E07A5F]" />
+                  <span>{turnaround.headline}</span>
+                </div>
+                <div className="flex items-center justify-between bg-white/85 p-3 rounded-xl border border-[#C9DBD3] text-xs">
+                  <div className="text-center flex-1">
+                    <span className="text-[10px] text-[#5B7170] block uppercase font-bold">Antes do treino</span>
+                    <span className="font-bold text-[#152A29] mt-0.5 inline-flex items-center gap-1">
+                      <span>{preInfo?.icon}</span>
+                      <span>{preInfo?.label?.split('/')[0]?.trim() || effectivePre}</span>
+                    </span>
+                  </div>
+                  <div className="px-2 text-[#125F55] font-black text-sm">➔</div>
+                  <div className="text-center flex-1">
+                    <span className="text-[10px] text-[#5B7170] block uppercase font-bold">Após a prática</span>
+                    <span className="font-bold text-[#125F55] mt-0.5 inline-flex items-center gap-1">
+                      <span>{postInfo?.icon}</span>
+                      <span>{postInfo?.label?.split('/')[0]?.trim() || postMood}</span>
+                    </span>
+                  </div>
+                </div>
+                <p className="text-xs text-[#152A29] leading-relaxed">
+                  {turnaround.explanation}
+                </p>
+              </div>
+            );
+          })()}
+
           {/* Vivência Subjetiva da Sessão (Separando Afeto/Prazer de Esforço RPE - T08) */}
           <div className="bg-white p-4 rounded-2xl border border-[#C9DBD3] shadow-xs space-y-2">
             <label className="block text-xs font-bold text-[#152A29]">
@@ -804,8 +855,8 @@ export const ActiveWorkoutView: React.FC<ActiveWorkoutViewProps> = ({
           </div>
         </div>
       ) : (
-        /* ÁREA PRINCIPAL DO EXERCÍCIO (S07) - ZERO ROLAGEM NO VIEWPORT 390×844 */
-        <main className="flex-1 flex flex-col justify-between p-3.5 sm:p-4 max-w-md mx-auto w-full overflow-hidden select-none">
+        /* ÁREA PRINCIPAL DO EXERCÍCIO (S07) - VIEWPORT DINÂMICO 320px-430px COM ROLAGEM SUAVE RESILIENTE */
+        <main className="flex-1 flex flex-col justify-between p-3.5 sm:p-4 max-w-md mx-auto w-full overflow-y-auto sm:overflow-hidden min-h-0 select-none touch-manipulation">
           {/* Check-in Inicial de Sensação e Acolhimento caso ainda não informado */}
           {activeSession.totalSetsCompleted === 0 && !localPreMood && !activeSession.preMood && (
             <div className="bg-[#FAF8F5] p-2.5 rounded-2xl border border-[#E4DDD3] space-y-1 mb-1.5 shrink-0 animate-in fade-in">
@@ -914,7 +965,7 @@ export const ActiveWorkoutView: React.FC<ActiveWorkoutViewProps> = ({
               modality={exerciseDetails?.modality}
               images={exerciseDetails?.images}
               exerciseName={currentExerciseItem.exerciseName}
-              className="w-full h-36 sm:h-44 shadow-2xs rounded-2xl border border-[#E4DDD3]"
+              className="w-full h-32 sm:h-40 max-h-[25vh] object-contain shadow-2xs rounded-2xl border border-[#E4DDD3] shrink"
             />
 
             <div>
@@ -931,8 +982,9 @@ export const ActiveWorkoutView: React.FC<ActiveWorkoutViewProps> = ({
                 <button
                   type="button"
                   onClick={() => setShowSwapModal(true)}
-                  className="px-2.5 py-1 rounded-xl bg-white border border-[#E4DDD3] text-xs font-bold text-[#1B4332] hover:bg-[#E8EFE9] hover:border-[#1B4332] flex items-center gap-1 transition-all shadow-2xs cursor-pointer shrink-0"
+                  className="px-2.5 py-1 rounded-xl bg-white border border-[#E4DDD3] text-xs font-bold text-[#1B4332] hover:bg-[#E8EFE9] hover:border-[#1B4332] focus-visible:ring-2 focus-visible:ring-[#1B4332] focus-visible:outline-none flex items-center gap-1 transition-all shadow-2xs cursor-pointer shrink-0"
                   title="Trocar este exercício por outro equivalente"
+                  aria-label="Trocar exercício por equivalente seguro"
                 >
                   <ArrowLeftRight className="w-3.5 h-3.5" />
                   <span>Trocar</span>
@@ -986,7 +1038,8 @@ export const ActiveWorkoutView: React.FC<ActiveWorkoutViewProps> = ({
               <button
                 onClick={previousExercise}
                 disabled={activeSession.currentExerciseIndex <= 0}
-                className="flex items-center gap-1 font-semibold disabled:opacity-30 hover:text-[#1B4332] cursor-pointer"
+                className="flex items-center gap-1 font-semibold disabled:opacity-30 hover:text-[#1B4332] focus-visible:ring-2 focus-visible:ring-[#1B4332] focus-visible:outline-none rounded-lg p-1 cursor-pointer"
+                aria-label="Ir para exercício anterior"
               >
                 <ChevronLeft className="w-4 h-4" />
                 <span>Anterior</span>
@@ -994,7 +1047,8 @@ export const ActiveWorkoutView: React.FC<ActiveWorkoutViewProps> = ({
               <button
                 onClick={nextExercise}
                 disabled={activeSession.currentExerciseIndex >= activeSession.exercisesSnapshot.length - 1}
-                className="flex items-center gap-1 font-semibold disabled:opacity-30 hover:text-[#1B4332] cursor-pointer"
+                className="flex items-center gap-1 font-semibold disabled:opacity-30 hover:text-[#1B4332] focus-visible:ring-2 focus-visible:ring-[#1B4332] focus-visible:outline-none rounded-lg p-1 cursor-pointer"
+                aria-label="Ir para próximo exercício"
               >
                 <span>Próximo</span>
                 <ChevronRight className="w-4 h-4" />
@@ -1030,7 +1084,7 @@ export const ActiveWorkoutView: React.FC<ActiveWorkoutViewProps> = ({
                     <button
                       type="button"
                       onClick={() => setIsoTimerPaused((prev) => !prev)}
-                      className="flex-1 py-2.5 bg-white/15 hover:bg-white/25 text-white font-bold text-xs rounded-xl flex items-center justify-center gap-1.5 cursor-pointer transition-colors"
+                      className="flex-1 py-2.5 bg-white/15 hover:bg-white/25 text-white font-bold text-xs rounded-xl flex items-center justify-center gap-1.5 cursor-pointer transition-colors focus-visible:ring-2 focus-visible:ring-white focus-visible:outline-none"
                     >
                       {isoTimerPaused ? <Play className="w-3.5 h-3.5 fill-current" /> : <Pause className="w-3.5 h-3.5 fill-current" />}
                       <span>{isoTimerPaused ? 'Retomar' : 'Pausar'}</span>
@@ -1039,7 +1093,7 @@ export const ActiveWorkoutView: React.FC<ActiveWorkoutViewProps> = ({
                     <button
                       type="button"
                       onClick={handleStopIsoTimerEarly}
-                      className="flex-1 py-2.5 bg-[#D9F277] hover:bg-[#cbe65b] text-[#19231E] font-black text-xs rounded-xl flex items-center justify-center gap-1.5 cursor-pointer shadow-xs transition-colors"
+                      className="flex-1 py-2.5 bg-[#D9F277] hover:bg-[#cbe65b] text-[#19231E] font-black text-xs rounded-xl flex items-center justify-center gap-1.5 cursor-pointer shadow-xs transition-colors focus-visible:ring-2 focus-visible:ring-[#19231E] focus-visible:outline-none"
                     >
                       <Check className="w-4 h-4 stroke-[3]" />
                       <span>Concluir ({isoTargetSeconds - isoTimeRemaining}s)</span>
@@ -1048,7 +1102,7 @@ export const ActiveWorkoutView: React.FC<ActiveWorkoutViewProps> = ({
                     <button
                       type="button"
                       onClick={handleCancelIsoTimer}
-                      className="p-2.5 bg-white/10 hover:bg-white/20 text-white/80 rounded-xl cursor-pointer transition-colors"
+                      className="p-2.5 bg-white/10 hover:bg-white/20 text-white/80 rounded-xl cursor-pointer transition-colors focus-visible:ring-2 focus-visible:ring-white focus-visible:outline-none"
                       title="Cancelar cronômetro"
                       aria-label="Cancelar cronômetro"
                     >
@@ -1061,7 +1115,7 @@ export const ActiveWorkoutView: React.FC<ActiveWorkoutViewProps> = ({
                   <button
                     type="button"
                     onClick={() => handleStartIsoTimer(currentExerciseItem?.targetDurationSeconds || 30)}
-                    className="w-full h-14 bg-[#1B4332] text-white font-bold text-base rounded-2xl flex items-center justify-center gap-2 hover:bg-[#12372A] active:scale-[0.98] transition-all shadow-md cursor-pointer"
+                    className="w-full h-14 min-h-[56px] bg-[#1B4332] text-white font-bold text-base rounded-2xl flex items-center justify-center gap-2 hover:bg-[#12372A] active:scale-[0.98] transition-all shadow-md cursor-pointer touch-manipulation focus-visible:ring-2 focus-visible:ring-[#2D6A4F] focus-visible:outline-none"
                   >
                     <Timer className="w-5 h-5 text-[#D9F277]" />
                     <span>Iniciar Contagem ({currentExerciseItem?.targetDurationSeconds || 30}s)</span>
@@ -1069,7 +1123,7 @@ export const ActiveWorkoutView: React.FC<ActiveWorkoutViewProps> = ({
                   <button
                     type="button"
                     onClick={() => handleOpenConfirm()}
-                    className="w-full py-1 text-xs font-semibold text-[#5D6E65] hover:text-[#1B4332] cursor-pointer text-center"
+                    className="w-full py-1 text-xs font-semibold text-[#5D6E65] hover:text-[#1B4332] cursor-pointer text-center focus-visible:underline focus-visible:outline-none"
                   >
                     Ou registrar série manualmente sem cronômetro
                   </button>
@@ -1079,7 +1133,8 @@ export const ActiveWorkoutView: React.FC<ActiveWorkoutViewProps> = ({
               <button
                 type="button"
                 onClick={() => handleOpenConfirm()}
-                className="w-full h-14 bg-[#1B4332] text-white font-bold text-base rounded-2xl flex items-center justify-center gap-2 hover:bg-[#12372A] active:scale-[0.98] transition-all shadow-md cursor-pointer"
+                className="w-full h-14 min-h-[56px] bg-[#1B4332] text-white font-bold text-base rounded-2xl flex items-center justify-center gap-2 hover:bg-[#12372A] active:scale-[0.98] transition-all shadow-md cursor-pointer touch-manipulation focus-visible:ring-2 focus-visible:ring-[#2D6A4F] focus-visible:outline-none"
+                aria-label="Concluir série do exercício"
               >
                 <Check className="w-6 h-6 stroke-[3]" />
                 <span>Concluir Série</span>
@@ -1203,6 +1258,9 @@ export const ActiveWorkoutView: React.FC<ActiveWorkoutViewProps> = ({
         <div
           onClick={() => setShowSwapModal(false)}
           className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/60 p-4 backdrop-blur-xs animate-in fade-in cursor-pointer"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="swap-modal-title"
         >
           <div
             onClick={(e) => e.stopPropagation()}
@@ -1210,7 +1268,7 @@ export const ActiveWorkoutView: React.FC<ActiveWorkoutViewProps> = ({
           >
             <div className="flex items-center justify-between border-b border-slate-200 pb-2">
               <div>
-                <h3 className="text-sm font-bold text-slate-900">Substituir Exercício</h3>
+                <h3 id="swap-modal-title" className="text-sm font-bold text-slate-900">Substituir Exercício</h3>
                 <p className="text-[11px] text-slate-500">
                   Substitutos seguros do mesmo padrão biomecânico
                 </p>
@@ -1313,12 +1371,15 @@ export const ActiveWorkoutView: React.FC<ActiveWorkoutViewProps> = ({
         <div
           onClick={() => setShowAbandonConfirm(false)}
           className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-xs cursor-pointer"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="abandon-confirm-title"
         >
           <div
             onClick={(e) => e.stopPropagation()}
             className="w-full max-w-sm rounded-3xl bg-white p-6 shadow-xl border border-[#C9DBD3] text-[#152A29] space-y-3 cursor-default"
           >
-            <h4 className="text-base font-bold text-[#152A29]">Pausar ou encerrar treino?</h4>
+            <h4 id="abandon-confirm-title" className="text-base font-bold text-[#152A29]">Pausar ou encerrar treino?</h4>
             <p className="text-xs text-[#5B7170] leading-relaxed">
               Tudo o que você já executou até agora fica salvo com segurança no seu histórico. Você pode fechar o app e retomar depois, ou encerrar por hoje.
             </p>
