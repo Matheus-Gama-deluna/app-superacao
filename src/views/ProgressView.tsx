@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useWorkout } from '../context/WorkoutContext';
 import { useAuth } from '../context/AuthContext';
-import { calculateCanonicalMetrics, PRE_MOOD_LABELS, POST_MOOD_LABELS } from '../lib/storage';
+import { calculateCanonicalMetrics, getCanonicalWeeklyGoal, PRE_MOOD_LABELS, POST_MOOD_LABELS } from '../lib/storage';
 import { calculateMovementLaddersProgress } from '../lib/workoutEngine';
 import {
   Trophy,
@@ -38,7 +38,8 @@ export const ProgressView: React.FC = () => {
   const totalVolumeKg = metrics.totalVolumeKg;
   const recoveryDaysCompleted = calendar.filter((c) => c.activityType === 'active_recovery' && c.isCompleted).length;
   const { profile } = useAuth();
-  const targetWeeklyGoal = metrics.weeklyCommittedCount > 0 ? metrics.weeklyCommittedCount : (profile?.availableDays?.length || 3);
+  const canonicalWeekly = getCanonicalWeeklyGoal(profile, calendar);
+  const targetWeeklyGoal = canonicalWeekly.targetWeeklyGoal;
   const completedThisWeek = metrics.weeklyCompletedCount;
 
   // Regras estritas e auditáveis de conquistas (E01, E02, Seção 5)

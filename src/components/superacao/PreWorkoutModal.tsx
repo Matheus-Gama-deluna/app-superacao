@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { X, BatteryMedium, Sparkles, Zap, Heart, Check, Play } from 'lucide-react';
 import { PreWorkoutMood, WorkoutPlan } from '../../types';
-import { createGentleReturnPlanSnapshot } from '../../lib/workoutEngine';
+import { createSoftenedPlanSnapshot } from '../../lib/workoutEngine';
 
 interface PreWorkoutModalProps {
   isOpen: boolean;
@@ -24,7 +24,7 @@ export const PreWorkoutModal: React.FC<PreWorkoutModalProps> = ({
 
   const handleStart = () => {
     if (selectedMood === 'cansado' || selectedMood === 'tenso') {
-      const softened = createGentleReturnPlanSnapshot(plan);
+      const softened = createSoftenedPlanSnapshot(plan);
       onConfirmStart(softened, selectedMood);
     } else {
       onConfirmStart(plan, selectedMood);

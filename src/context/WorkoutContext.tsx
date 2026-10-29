@@ -42,6 +42,7 @@ import {
   doc,
   setDoc,
   deleteDoc,
+  writeBatch,
   onSnapshot,
   query,
   orderBy,
@@ -114,7 +115,8 @@ interface WorkoutContextType {
     originType?: 'scheduled' | 'program_session' | 'ad_hoc' | 'express',
     isExpress?: boolean,
     wasPlannedHabit?: boolean,
-    scheduledActivityId?: string
+    scheduledActivityId?: string,
+    preMood?: PreWorkoutMood
   ) => void;
   recordSet: (actualReps: number, actualDurationSeconds?: number, restSeconds?: number, actualWeightKg?: number) => Promise<{ isPR: boolean; isNewBaseline?: boolean; prText?: string }>;
   previousExercise: () => void;
@@ -122,6 +124,7 @@ interface WorkoutContextType {
   completeWorkout: (feedbackEffort?: number, notes?: string, postMood?: PostWorkoutMood, sessionEnjoyment?: SessionEnjoyment) => Promise<void>;
   savePartialWorkout: (notes?: string) => Promise<void>;
   abandonWorkout: () => void;
+  chooseRestWithoutGuilt: (notes?: string) => Promise<void>;
   recordWalkSession: (durationMinutes: number, distanceKm?: number, notes?: string) => Promise<void>;
   recordExternalPractice: (
     modality: 'caminhada_corrida' | 'forca_academia' | 'mobilidade_yoga' | 'esporte_coletivo' | 'ciclismo_natacao' | 'outra',
@@ -612,7 +615,8 @@ export const WorkoutProvider: React.FC<{ children: React.ReactNode }> = ({ child
     originType: 'scheduled' | 'program_session' | 'ad_hoc' | 'express' = 'ad_hoc',
     isExpress = false,
     wasPlannedHabit = false,
-    scheduledActivityId?: string
+    scheduledActivityId?: string,
+    preMood?: PreWorkoutMood
   ) => {
     setIsFocusMode(true);
     const totalSets = plan.exercises.reduce((acc, curr) => acc + curr.targetSets, 0);
@@ -637,6 +641,7 @@ export const WorkoutProvider: React.FC<{ children: React.ReactNode }> = ({ child
       isExpress,
       wasPlannedHabit,
       scheduledActivityId,
+      preMood: preMood || undefined,
     };
 
     setActiveSession(session);
@@ -1166,6 +1171,64 @@ export const WorkoutProvider: React.FC<{ children: React.ReactNode }> = ({ child
     setActiveSession(null);
     localStorage.removeItem('superacao_active_session');
     triggerHaptic(40, profile.hapticEnabled);
+  };
+
+  const chooseRestWithoutGuilt = async (notes?: string) => {
+    skipRest();
+    const currentScheduledDayId = activeSession?.scheduledDayId;
+    setActiveSession(null);
+    localStorage.removeItem('superacao_active_session');
+
+    // Atualiza a agenda: marca o dia de hoje como descanso consciente sem culpa
+    const todayStr = getLocalDateStr();
+    const today = new Date();
+    const todayDow = today.getDay();
+
+    const updatedCalendar = calendar.map((c) => {
+      const isTargetDay = (currentScheduledDayId && c.id === currentScheduledDayId) || c.dateStr === todayStr || (c.dayOfWeek === todayDow && !c.dateStr);
+      if (isTargetDay) {
+        return {
+          ...c,
+          activityType: 'rest' as const,
+          planTitle: 'Descanso Sem Culpa',
+          isCompleted: true,
+          notes: notes || 'Descanso consciente e acolhedor escolhido para regeneração.',
+        };
+      }
+      return c;
+    });
+
+    const existsToday = updatedCalendar.some((c) => c.dateStr === todayStr || (c.dayOfWeek === todayDow && !c.dateStr));
+    if (!existsToday) {
+      updatedCalendar.push({
+        id: `cal_rest_${todayStr}_${Math.random().toString(36).substring(2, 6)}`,
+        ownerUid: uid,
+        dateStr: todayStr,
+        dayOfWeek: todayDow,
+        activityType: 'rest',
+        planTitle: 'Descanso Sem Culpa',
+        isCompleted: true,
+        notes: notes || 'Descanso consciente e acolhedor escolhido para regeneração.',
+      });
+    }
+
+    setCalendar(updatedCalendar);
+    setLocal('superacao_calendar', updatedCalendar);
+
+    if (user && !isGuest) {
+      try {
+        const batch = writeBatch(db);
+        for (const item of updatedCalendar) {
+          const docRef = doc(db, 'users', user.uid, 'calendar', item.id);
+          batch.set(docRef, item);
+        }
+        await batch.commit();
+      } catch (err) {
+        handleFirestoreError(err, OperationType.UPDATE, `users/${user.uid}/calendar`);
+      }
+    }
+
+    triggerHaptic(50, profile.hapticEnabled);
   };
 
   // A15: Registro de atividades livres (caminhada) sem GPS
@@ -1929,6 +1992,7 @@ export const WorkoutProvider: React.FC<{ children: React.ReactNode }> = ({ child
         completeWorkout,
         savePartialWorkout,
         abandonWorkout,
+        chooseRestWithoutGuilt,
         recordWalkSession,
         recordExternalPractice,
         recordCareSession,

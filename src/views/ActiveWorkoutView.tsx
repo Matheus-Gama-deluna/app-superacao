@@ -74,6 +74,7 @@ export const ActiveWorkoutView: React.FC<ActiveWorkoutViewProps> = ({
     completeWorkout,
     savePartialWorkout,
     abandonWorkout,
+    chooseRestWithoutGuilt,
     pauseAndReturnHome,
     isResting,
     restSecondsRemaining,
@@ -108,7 +109,7 @@ export const ActiveWorkoutView: React.FC<ActiveWorkoutViewProps> = ({
   const [workoutNotes, setWorkoutNotes] = useState<string>('');
   const [copiedShare, setCopiedShare] = useState<boolean>(false);
   const [postMood, setPostMood] = useState<PostWorkoutMood | null>('orgulhoso');
-  const [localPreMood, setLocalPreMood] = useState<PreWorkoutMood | null>(activeSession.preMood || null);
+  const [localPreMood, setLocalPreMood] = useState<PreWorkoutMood | null>(activeSession?.preMood || null);
   const [sessionEnjoyment, setSessionEnjoyment] = useState<SessionEnjoyment>('prazeroso');
   const [isFocusDismissed, setIsFocusDismissed] = useState<boolean>(false);
   const [isMobilityScheduled, setIsMobilityScheduled] = useState<boolean>(false);
@@ -860,7 +861,7 @@ export const ActiveWorkoutView: React.FC<ActiveWorkoutViewProps> = ({
                 )}
                 <button
                   type="button"
-                  onClick={() => abandonWorkout()}
+                  onClick={() => chooseRestWithoutGuilt()}
                   className="flex-1 py-1.5 px-2 bg-white border border-[#E07A5F]/40 text-[#E07A5F] hover:bg-[#FDF3F0] rounded-xl text-xs font-semibold cursor-pointer shadow-2xs"
                 >
                   🤍 Descansar hoje sem culpa
@@ -878,7 +879,7 @@ export const ActiveWorkoutView: React.FC<ActiveWorkoutViewProps> = ({
               </span>
               <button
                 type="button"
-                onClick={() => abandonWorkout()}
+                onClick={() => chooseRestWithoutGuilt()}
                 className="text-[10px] text-[#5D6E65] hover:text-[#19231E] underline cursor-pointer"
               >
                 Descansar hoje
