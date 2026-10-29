@@ -29,14 +29,14 @@ import {
 } from 'lucide-react';
 import { WorkoutPlan, MotivationStyle, PostWorkoutMood, PreWorkoutMood, CopingPlanRule } from '../types';
 import { premadeWorkouts } from '../data/premadeWorkouts';
-import { calculateCanonicalMetrics, generateWellbeingInsight } from '../lib/storage';
+import { calculateCanonicalMetrics, generateWellbeingInsight, getCanonicalWeeklyGoal } from '../lib/storage';
 import {
   getDefaultPreparationRitual,
   getDefaultCopingPlans,
   generateSessionFocusInvite,
   generateWeeklyProcessReview,
 } from '../lib/motivationEngine';
-import { detectGentleReturn, createGentleReturnPlanSnapshot } from '../lib/workoutEngine';
+import { detectGentleReturn, createGentleReturnPlanSnapshot, createSoftenedPlanSnapshot } from '../lib/workoutEngine';
 import { OnboardingModal } from './OnboardingModal';
 import { AICoachCard } from '../components/AICoachCard';
 import { CoachContext } from '../lib/aiCoach';
@@ -54,7 +54,8 @@ interface HomeViewProps {
     originType?: 'scheduled' | 'program_session' | 'ad_hoc' | 'express',
     isExpress?: boolean,
     wasPlannedHabit?: boolean,
-    scheduledActivityId?: string
+    scheduledActivityId?: string,
+    preMood?: PreWorkoutMood
   ) => void;
   onResumeWorkout: () => void;
   onNavigateTab: (tab: 'home' | 'workouts' | 'calendar' | 'progress') => void;
@@ -80,6 +81,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
     startEmergencyWorkout,
     recordWalkSession,
     recordExternalPractice,
+    chooseRestWithoutGuilt,
     completePreparationRitual,
     updateMotivationStyle,
     applyWeeklyReviewDecision,
@@ -158,12 +160,8 @@ export const HomeView: React.FC<HomeViewProps> = ({
   // Estatísticas de consistência derivadas dos eventos canônicos reais (A07, R04, Seção 5)
   const canonical = calculateCanonicalMetrics(sessions, calendar, personalRecords);
   const completedThisWeek = canonical.weeklyCompletedCount;
-  const targetWeeklyGoal =
-    profile.availableDays && profile.availableDays.length > 0
-      ? profile.availableDays.length
-      : activeProgram
-      ? activeProgram.weeklyFrequency
-      : canonical.weeklyCommittedCount || 2;
+  const canonicalWeekly = getCanonicalWeeklyGoal(profile, calendar, activeProgram?.weeklyFrequency);
+  const targetWeeklyGoal = canonicalWeekly.targetWeeklyGoal;
   const totalPlannedThisWeek = targetWeeklyGoal;
 
   // Revisão Semanal de Processo (T04, T05, T17)
@@ -197,10 +195,10 @@ export const HomeView: React.FC<HomeViewProps> = ({
   const handleStartTodayWorkout = () => {
     if (!todayPlan) return;
     if (preMood === 'cansado' || preMood === 'tenso') {
-      const softened = createGentleReturnPlanSnapshot(todayPlan);
-      onStartWorkout(softened, todaySchedule?.id, 'scheduled');
+      const softened = createSoftenedPlanSnapshot(todayPlan);
+      onStartWorkout(softened, todaySchedule?.id, 'scheduled', false, false, undefined, preMood);
     } else {
-      onStartWorkout(todayPlan, todaySchedule?.id, 'scheduled');
+      onStartWorkout(todayPlan, todaySchedule?.id, 'scheduled', false, false, undefined, preMood);
     }
   };
 
@@ -516,7 +514,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
                   <span>Suavizar e começar (-25%)</span>
                 </button>
                 <button
-                  onClick={() => onStartWorkout(todayPlan, todaySchedule?.id, 'scheduled')}
+                  onClick={() => onStartWorkout(todayPlan, todaySchedule?.id, 'scheduled', false, false, undefined, preMood)}
                   className="w-full py-2 text-xs font-semibold text-[#5D6E65] hover:text-[#19231E] text-center cursor-pointer"
                 >
                   Prefiro fazer o treino normal
@@ -860,13 +858,14 @@ export const HomeView: React.FC<HomeViewProps> = ({
           onConfirmStart={(adapted, mood) => {
             setShowPreWorkoutModal(false);
             if (adapted) {
-              onStartWorkout(adapted, todaySchedule?.id, 'scheduled');
+              onStartWorkout(adapted, todaySchedule?.id, 'scheduled', false, false, undefined, mood);
             } else {
-              onStartWorkout(todayPlan, todaySchedule?.id, 'scheduled');
+              onStartWorkout(todayPlan, todaySchedule?.id, 'scheduled', false, false, undefined, mood);
             }
           }}
-          onRestToday={() => {
+          onRestToday={async () => {
             setShowPreWorkoutModal(false);
+            await chooseRestWithoutGuilt('Descanso escolhido conscientemente no pré-treino.');
           }}
         />
       )}
@@ -1102,8 +1101,8 @@ export const HomeView: React.FC<HomeViewProps> = ({
                         type="button"
                         onClick={() => {
                           setShowCopingModal(false);
-                          const softened = createGentleReturnPlanSnapshot(todayPlan);
-                          onStartWorkout(softened, todaySchedule?.id, 'scheduled');
+                          const softened = createSoftenedPlanSnapshot(todayPlan);
+                          onStartWorkout(softened, todaySchedule?.id, 'scheduled', false, false, undefined, preMood);
                         }}
                         className="w-full py-2 px-3 bg-[#1B4332] text-white rounded-xl text-xs font-bold hover:bg-[#12372A] flex items-center justify-center gap-1.5 cursor-pointer shadow-2xs"
                       >

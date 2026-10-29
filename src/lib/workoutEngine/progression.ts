@@ -525,6 +525,26 @@ export function createGentleReturnPlanSnapshot(plan: WorkoutPlan): WorkoutPlan {
 }
 
 /**
+ * Cria uma cópia da rotina calibrada para Ritmo Suave (-25% exato de repetições/tempo).
+ * Usada quando o praticante chega cansado ou tenso no dia (T08/T12) sem ausência prolongada.
+ * Reduz repetições e tempo exatamente em 25% (fator 0.75), respeitando mínimos seguros (reps >= 4, tempo >= 15s).
+ */
+export function createSoftenedPlanSnapshot(plan: WorkoutPlan): WorkoutPlan {
+  return {
+    ...plan,
+    title: `${plan.title} (Ritmo Suave)`,
+    description: `${plan.description || ''} • Metas suavizadas em 25% para o seu momento de hoje.`,
+    exercises: plan.exercises.map(ex => ({
+      ...ex,
+      targetReps: ex.targetReps && ex.targetReps > 0 ? Math.max(4, Math.round(ex.targetReps * 0.75)) : ex.targetReps,
+      targetDurationSeconds: ex.targetDurationSeconds && ex.targetDurationSeconds > 0
+        ? Math.max(15, Math.round(ex.targetDurationSeconds * 0.75))
+        : undefined,
+    })),
+  };
+}
+
+/**
  * 4. Troca de Exercício "Ao Vivo" com Compatibilidade Estrita.
  * Encontra substitutos seguros do mesmo padrão biomecânico respeitando equipamentos e limitações.
  */

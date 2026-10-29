@@ -4,6 +4,7 @@ import {
   applyUpgradesToWorkoutPlan,
   detectGentleReturn,
   createGentleReturnPlanSnapshot,
+  createSoftenedPlanSnapshot,
   findSafeEquivalentExercises,
   calculateMovementLaddersProgress,
   MOVEMENT_LADDERS,
@@ -241,5 +242,23 @@ describe('WorkoutEngine - Progressão e Adaptação Viva (Fase 4 & 5)', () => {
 
     const lowTimeToReps = Math.min(15, Math.max(6, Math.round(10 / 3)));
     expect(lowTimeToReps).toBe(6);
+  });
+
+  it('7. createSoftenedPlanSnapshot reduz repetições e tempo exatamente em 25% (fator 0.75)', () => {
+    const softened = createSoftenedPlanSnapshot(dummyPlan);
+    expect(softened.title).toContain('(Ritmo Suave)');
+    expect(softened.title).not.toContain('(Retomada Gentil)');
+
+    // 15 reps * 0.75 = 11.25 -> 11 reps (-26.6% por arredondamento seguro)
+    expect(softened.exercises[0].targetReps).toBe(11);
+
+    // 30s * 0.75 = 22.5s -> 23s (exatos -23.3% a -25%)
+    expect(softened.exercises[1].targetDurationSeconds).toBe(23);
+
+    // 10 reps * 0.75 = 7.5 -> 8 reps (-20% ou -25% com arredondamento)
+    expect(softened.exercises[2].targetReps).toBe(8);
+
+    // Séries originais mantidas
+    expect(softened.exercises[0].targetSets).toBe(3);
   });
 });

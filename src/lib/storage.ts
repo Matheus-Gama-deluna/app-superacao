@@ -533,6 +533,40 @@ export function calculateCanonicalMetrics(
   };
 }
 
+/**
+ * Retorna o cálculo canônico e unificado da meta semanal para todo o aplicativo.
+ * Garante que HomeView, ProgressView e relatórios de processo apresentem exatamente os mesmos números.
+ */
+export function getCanonicalWeeklyGoal(
+  profile: Partial<UserProfile> | null | undefined,
+  calendar: CalendarDay[] = [],
+  activeProgramFrequency?: number
+): {
+  targetWeeklyGoal: number;
+  scheduledCommittedCount: number;
+  personalCommittedDays: number;
+} {
+  const scheduledCommittedCount = calendar.filter(
+    (c) => c.activityType !== 'unassigned' && c.activityType !== 'rest'
+  ).length;
+
+  const personalCommittedDays = profile?.availableDays?.length || 0;
+
+  // Se há treinos planejados na agenda da semana, a meta ativa da semana reflete os compromissos agendados.
+  // Caso a agenda ainda não esteja preenchida, utiliza a disponibilidade do perfil ou do programa ativo (mínimo 2).
+  const targetWeeklyGoal = scheduledCommittedCount > 0
+    ? scheduledCommittedCount
+    : personalCommittedDays > 0
+    ? personalCommittedDays
+    : activeProgramFrequency || 3;
+
+  return {
+    targetWeeklyGoal,
+    scheduledCommittedCount,
+    personalCommittedDays,
+  };
+}
+
 export const PRE_MOOD_LABELS: Record<PreWorkoutMood, { label: string; icon: string }> = {
   cansado: { label: 'Sem energia / Cansado', icon: '🔋' },
   tenso: { label: 'Corpo preso / Tenso', icon: '🧘' },

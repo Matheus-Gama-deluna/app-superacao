@@ -42,7 +42,7 @@ const ViewLoadingFallback: React.FC = () => (
     </span>
   </div>
 );
-import { WorkoutPlan, ExplainableProposal, OnboardingDraft } from './types';
+import { WorkoutPlan, ExplainableProposal, OnboardingDraft, PreWorkoutMood } from './types';
 import { premadeWorkouts } from './data/premadeWorkouts';
 import {
   getLocal,
@@ -109,9 +109,11 @@ const MainAppContent: React.FC = () => {
     scheduledDayId?: string,
     originType: 'scheduled' | 'program_session' | 'ad_hoc' | 'express' = 'ad_hoc',
     isExpress = false,
-    wasPlannedHabit = false
+    wasPlannedHabit = false,
+    scheduledActivityId?: string,
+    preMood?: PreWorkoutMood
   ) => {
-    startWorkout(plan, scheduledDayId, originType, isExpress, wasPlannedHabit);
+    startWorkout(plan, scheduledDayId, originType, isExpress, wasPlannedHabit, scheduledActivityId, preMood);
   };
 
   const handleStartPlanById = (planId: string, scheduledDayId?: string, scheduledActivityId?: string) => {
