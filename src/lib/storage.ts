@@ -43,18 +43,18 @@ export const STORAGE_KEYS = {
   PROPOSAL: 'superacao_proposal',
 };
 
-// Perfil de convidado inicial padrão (iniciante, sem equipamentos pré-marcados indevidamente)
+// Perfil de convidado inicial padrão (iniciante, neutro, sem pré-seleção de dias/objetivos - Critério A01/C04)
 export const defaultGuestProfile: UserProfile = {
   uid: 'guest_user',
   displayName: 'Praticante',
   email: '',
   isTrustedDevice: true,
-  primaryGoal: 'Construir o hábito e me sentir melhor',
+  primaryGoal: '',
   secondaryGoals: [],
-  goalPriorityOrder: ['Construir o hábito e me sentir melhor'],
+  goalPriorityOrder: [],
   goalFocus: 'foco_unico',
   experienceLevel: 'iniciante',
-  availableDays: [1, 3, 5], // Seg, Qua, Sex
+  availableDays: [],
   sessionDurationMinutes: 20,
   equipments: ['peso_corporal'], // Estritamente peso corporal; cadeira/parede/elásticos exigem confirmação (A04)
   planSourcePreference: 'modelo_revisado',
@@ -120,6 +120,15 @@ export function runStorageMigration() {
   try {
     const currentVer = getLocal<string | null>(STORAGE_KEYS.SCHEMA_VERSION, null);
     if (currentVer === SCHEMA_VERSION) {
+      // Reparo preventivo de perfil legado caso já esteja na versão SCHEMA_VERSION
+      const existingProfile = getLocal<UserProfile | null>(STORAGE_KEYS.USER_PROFILE, null);
+      if (existingProfile && existingProfile.onboardingCompleted && !existingProfile.userRole) {
+        setLocal(STORAGE_KEYS.USER_PROFILE, {
+          ...existingProfile,
+          userRole: 'student',
+          routineConfirmed: existingProfile.routineConfirmed ?? false,
+        });
+      }
       return; // Já migrado e consistente
     }
 
@@ -181,10 +190,18 @@ export function runStorageMigration() {
     }
 
     if (existingProfile) {
-      // Se já possui sessões de treinos registradas, preserva tudo
+      // Se profile.onboardingCompleted === true mas userRole não estiver definido, assume userRole: 'student'
+      // e preserva routineConfirmed para não desarmar rotinas existentes
+      const legacyRoleFallback =
+        existingProfile.onboardingCompleted && !existingProfile.userRole
+          ? ('student' as const)
+          : existingProfile.userRole;
+
       const updatedProfile: UserProfile = {
         ...defaultGuestProfile,
         ...existingProfile,
+        userRole: legacyRoleFallback,
+        routineConfirmed: existingProfile.routineConfirmed ?? false,
         // Limpa cadeira/parede se não foram explicitamente marcadas em perfil personalizado
         equipments: Array.isArray(existingProfile.equipments) && existingProfile.equipments.length > 0
           ? existingProfile.equipments

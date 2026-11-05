@@ -93,20 +93,24 @@ export const ListeningJourneyView: React.FC<ListeningJourneyViewProps> = ({
     savedDraft?.exerciseReason || profile.exerciseReason || ''
   );
 
-  // B. Objetivos e prioridades
+  // B. Objetivos e prioridades (sem pré-seleção forçada em novo aluno - Critério C04)
   const [orderedGoals, setOrderedGoals] = useState<string[]>(() => {
     if (savedDraft?.orderedGoals && savedDraft.orderedGoals.length > 0) return savedDraft.orderedGoals;
-    if (profile.goalPriorityOrder && profile.goalPriorityOrder.length > 0) return profile.goalPriorityOrder;
+    if (profile.onboardingCompleted && profile.goalPriorityOrder && profile.goalPriorityOrder.length > 0) {
+      return profile.goalPriorityOrder;
+    }
     return [];
   });
   const [goalFocus, setGoalFocus] = useState<'foco_unico' | 'equilibrado'>(
     savedDraft?.goalFocus || profile.goalFocus || 'foco_unico'
   );
 
-  // C. Disponibilidade real
+  // C. Disponibilidade real (sem pré-seleção forçada em novo aluno - Critério C04)
   const [availableDays, setAvailableDays] = useState<number[]>(() => {
     if (savedDraft?.availableDays) return savedDraft.availableDays;
-    if (profile.availableDays && profile.availableDays.length > 0) return profile.availableDays;
+    if (profile.onboardingCompleted && profile.availableDays && profile.availableDays.length > 0) {
+      return profile.availableDays;
+    }
     return [];
   });
   const [sessionDurationMinutes, setSessionDurationMinutes] = useState<number>(

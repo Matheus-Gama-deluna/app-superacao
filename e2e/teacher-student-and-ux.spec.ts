@@ -2,7 +2,9 @@ import { test, expect } from '@playwright/test';
 import * as path from 'path';
 import * as fs from 'fs';
 
-const SCREENSHOT_DIR = 'C:/Users/matheus.luna/.gemini/antigravity/brain/2b7a21d6-76a6-4049-815a-082d63d6e1b3/persona-audit-screenshots/sprint_validation';
+const SCREENSHOT_DIR = process.platform === 'win32'
+  ? 'C:/Users/matheus.luna/.gemini/antigravity/brain/2b7a21d6-76a6-4049-815a-082d63d6e1b3/persona-audit-screenshots/sprint_validation'
+  : path.join('/tmp', 'persona-audit-screenshots', 'sprint_validation');
 
 test.beforeAll(async () => {
   if (!fs.existsSync(SCREENSHOT_DIR)) {

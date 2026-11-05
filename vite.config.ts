@@ -17,8 +17,8 @@ export default defineConfig(() => {
           name: 'Superação',
           short_name: 'Superação',
           description: 'Progresso sustentável, hábitos e recordes pessoais com suporte offline.',
-          theme_color: '#125F55',
-          background_color: '#F5F8F5',
+          theme_color: '#1B4332',
+          background_color: '#FAF8F5',
           display: 'standalone',
           orientation: 'portrait',
           lang: 'pt-BR',
@@ -74,6 +74,12 @@ export default defineConfig(() => {
               sizes: '192x192',
               type: 'image/png',
               purpose: 'any'
+            },
+            {
+              src: '/icon-192.png',
+              sizes: '192x192',
+              type: 'image/png',
+              purpose: 'maskable'
             },
             {
               src: '/icon-512.png',

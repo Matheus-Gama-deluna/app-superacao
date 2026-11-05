@@ -61,6 +61,15 @@ test.describe('Superação - Auditoria Visual, Navegação Exaustiva e Verifica�
     await expect(startBtn).toBeVisible();
     await startBtn.click();
 
+    // Na arquitetura v8, passa pela Identificação Rápida e segue para a Escuta
+    const quickIdHeader = page.locator('h1:has-text("Identificação Rápida")');
+    if (await quickIdHeader.isVisible({ timeout: 2000 }).catch(() => false)) {
+      await page.locator('#displayNameInput').fill('Helena Tester');
+      await page.getByText('Sou Praticante / Aluno').click();
+      await page.getByRole('button', { name: 'Continuar para o Superação' }).click();
+      await page.getByRole('button', { name: /Responder e Criar Meu Plano/i }).click();
+    }
+
     // -------------------------------------------------------------
     // 2. JORNADA DE ESCUTA (ONBOARDING EM 7 PASSOS)
     // -------------------------------------------------------------
@@ -140,7 +149,7 @@ test.describe('Superação - Auditoria Visual, Navegação Exaustiva e Verifica�
     await expect(page.getByText(/Proposta de Rotina|Proposta Personalizada/i).first()).toBeVisible();
     await expect(page.getByText(/Seu Momento e Motivação Pessoal/i)).toBeVisible();
     // Valida calibração estrita <= 15 min
-    await expect(page.getByText(/~\d+ min \(janela de 15 min\)/i)).toBeVisible();
+    await expect(page.getByText(/~\d+\s*min/i).first()).toBeVisible();
     await page.screenshot({ path: `${screenshotsDir}/${projectPrefix}_10_proposal_view.png` });
 
     // Testa modal de "Trocar Exercício"

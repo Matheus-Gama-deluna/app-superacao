@@ -59,18 +59,18 @@ export const SetConfirmDrawer: React.FC<SetConfirmDrawerProps> = ({
         <div className="w-12 h-1.5 bg-[#E4DDD3] rounded-full mx-auto -mt-1" />
 
         {/* Top Header */}
-        <div className="flex items-center justify-between pb-1 border-b border-[#E4DDD3]/60">
-          <div>
+        <div className="flex items-center justify-between pb-1 border-b border-[#E4DDD3]/60 gap-3">
+          <div className="min-w-0 flex-1">
             <span className="text-[10px] font-bold uppercase tracking-wider text-[#1B4332] bg-[#E8EFE9] px-2.5 py-0.5 rounded-full">
               Série {setIndex} de {totalSets}
             </span>
-            <h3 className="font-serif text-lg font-bold text-[#19231E] mt-1 truncate max-w-[260px]">
+            <h3 className="font-serif text-base sm:text-lg font-bold text-[#19231E] mt-1 line-clamp-2 leading-tight">
               {exerciseName}
             </h3>
           </div>
           <button
             onClick={onClose}
-            className="w-8 h-8 rounded-full bg-[#FAF8F5] border border-[#E4DDD3] text-[#5D6E65] hover:text-[#19231E] flex items-center justify-center cursor-pointer transition-colors"
+            className="w-9 h-9 min-w-[36px] min-h-[36px] rounded-full bg-[#FAF8F5] border border-[#E4DDD3] text-[#5D6E65] hover:text-[#19231E] flex items-center justify-center cursor-pointer transition-colors shrink-0"
             aria-label="Fechar"
           >
             <X className="w-4 h-4" />

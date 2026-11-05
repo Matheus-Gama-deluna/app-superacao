@@ -208,11 +208,11 @@ test.describe('Fase 11 — Testes Extensos de Utilização Real e Motivação Ad
     await page.locator('button:has-text("Neutro/Igual")').click();
 
     // Verifica as opções de vivência subjetiva (Prazerosa vs Neutra vs Custosa)
-    await expect(page.locator('button:has-text("Prazerosa & Fluida")')).toBeVisible();
-    await expect(page.locator('button:has-text("Custosa / Desafiadora")')).toBeVisible();
+    await expect(page.locator('button:has-text("Prazerosa")')).toBeVisible();
+    await expect(page.locator('button:has-text("Custosa")')).toBeVisible();
 
-    // Seleciona "Prazerosa & Fluida"
-    await page.locator('button:has-text("Prazerosa & Fluida")').click();
+    // Seleciona "Prazerosa"
+    await page.locator('button:has-text("Prazerosa")').click();
 
     // Conclui e volta ao início
     await page.locator('button:has-text("Concluir e Voltar ao Início")').click();

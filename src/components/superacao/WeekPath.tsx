@@ -31,7 +31,7 @@ export const WeekPath: React.FC<WeekPathProps> = ({
       tabIndex={0}
       title="Ver calendário completo da semana"
       aria-label="Calendário semanal. Toque para ver detalhes."
-      className="bg-white border border-[#E4DDD3] rounded-2xl p-3 shadow-2xs hover:border-[#1B4332]/40 transition-colors cursor-pointer"
+      className="bg-white border border-[#E4DDD3] rounded-2xl p-2 sm:p-3 shadow-2xs hover:border-[#1B4332]/40 transition-colors cursor-pointer"
     >
       <div className="flex items-center justify-between gap-1">
         {DAY_LABELS.map((label, dayIdx) => {
@@ -64,7 +64,7 @@ export const WeekPath: React.FC<WeekPathProps> = ({
           return (
             <div
               key={dayIdx}
-              className={`flex-1 flex flex-col items-center gap-1.5 py-1 rounded-xl transition-all ${
+              className={`flex-1 flex flex-col items-center gap-1 py-0.5 sm:py-1 rounded-xl transition-all ${
                 isToday ? 'bg-[#E8EFE9]/80 font-bold' : ''
               }`}
             >

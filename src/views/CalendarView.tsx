@@ -114,7 +114,7 @@ export const CalendarView: React.FC<CalendarViewProps> = ({ onStartPlanById }) =
       {/* Lista dos 7 Dias da Semana */}
       <div className="space-y-2.5">
         {calendar.map((day) => {
-          const cfg = activityBadges[day.activityType];
+          const cfg = activityBadges[day.activityType] || activityBadges.unassigned;
           const Icon = cfg.icon;
           const isToday = day.dateStr === todayStr || (!day.dateStr && day.dayOfWeek === today.getDay());
           const isRest = day.activityType === 'rest' || day.activityType === 'unassigned';

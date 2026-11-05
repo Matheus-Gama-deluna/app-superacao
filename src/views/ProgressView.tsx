@@ -153,7 +153,7 @@ export const ProgressView: React.FC = () => {
   return (
     <div className="space-y-6 pb-24">
       {/* Cabeçalho do Progresso */}
-      <div className="flex items-center justify-between pt-1">
+      <div className="flex flex-wrap items-center justify-between gap-2 pt-1">
         <div>
           <h1 className="font-serif text-2xl font-bold text-[#19231E]">
             Seu Progresso & Constância
@@ -165,7 +165,7 @@ export const ProgressView: React.FC = () => {
         <button
           type="button"
           onClick={handleShareProgress}
-          className="py-2 px-3.5 bg-[#E8EFE9] text-[#1B4332] rounded-xl text-xs font-bold hover:bg-[#1B4332] hover:text-white transition-all flex items-center gap-1.5 shadow-2xs shrink-0"
+          className="py-2 px-3.5 min-h-[36px] bg-[#E8EFE9] text-[#1B4332] rounded-xl text-xs font-bold hover:bg-[#1B4332] hover:text-white transition-all flex items-center gap-1.5 shadow-2xs shrink-0 cursor-pointer"
         >
           <Share2 className="w-3.5 h-3.5" />
           <span>{copiedShare ? 'Copiado!' : 'Compartilhar'}</span>
@@ -214,10 +214,10 @@ export const ProgressView: React.FC = () => {
       </div>
 
       {/* 2. Revisão Semanal Acolhedora & Autonomia de Meta (T17) */}
-      <section className="bg-gradient-to-r from-[#E8EFE9] to-white rounded-3xl p-4.5 border border-[#1B4332]/20 shadow-xs space-y-3">
-        <div className="flex items-start justify-between gap-3">
+      <section className="bg-gradient-to-r from-[#E8EFE9] to-white rounded-3xl p-3.5 sm:p-4.5 border border-[#1B4332]/20 shadow-xs space-y-3">
+        <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-2.5">
           <div className="flex items-center gap-2">
-            <span className="text-xl">📊</span>
+            <span className="text-xl shrink-0">📊</span>
             <div>
               <h3 className="text-xs font-black uppercase tracking-wider text-[#1B4332]">
                 Ritmo Semanal Consciente
@@ -227,7 +227,7 @@ export const ProgressView: React.FC = () => {
               </p>
             </div>
           </div>
-          <span className="px-2.5 py-1 rounded-full bg-[#D9F277] text-[#19231E] text-[10px] font-bold shrink-0">
+          <span className="px-2.5 py-1 rounded-full bg-[#D9F277] text-[#19231E] text-[10px] font-bold shrink-0 self-start">
             Esforço médio {weeklyReview.averageRpe}/5
           </span>
         </div>
@@ -306,9 +306,9 @@ export const ProgressView: React.FC = () => {
       )}
 
       {/* Seção de Conquistas & Próximos Passos (Honesto e Acolhedor) */}
-      <section className="bg-white rounded-3xl p-5 border border-[#E4DDD3] shadow-sm space-y-3">
-        <div className="flex items-center justify-between gap-2">
-          <div>
+      <section className="bg-white rounded-3xl p-4 sm:p-5 border border-[#E4DDD3] shadow-sm space-y-3">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
+          <div className="min-w-0">
             <h3 className="font-serif text-base font-bold text-[#19231E] flex items-center gap-1.5">
               <Sparkles className="w-4 h-4 text-[#E07A5F]" />
               Reconhecimentos da Jornada
@@ -319,11 +319,11 @@ export const ProgressView: React.FC = () => {
                 : 'Seus primeiros marcos serão iluminados conforme você pratica'}
             </p>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
             <button
               type="button"
               onClick={handleShareProgress}
-              className="px-2.5 py-1 rounded-xl bg-[#E8EFE9] text-[#1B4332] hover:bg-[#1B4332] hover:text-white text-xs font-bold transition-all flex items-center gap-1 cursor-pointer shadow-2xs focus-visible:ring-2 focus-visible:ring-[#1B4332] focus-visible:outline-none"
+              className="px-2.5 py-1.5 min-h-[36px] rounded-xl bg-[#E8EFE9] text-[#1B4332] hover:bg-[#1B4332] hover:text-white text-xs font-bold transition-all flex items-center gap-1 cursor-pointer shadow-2xs focus-visible:ring-2 focus-visible:ring-[#1B4332] focus-visible:outline-none"
               title="Compartilhar suas vitórias de constância"
               aria-label="Compartilhar resumo de conquistas"
             >
@@ -333,7 +333,7 @@ export const ProgressView: React.FC = () => {
             <button
               type="button"
               onClick={() => setShowAllBadges(!showAllBadges)}
-              className="text-xs text-[#1B4332] font-bold hover:underline flex items-center gap-1 cursor-pointer shrink-0 focus-visible:ring-2 focus-visible:ring-[#1B4332] focus-visible:outline-none rounded-lg p-1"
+              className="min-h-[36px] text-xs text-[#1B4332] font-bold hover:underline flex items-center gap-1 cursor-pointer shrink-0 focus-visible:ring-2 focus-visible:ring-[#1B4332] focus-visible:outline-none rounded-lg p-1"
             >
               <span>{showAllBadges ? 'Mostrar resumo' : `Ver todos (${badges.length})`}</span>
               {showAllBadges ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
@@ -370,7 +370,7 @@ export const ProgressView: React.FC = () => {
                   {b.icon}
                 </div>
                 <div className="min-w-0 flex-1">
-                  <div className="flex items-center gap-1.5">
+                  <div className="flex items-center gap-1.5 flex-wrap">
                     <p className="text-xs font-bold text-[#19231E]">{b.title}</p>
                     {b.isUnlocked ? (
                       <span className="text-[9px] font-black text-[#19231E] uppercase bg-[#D9F277] px-1.5 py-0.2 rounded-md">
@@ -382,7 +382,7 @@ export const ProgressView: React.FC = () => {
                       </span>
                     )}
                   </div>
-                  <p className="text-[11px] text-[#5D6E65] truncate">{b.desc}</p>
+                  <p className="text-[11px] text-[#5D6E65] line-clamp-2 leading-tight mt-0.5">{b.desc}</p>
                 </div>
               </div>
             ))}
@@ -448,7 +448,7 @@ export const ProgressView: React.FC = () => {
 
       {/* Trilhas de Evolução Biomecânica (Fase 4 - Escadas de 4 degraus) */}
       <section className="space-y-3">
-        <div className="flex items-center justify-between gap-2">
+        <div className="flex flex-wrap items-center justify-between gap-2">
           <h3 className="text-sm font-bold text-[#152A29] flex items-center gap-1.5">
             <span className="text-base">🪜</span>
             Trilhas de Evolução Biomecânica
@@ -461,7 +461,7 @@ export const ProgressView: React.FC = () => {
               <button
                 type="button"
                 onClick={() => setShowAllLadders(!showAllLadders)}
-                className="text-xs text-[#125F55] font-bold hover:underline flex items-center gap-1 cursor-pointer shrink-0"
+                className="min-h-[36px] py-1 px-2 text-xs text-[#125F55] font-bold hover:underline flex items-center gap-1 cursor-pointer shrink-0 rounded-lg"
               >
                 <span>{showAllLadders ? 'Menos' : `Ver todas (${movementLadders.length})`}</span>
                 {showAllLadders ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
@@ -476,7 +476,7 @@ export const ProgressView: React.FC = () => {
               key={ladder.ladderId}
               className="bg-white p-4 rounded-2xl border border-[#C9DBD3] shadow-xs space-y-3"
             >
-              <div className="flex items-center justify-between">
+              <div className="flex flex-wrap items-center justify-between gap-1.5">
                 <div>
                   <h4 className="text-xs font-black uppercase tracking-wider text-[#125F55]">
                     {ladder.title}

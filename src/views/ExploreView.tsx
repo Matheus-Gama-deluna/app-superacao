@@ -255,53 +255,39 @@ export const ExploreView: React.FC<ExploreViewProps> = ({
   };
 
   const handleOpenGeneratorWithFocus = (focusGoal: any) => {
+    if (typeof window !== 'undefined') {
+      window.history.pushState({ modal: 'smart_generator' }, '');
+    }
     setGeneratorFocus(focusGoal);
     setIsGeneratorOpen(true);
   };
 
+  const handleCloseGenerator = () => {
+    if (typeof window !== 'undefined' && window.history.state?.modal === 'smart_generator') {
+      window.history.back();
+    } else {
+      setIsGeneratorOpen(false);
+    }
+  };
+
+  useEffect(() => {
+    const handlePop = () => {
+      if (isGeneratorOpen) {
+        setIsGeneratorOpen(false);
+      }
+    };
+    window.addEventListener('popstate', handlePop);
+    return () => window.removeEventListener('popstate', handlePop);
+  }, [isGeneratorOpen]);
+
   return (
     <div className="space-y-5 pb-24">
-      {/* Banner Principal: Montador Inteligente & Ações */}
-      <div className="bg-gradient-to-r from-[#1B4332] via-[#20513d] to-[#12372A] rounded-3xl p-5 text-white shadow-sm space-y-4">
-        <div className="space-y-1">
-          <div className="flex items-center gap-2 text-[#D9F277] font-black text-xs uppercase tracking-wider">
-            <Sparkles className="w-4 h-4" />
-            <span>Seleção Personalizada & Progressão Guiada</span>
-          </div>
-          <h2 className="font-serif text-xl font-bold text-white leading-snug">
-            Monte Treinos Adaptáveis e Programas de Longo Prazo
-          </h2>
-          <p className="text-xs text-[#FAF8F5]/90 leading-relaxed max-w-lg">
-            Rotinas para treinar em casa, cuidar da postura e consolidar hábitos saudáveis, ou mesociclos completos de hipertrofia na academia.
-          </p>
-        </div>
-
-        <div className="flex flex-col sm:flex-row gap-2 pt-1">
-          <button
-            type="button"
-            onClick={() => handleOpenGeneratorWithFocus('habito')}
-            className="flex-1 py-3 px-4 bg-[#D9F277] hover:bg-[#cbe65b] text-[#19231E] font-black text-xs rounded-xl shadow-xs flex items-center justify-center gap-2 cursor-pointer transition-all active:scale-[0.98]"
-          >
-            <Sparkles className="w-4 h-4 fill-current" />
-            <span>Montar com Assistente Inteligente</span>
-          </button>
-          <button
-            type="button"
-            onClick={() => onOpenBuilder()}
-            className="py-3 px-4 bg-white/15 hover:bg-white/25 text-white font-bold text-xs rounded-xl border border-white/20 flex items-center justify-center gap-1.5 cursor-pointer transition-colors"
-          >
-            <Plus className="w-4 h-4" />
-            <span>Criar Ficha Manual</span>
-          </button>
-        </div>
-      </div>
-
       {/* Navegação Superior Tripla: Programas · Fichas · Exercícios */}
       <div className="flex items-center gap-1 p-1 bg-white rounded-2xl border border-[#E4DDD3] shadow-2xs">
         <button
           type="button"
           onClick={() => setActiveTab('programs')}
-          className={`flex-1 py-2.5 text-xs font-bold rounded-xl transition-all cursor-pointer ${
+          className={`flex-1 py-2 sm:py-2.5 px-1 text-[11px] sm:text-xs font-bold rounded-xl transition-all cursor-pointer text-center truncate ${
             activeTab === 'programs'
               ? 'bg-[#1B4332] text-white shadow-xs'
               : 'text-[#5D6E65] hover:text-[#19231E]'
@@ -312,7 +298,7 @@ export const ExploreView: React.FC<ExploreViewProps> = ({
         <button
           type="button"
           onClick={() => setActiveTab('plans')}
-          className={`flex-1 py-2.5 text-xs font-bold rounded-xl transition-all cursor-pointer ${
+          className={`flex-1 py-2 sm:py-2.5 px-1 text-[11px] sm:text-xs font-bold rounded-xl transition-all cursor-pointer text-center truncate ${
             activeTab === 'plans'
               ? 'bg-[#1B4332] text-white shadow-xs'
               : 'text-[#5D6E65] hover:text-[#19231E]'
@@ -323,7 +309,7 @@ export const ExploreView: React.FC<ExploreViewProps> = ({
         <button
           type="button"
           onClick={() => setActiveTab('exercises')}
-          className={`flex-1 py-2.5 text-xs font-bold rounded-xl transition-all cursor-pointer ${
+          className={`flex-1 py-2 sm:py-2.5 px-1 text-[11px] sm:text-xs font-bold rounded-xl transition-all cursor-pointer text-center truncate ${
             activeTab === 'exercises'
               ? 'bg-[#1B4332] text-white shadow-xs'
               : 'text-[#5D6E65] hover:text-[#19231E]'
@@ -332,6 +318,43 @@ export const ExploreView: React.FC<ExploreViewProps> = ({
           Catálogo ({catalogTotal || allExercises.length})
         </button>
       </div>
+
+      {/* Banner Principal: Montador Inteligente & Ações (apenas na aba de Programas) */}
+      {activeTab === 'programs' && (
+        <div className="bg-gradient-to-r from-[#1B4332] via-[#20513d] to-[#12372A] rounded-3xl p-5 text-white shadow-sm space-y-4">
+          <div className="space-y-1">
+            <div className="flex items-center gap-2 text-[#D9F277] font-black text-xs uppercase tracking-wider">
+              <Sparkles className="w-4 h-4" />
+              <span>Seleção Personalizada & Progressão Guiada</span>
+            </div>
+            <h2 className="font-serif text-xl font-bold text-white leading-snug">
+              Monte Treinos Adaptáveis e Programas de Longo Prazo
+            </h2>
+            <p className="text-xs text-[#FAF8F5]/90 leading-relaxed max-w-lg">
+              Rotinas para treinar em casa, cuidar da postura e consolidar hábitos saudáveis, ou mesociclos completos de hipertrofia na academia.
+            </p>
+          </div>
+
+          <div className="flex flex-col sm:flex-row gap-2 pt-1">
+            <button
+              type="button"
+              onClick={() => handleOpenGeneratorWithFocus('habito')}
+              className="flex-1 py-3 px-4 bg-[#D9F277] hover:bg-[#cbe65b] text-[#19231E] font-black text-xs rounded-xl shadow-xs flex items-center justify-center gap-2 cursor-pointer transition-all active:scale-[0.98]"
+            >
+              <Sparkles className="w-4 h-4 fill-current" />
+              <span>Montar com Assistente Inteligente</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => onOpenBuilder()}
+              className="py-3 px-4 bg-white/15 hover:bg-white/25 text-white font-bold text-xs rounded-xl border border-white/20 flex items-center justify-center gap-1.5 cursor-pointer transition-colors"
+            >
+              <Plus className="w-4 h-4" />
+              <span>Criar Ficha Manual</span>
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* ───────────────────────────────────────────────────────────── */}
       {/* ABA 1: PROGRAMAS DE LONGO PRAZO & HÁBITOS                     */}
@@ -475,16 +498,16 @@ export const ExploreView: React.FC<ExploreViewProps> = ({
                           key={routine.id}
                           className="p-3 rounded-2xl bg-white border border-[#C9DBD3] flex items-center justify-between gap-2"
                         >
-                          <div className="min-w-0">
-                            <p className="text-xs font-black text-[#152A29] truncate">{routine.title}</p>
-                            <p className="text-[11px] text-[#5B7170]">
+                          <div className="min-w-0 flex-1">
+                            <p className="text-xs font-black text-[#152A29] line-clamp-2 leading-snug">{routine.title}</p>
+                            <p className="text-[11px] text-[#5B7170] mt-0.5">
                               {routine.exercises.length} movimentos · ~{routine.estimatedDurationMinutes} min
                             </p>
                           </div>
                           <button
                             type="button"
                             onClick={() => onStartWorkout(routine)}
-                            className="p-2 rounded-xl bg-[#EAF3EF] hover:bg-[#125F55] hover:text-white text-[#125F55] transition-all cursor-pointer shrink-0"
+                            className="p-2 min-w-[36px] min-h-[36px] flex items-center justify-center rounded-xl bg-[#EAF3EF] hover:bg-[#125F55] hover:text-white text-[#125F55] transition-all cursor-pointer shrink-0"
                             title="Iniciar esta ficha agora"
                           >
                             <Play className="w-3.5 h-3.5 fill-current" />
@@ -565,8 +588,8 @@ export const ExploreView: React.FC<ExploreViewProps> = ({
               >
                 <div className="flex items-start justify-between gap-2">
                   <div className="space-y-0.5">
-                    <div className="flex items-center gap-2">
-                      <h4 className="text-base font-bold text-[#152A29]">{plan.title}</h4>
+                    <div className="flex flex-wrap items-center gap-2">
+                      <h4 className="text-base font-bold text-[#152A29] line-clamp-2 leading-snug">{plan.title}</h4>
                       {plan.isTemplate && (
                         <span className="text-[10px] font-bold text-[#125F55] bg-[#EAF3EF] px-2 py-0.5 rounded-md">
                           Modelo
@@ -1029,7 +1052,7 @@ export const ExploreView: React.FC<ExploreViewProps> = ({
       <SmartWorkoutGeneratorModal
         isOpen={isGeneratorOpen}
         initialFocus={generatorFocus}
-        onClose={() => setIsGeneratorOpen(false)}
+        onClose={handleCloseGenerator}
         onStartGeneratedWorkout={(plan) => {
           onStartWorkout(plan);
         }}

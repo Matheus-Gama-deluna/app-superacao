@@ -95,10 +95,10 @@ export const PWAInstallButton: React.FC<PWAInstallButtonProps> = ({
           onClick={handleTriggerInstall}
           aria-label="Instalar aplicativo Superação"
           title="Instalar Superação na tela inicial do celular"
-          className={`flex items-center gap-1.5 px-2.5 py-1 text-xs font-semibold rounded-lg bg-[#EAF3EF] text-[#125F55] hover:bg-[#D9F277] hover:text-[#203826] transition-all cursor-pointer active:scale-95 border border-[#C9DBD3] shrink-0 ${className}`}
+          className={`flex items-center gap-1.5 px-2.5 py-1 min-h-[36px] text-xs font-semibold rounded-lg bg-[#EAF3EF] text-[#125F55] hover:bg-[#D9F277] hover:text-[#203826] transition-all cursor-pointer active:scale-95 border border-[#C9DBD3] shrink-0 ${className}`}
         >
           <Download className="w-3.5 h-3.5" />
-          <span className="hidden xs:inline sm:inline">Instalar App</span>
+          <span className="hidden sm:inline">Instalar App</span>
         </button>
       )}
 
@@ -108,8 +108,8 @@ export const PWAInstallButton: React.FC<PWAInstallButtonProps> = ({
           aria-label="Instalar aplicativo Superação no celular"
           className={`relative overflow-hidden rounded-3xl p-4 sm:p-5 bg-gradient-to-br from-[#125F55] via-[#15695E] to-[#0D4B43] text-white shadow-md border border-[#0C5148] ${className}`}
         >
-          {/* Efeito estético de brilho suave no fundo */}
-          <div className="absolute top-0 right-0 -mt-6 -mr-6 w-24 h-24 bg-[#D9F277]/20 rounded-full blur-xl pointer-events-none" />
+          {/* Efeito estético de brilho suave no fundo sem sangria externa */}
+          <div className="absolute top-0 right-0 w-20 h-20 bg-[#D9F277]/15 rounded-full blur-xl pointer-events-none" />
 
           <div className="flex items-start justify-between gap-3 relative z-10">
             <div className="flex items-start gap-3">
