@@ -110,6 +110,8 @@ export const HomeView: React.FC<HomeViewProps> = ({
   const [showReviewOnboarding, setShowReviewOnboarding] = useState<boolean>(false);
   const [showPreWorkoutModal, setShowPreWorkoutModal] = useState<boolean>(false);
   const [preMood, setPreMood] = useState<PreWorkoutMood>('normal');
+  const [showExerciseDetails, setShowExerciseDetails] = useState<boolean>(false);
+  const [showAutonomousOption, setShowAutonomousOption] = useState<boolean>(false);
 
   // Dia de hoje e fuso local (A06)
   const today = new Date();
@@ -207,28 +209,28 @@ export const HomeView: React.FC<HomeViewProps> = ({
   };
 
   return (
-    <div className="space-y-4.5 pb-24">
+    <div className="space-y-3 sm:space-y-4 pb-24">
       {/* ─────────────────────────────────────────────────────────────
           FOLD 1: HEADER EDITORIAL ACOLHEDOR & RITMO SEMANAL
           Garante que o Card de Ação Principal e o botão CTA fiquem
           completamente visíveis no viewport mobile 390×844 sem rolagem.
          ───────────────────────────────────────────────────────────── */}
-      <section className="space-y-3 pt-1">
+      <section className="space-y-2 sm:space-y-2.5 pt-0.5">
         {/* Cabeçalho Editorial com Saudação e Data */}
-        <div className="flex items-start justify-between gap-3">
+        <div className="flex items-start justify-between gap-2.5">
           <div>
-            <p className="text-[11px] font-semibold text-[#5D6E65] tracking-wide">
+            <p className="text-[10px] sm:text-[11px] font-semibold text-[#5D6E65] tracking-wide">
               {capitalizedDate}
             </p>
-            <h1 className="font-serif text-2xl font-bold text-[#19231E] leading-tight">
+            <h1 className="font-serif text-xl sm:text-2xl font-bold text-[#19231E] leading-tight">
               Olá, {profile.displayName || 'Praticante'}!
             </h1>
           </div>
 
           {/* Badge de Consistência Semanal */}
-          <div className="flex items-center gap-1.5 px-3 py-1.5 bg-[#E8EFE9] text-[#1B4332] rounded-full border border-[#1B4332]/15 shrink-0 shadow-2xs">
+          <div className="flex items-center gap-1.5 px-2.5 py-1 sm:px-3 sm:py-1.5 bg-[#E8EFE9] text-[#1B4332] rounded-full border border-[#1B4332]/15 shrink-0 shadow-2xs">
             <Flame className="w-3.5 h-3.5 text-[#1B4332]" />
-            <span className="text-xs font-bold">
+            <span className="text-[11px] sm:text-xs font-bold">
               {totalPlannedThisWeek > 0
                 ? `${completedThisWeek}/${totalPlannedThisWeek} na semana`
                 : `${completedThisWeek} sessões`}
@@ -277,14 +279,14 @@ export const HomeView: React.FC<HomeViewProps> = ({
                   await updateMotivationStyle(st.id);
                   setShowStyleSelector(false);
                 }}
-                className={`p-2 rounded-xl text-left text-xs font-semibold flex items-center gap-1.5 transition-all cursor-pointer ${
+                className={`p-2 rounded-xl text-left text-xs font-semibold flex items-center gap-1.5 transition-all cursor-pointer min-h-[40px] ${
                   currentMotivationStyle === st.id
                     ? 'bg-[#1B4332] text-white'
                     : 'bg-white text-[#19231E] border border-[#E4DDD3] hover:border-[#1B4332]'
                 }`}
               >
                 <span>{st.icon}</span>
-                <span className="truncate">{st.label}</span>
+                <span className="text-[11px] sm:text-xs leading-tight line-clamp-1 min-w-0 flex-1">{st.label}</span>
               </button>
             ))}
           </div>
@@ -403,7 +405,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
         </section>
       ) : todayPlan ? (
         /* CARD: TREINO DE FORÇA PLANEJADO PARA HOJE */
-        <section className="bg-white border border-[#E4DDD3] rounded-3xl p-5 shadow-sm space-y-3.5 transition-all">
+        <section className="bg-white border border-[#E4DDD3] rounded-3xl p-4 sm:p-5 shadow-sm space-y-2.5 sm:space-y-3.5 transition-all">
           {/* Cabeçalho do Card */}
           <div className="flex items-center justify-between text-xs flex-wrap gap-2">
             <div className="flex items-center gap-1.5 flex-wrap">
@@ -411,8 +413,8 @@ export const HomeView: React.FC<HomeViewProps> = ({
                 Treino Planejado para Hoje
               </span>
               {profile.linkedTeacherName && (
-                <span className="font-bold text-[10px] text-[#125F55] bg-[#EAF3EF] border border-[#125F55]/20 px-2 py-0.5 rounded-full flex items-center gap-1">
-                  <span>👨‍🏫</span> Prescrito por {profile.linkedTeacherName}
+                <span className="font-bold text-[10px] text-[#125F55] bg-[#EAF3EF] border border-[#125F55]/20 px-2 py-0.5 rounded-full flex items-center gap-1 max-w-[220px]">
+                  <span>👨‍🏫</span> <span className="truncate">Prescrito por {profile.linkedTeacherName}</span>
                 </span>
               )}
             </div>
@@ -424,10 +426,10 @@ export const HomeView: React.FC<HomeViewProps> = ({
 
           {/* Título Serifado */}
           <div>
-            <h2 className="font-serif text-xl font-bold text-[#19231E] leading-tight">
+            <h2 className="font-serif text-lg sm:text-xl font-bold text-[#19231E] leading-tight">
               {todayPlan.title}
             </h2>
-            <p className="text-xs text-[#5D6E65] line-clamp-2 mt-0.5">
+            <p className="text-xs text-[#5D6E65] line-clamp-1 sm:line-clamp-2 mt-0.5">
               {todayPlan.description}
             </p>
           </div>
@@ -450,25 +452,52 @@ export const HomeView: React.FC<HomeViewProps> = ({
             </div>
           )}
 
-          {/* Lista Compacta de Exercícios */}
-          <div className="bg-[#FAF8F5] p-3 rounded-2xl space-y-1.5 text-xs text-[#19231E] border border-[#E4DDD3]/60">
-            {todayPlan.exercises.slice(0, 3).map((ex, i) => (
-              <div key={i} className="flex items-center justify-between">
-                <span className="font-medium truncate max-w-[210px]">{ex.exerciseName}</span>
-                <span className="text-[#5D6E65] text-[11px] tabular-nums">
-                  {ex.targetSets}x {ex.targetReps > 0 ? `${ex.targetReps} reps` : `${ex.targetDurationSeconds}s`}
-                </span>
+          {/* Resumo Compacto / Detalhes dos Exercícios */}
+          <div className="bg-[#FAF8F5] p-2.5 sm:p-3 rounded-2xl text-xs text-[#19231E] border border-[#E4DDD3]/60">
+            {!showExerciseDetails ? (
+              <div className="flex items-center justify-between gap-2">
+                <div className="flex items-center gap-1.5 text-[#5D6E65] text-xs font-medium truncate min-w-0">
+                  <Dumbbell className="w-3.5 h-3.5 text-[#1B4332] shrink-0" />
+                  <span className="truncate">
+                    {todayPlan.estimatedDurationMinutes} min · {todayPlan.exercises.length} {todayPlan.exercises.length === 1 ? 'movimento' : 'movimentos'}
+                  </span>
+                </div>
+                <button
+                  type="button"
+                  aria-expanded="false"
+                  onClick={() => setShowExerciseDetails(true)}
+                  className="text-[11px] font-bold text-[#1B4332] hover:underline cursor-pointer shrink-0 ml-1"
+                >
+                  Ver movimentos
+                </button>
               </div>
-            ))}
-            {todayPlan.exercises.length > 3 && (
-              <p className="text-[11px] text-[#5D6E65] pt-0.5">
-                + {todayPlan.exercises.length - 3} outros movimentos
-              </p>
+            ) : (
+              <div className="space-y-1.5">
+                <div className="flex items-center justify-between pb-1 border-b border-[#E4DDD3]/40">
+                  <span className="text-[11px] font-bold text-[#5D6E65]">Movimentos ({todayPlan.exercises.length})</span>
+                  <button
+                    type="button"
+                    aria-expanded="true"
+                    onClick={() => setShowExerciseDetails(false)}
+                    className="text-[11px] font-bold text-[#1B4332] hover:underline cursor-pointer"
+                  >
+                    Recolher
+                  </button>
+                </div>
+                {todayPlan.exercises.map((ex, i) => (
+                  <div key={i} className="flex items-center justify-between">
+                    <span className="font-medium truncate min-w-0 flex-1 mr-2">{ex.exerciseName}</span>
+                    <span className="text-[#5D6E65] text-[11px] tabular-nums shrink-0">
+                      {ex.targetSets}x {ex.targetReps > 0 ? `${ex.targetReps} reps` : (ex.targetDurationSeconds && ex.targetDurationSeconds > 0 ? `${ex.targetDurationSeconds}s` : 'séries')}
+                    </span>
+                  </div>
+                ))}
+              </div>
             )}
           </div>
 
           {/* Seletor Compacto de Humor "Como você chega hoje?" */}
-          <div className="space-y-1.5 pt-0.5">
+          <div className="space-y-1 sm:space-y-1.5 pt-0.5">
             <div className="flex items-center justify-between text-xs">
               <span className="font-semibold text-[#19231E] text-[11px]">Como você chega hoje?</span>
               <button
@@ -480,7 +509,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
               </button>
             </div>
 
-            <div className="grid grid-cols-4 gap-1.5">
+            <div className="grid grid-cols-4 gap-1 sm:gap-1.5">
               {[
                 { id: 'cansado' as const, label: 'Cansado', icon: '🔋' },
                 { id: 'tenso' as const, label: 'Tenso', icon: '🧘' },
@@ -491,7 +520,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
                   key={m.id}
                   type="button"
                   onClick={() => setPreMood(m.id)}
-                  className={`py-1.5 px-1 rounded-xl text-center text-[10px] font-semibold flex items-center justify-center gap-1 transition-all cursor-pointer ${
+                  className={`py-1.5 px-1 min-h-[36px] rounded-xl text-center text-[10px] font-semibold flex items-center justify-center gap-1 transition-all cursor-pointer ${
                     preMood === m.id
                       ? m.id === 'cansado' || m.id === 'tenso'
                         ? 'bg-[#FDF3F0] text-[#E07A5F] border border-[#E07A5F] shadow-2xs font-bold'
@@ -513,28 +542,40 @@ export const HomeView: React.FC<HomeViewProps> = ({
             )}
           </div>
 
-          {/* BOTÃO CTA GIGANTE DE 56PX (H-14) VISÍVEL NO FOLD 1 */}
-          <div className="space-y-2 pt-1">
+          {/* BOTÃO CTA GIGANTE DE 48PX A 56PX (H-12 SM:H-14) VISÍVEL NO FOLD 1 */}
+          <div className="space-y-2 pt-0.5">
             {preMood === 'cansado' || preMood === 'tenso' ? (
               <div className="space-y-1.5">
                 <button
+                  type="button"
                   onClick={handleStartTodayWorkout}
-                  className="w-full h-14 bg-[#1B4332] hover:bg-[#12372A] text-white font-bold text-sm rounded-2xl flex items-center justify-center gap-2 active:scale-[0.98] transition-all cursor-pointer shadow-md"
+                  className="w-full h-12 sm:h-14 bg-[#1B4332] hover:bg-[#12372A] text-white font-bold text-sm rounded-2xl flex items-center justify-center gap-2 active:scale-[0.98] transition-all cursor-pointer shadow-md"
                 >
                   <Play className="w-5 h-5 fill-current" />
                   <span>Suavizar e começar (-25%)</span>
                 </button>
-                <button
-                  onClick={() => onStartWorkout(todayPlan, todaySchedule?.id, 'scheduled', false, false, undefined, preMood)}
-                  className="w-full py-2 text-xs font-semibold text-[#5D6E65] hover:text-[#19231E] text-center cursor-pointer"
-                >
-                  Prefiro fazer o treino normal
-                </button>
+                <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-1 pt-0.5">
+                  <button
+                    type="button"
+                    onClick={() => onStartWorkout(todayPlan, todaySchedule?.id, 'scheduled', false, false, undefined, preMood)}
+                    className="py-1.5 text-xs font-semibold text-[#5D6E65] hover:text-[#19231E] text-center cursor-pointer"
+                  >
+                    Prefiro fazer o treino normal
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => chooseRestWithoutGuilt('Descanso escolhido pelo seletor de humor')}
+                    className="py-1.5 px-3 text-xs font-bold text-[#E07A5F] hover:bg-[#FDF3F0] rounded-xl text-center cursor-pointer transition-colors"
+                  >
+                    🤍 Descansar hoje sem culpa
+                  </button>
+                </div>
               </div>
             ) : (
               <button
+                type="button"
                 onClick={handleStartTodayWorkout}
-                className="w-full h-14 bg-[#1B4332] hover:bg-[#12372A] text-white font-bold text-sm rounded-2xl flex items-center justify-center gap-2 active:scale-[0.98] transition-all cursor-pointer shadow-md"
+                className="w-full h-12 sm:h-14 bg-[#1B4332] hover:bg-[#12372A] text-white font-bold text-sm rounded-2xl flex items-center justify-center gap-2 active:scale-[0.98] transition-all cursor-pointer shadow-md"
               >
                 <Play className="w-5 h-5 fill-current" />
                 <span>Iniciar Treino de Hoje</span>
@@ -596,73 +637,142 @@ export const HomeView: React.FC<HomeViewProps> = ({
           </div>
         </section>
       ) : (
-        /* FOLD 1: DOIS CARDS CLAROS PARA ALUNO NOVO OU SEM ROTINA */
+        /* FOLD 1: CARDS PARA ALUNO (VINCULADO AO PERSONAL OU AUTÔNOMO) */
         <section className="space-y-3">
-          {/* Card 1: Montar Meu Treino Personalizado */}
-          <div className="bg-gradient-to-br from-[#E8EFE9] to-white rounded-3xl p-5 border border-[#1B4332]/30 shadow-sm space-y-3">
-            <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-[#1B4332]">
-              <span className="text-base">✨</span>
-              <span>Montar Meu Treino Personalizado</span>
-            </div>
-            <div>
-              <h2 className="font-serif text-lg sm:text-xl font-bold text-[#19231E]">
-                Crie um plano feito sob medida para você
-              </h2>
-              <p className="text-xs text-[#5D6E65] mt-1 leading-relaxed">
-                Responda perguntas rápidas sobre seu corpo, tempo e espaço para gerarmos uma rotina segura e livre de sobrecargas articulares.
-              </p>
-            </div>
-            <button
-              type="button"
-              onClick={onOpenListening || onReviewProposal}
-              className="w-full h-12 bg-[#1B4332] hover:bg-[#12372A] text-white font-bold text-xs sm:text-sm rounded-2xl flex items-center justify-center gap-2 shadow-sm transition-all"
-            >
-              <Sparkles className="w-4 h-4 text-[#D9F277]" />
-              <span>Responder e Criar Meu Plano</span>
-            </button>
-          </div>
+          {profile.linkedTeacherName ? (
+            <>
+              {/* Card 1 (Destaque Suave): Conectado com seu Treinador */}
+              <div className="bg-gradient-to-br from-[#EAF3EF] to-white rounded-3xl p-5 border border-[#125F55]/30 shadow-sm space-y-3">
+                <div className="flex items-center justify-between text-xs">
+                  <div className="flex items-center gap-2 font-bold uppercase tracking-wider text-[#125F55]">
+                    <span className="text-base">👨‍🏫</span>
+                    <span>Conectado com seu Treinador</span>
+                  </div>
+                  <span className="px-2.5 py-0.5 rounded-full bg-[#125F55]/15 text-[#125F55] text-[10px] font-bold">
+                    Aguardando Prescrição
+                  </span>
+                </div>
+                <div>
+                  <h3 className="font-serif text-base sm:text-lg font-bold text-[#19231E] break-words">
+                    Avaliação entregue a {profile.linkedTeacherName}
+                  </h3>
+                  <p className="text-xs text-[#5D6E65] mt-1 leading-relaxed">
+                    Seu treinador já recebeu suas respostas e fotos. Assim que a prescrição semanal for publicada, seus treinos e descansos aparecerão aqui automaticamente.
+                  </p>
+                </div>
+                <div className="p-3 bg-white/80 rounded-2xl border border-[#125F55]/20 flex items-center justify-between text-xs">
+                  <div className="flex items-center gap-2">
+                    <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse" />
+                    <span className="text-[#19231E] font-medium">Sincronização em tempo real ativa</span>
+                  </div>
+                  <span className="text-[10px] text-[#5D6E65] font-semibold">Atualização automática</span>
+                </div>
+              </div>
 
-          {/* Card 2: Treinar com um Professor */}
-          <div className="bg-white rounded-3xl p-5 border border-[#E4DDD3] shadow-xs space-y-3">
-            <div className="flex items-center justify-between text-xs">
-              <div className="flex items-center gap-2 font-bold uppercase tracking-wider text-[#5D6E65]">
-                <span className="text-base">👨‍🏫</span>
-                <span>{profile.linkedTeacherName ? 'Conectado com seu Treinador' : 'Treinar com um Professor'}</span>
-              </div>
-              {profile.linkedTeacherName && (
-                <span className="px-2 py-0.5 rounded-full bg-amber-100 text-amber-800 text-[10px] font-bold">
-                  Em Análise
-                </span>
+              {/* Card 2: Alternativa Secundária Colapsada de Treino Autônomo */}
+              {!showAutonomousOption ? (
+                <div className="bg-white rounded-2xl p-4 border border-[#E4DDD3] shadow-2xs flex items-center justify-between gap-3">
+                  <div className="min-w-0">
+                    <h4 className="text-xs font-bold text-[#19231E]">Deseja treinar por conta própria hoje?</h4>
+                    <p className="text-[11px] text-[#5D6E65] truncate">Você também pode criar uma rotina autônoma</p>
+                  </div>
+                  <button
+                    type="button"
+                    aria-expanded="false"
+                    onClick={() => setShowAutonomousOption(true)}
+                    className="px-3 py-1.5 rounded-xl border border-[#C9DBD3] text-[#19231E] hover:bg-[#FAF8F5] text-xs font-bold cursor-pointer shrink-0"
+                  >
+                    Ver opção
+                  </button>
+                </div>
+              ) : (
+                <div className="bg-gradient-to-br from-[#E8EFE9] to-white rounded-3xl p-5 border border-[#1B4332]/30 shadow-sm space-y-3">
+                  <div className="flex items-center justify-between text-xs">
+                    <div className="flex items-center gap-2 font-bold uppercase tracking-wider text-[#1B4332]">
+                      <span className="text-base">✨</span>
+                      <span>Treino Autônomo (Alternativa)</span>
+                    </div>
+                    <button
+                      type="button"
+                      aria-expanded="true"
+                      onClick={() => setShowAutonomousOption(false)}
+                      className="text-[11px] font-bold text-[#5D6E65] hover:text-[#19231E] cursor-pointer"
+                    >
+                      Recolher
+                    </button>
+                  </div>
+                  <div>
+                    <h2 className="font-serif text-base sm:text-lg font-bold text-[#19231E]">
+                      Crie um plano feito sob medida para você
+                    </h2>
+                    <p className="text-xs text-[#5D6E65] mt-1 leading-relaxed">
+                      Responda perguntas rápidas sobre seu corpo, tempo e espaço para gerarmos uma rotina segura e livre de sobrecargas articulares.
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={onOpenListening || onReviewProposal}
+                    className="w-full h-11 bg-[#1B4332] hover:bg-[#12372A] text-white font-bold text-xs sm:text-sm rounded-2xl flex items-center justify-center gap-2 shadow-sm transition-all cursor-pointer"
+                  >
+                    <Sparkles className="w-4 h-4 text-[#D9F277]" />
+                    <span>Responder e Criar Meu Plano</span>
+                  </button>
+                </div>
               )}
-            </div>
-            <div>
-              <h3 className="font-serif text-base sm:text-lg font-bold text-[#19231E]">
-                {profile.linkedTeacherName
-                  ? `Avaliação entregue a ${profile.linkedTeacherName}`
-                  : 'Conectar com Personal ou Ficha de Treinador'}
-              </h3>
-              <p className="text-xs text-[#5D6E65] mt-1 leading-relaxed">
-                {profile.linkedTeacherName
-                  ? `Seu treinador já recebeu suas respostas e fotos. Assim que a prescrição semanal for publicada, seus treinos e descansos aparecerão aqui automaticamente.`
-                  : 'Preencha a ficha de avaliação enviada pelo seu professor (com envio de fotos) ou insira o código de convite para receber suas fichas.'}
-              </p>
-            </div>
-            {profile.linkedTeacherName ? (
-              <div className="p-3 bg-[#FAF8F5] rounded-2xl border border-[#E4DDD3]/60 flex items-center justify-between text-xs">
-                <span className="text-[#5D6E65] font-medium">Sincronização em tempo real ativa</span>
-                <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse" title="Sincronização ativa" />
+            </>
+          ) : (
+            <>
+              {/* Card 1: Montar Meu Treino Personalizado */}
+              <div className="bg-gradient-to-br from-[#E8EFE9] to-white rounded-3xl p-5 border border-[#1B4332]/30 shadow-sm space-y-3">
+                <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-[#1B4332]">
+                  <span className="text-base">✨</span>
+                  <span>Montar Meu Treino Personalizado</span>
+                </div>
+                <div>
+                  <h2 className="font-serif text-lg sm:text-xl font-bold text-[#19231E]">
+                    Crie um plano feito sob medida para você
+                  </h2>
+                  <p className="text-xs text-[#5D6E65] mt-1 leading-relaxed">
+                    Responda perguntas rápidas sobre seu corpo, tempo e espaço para gerarmos uma rotina segura e livre de sobrecargas articulares.
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={onOpenListening || onReviewProposal}
+                  className="w-full h-12 bg-[#1B4332] hover:bg-[#12372A] text-white font-bold text-xs sm:text-sm rounded-2xl flex items-center justify-center gap-2 shadow-sm transition-all"
+                >
+                  <Sparkles className="w-4 h-4 text-[#D9F277]" />
+                  <span>Responder e Criar Meu Plano</span>
+                </button>
               </div>
-            ) : (
-              <button
-                type="button"
-                onClick={onOpenLinkTeacher}
-                className="w-full h-12 bg-[#FAF8F5] border border-[#1B4332]/30 text-[#1B4332] hover:bg-[#E8EFE9] font-bold text-xs sm:text-sm rounded-2xl flex items-center justify-center gap-2 transition-all cursor-pointer"
-              >
-                <span>Inserir Código do Professor</span>
-                <ChevronRight className="w-4 h-4" />
-              </button>
-            )}
-          </div>
+
+              {/* Card 2: Treinar com um Professor */}
+              <div className="bg-white rounded-3xl p-5 border border-[#E4DDD3] shadow-xs space-y-3">
+                <div className="flex items-center justify-between text-xs">
+                  <div className="flex items-center gap-2 font-bold uppercase tracking-wider text-[#5D6E65]">
+                    <span className="text-base">👨‍🏫</span>
+                    <span>Treinar com um Professor</span>
+                  </div>
+                </div>
+                <div>
+                  <h3 className="font-serif text-base sm:text-lg font-bold text-[#19231E]">
+                    Conectar com Personal ou Ficha de Treinador
+                  </h3>
+                  <p className="text-xs text-[#5D6E65] mt-1 leading-relaxed">
+                    Preencha a ficha de avaliação enviada pelo seu professor (com envio de fotos) ou insira o código de convite para receber suas fichas.
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={onOpenLinkTeacher}
+                  className="w-full h-12 bg-[#FAF8F5] border border-[#1B4332]/30 text-[#1B4332] hover:bg-[#E8EFE9] font-bold text-xs sm:text-sm rounded-2xl flex items-center justify-center gap-2 transition-all cursor-pointer"
+                >
+                  <span>Inserir Código do Professor</span>
+                  <ChevronRight className="w-4 h-4" />
+                </button>
+              </div>
+            </>
+          )}
         </section>
       )}
 

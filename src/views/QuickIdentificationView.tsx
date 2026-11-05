@@ -185,7 +185,7 @@ export const QuickIdentificationView: React.FC<QuickIdentificationViewProps> = (
       </main>
 
       <footer className="py-2 text-center">
-        <p className="text-xs text-[#5B7170]/80">
+        <p className="text-xs text-[#5B7170]">
           Superação • Autonomia e respeito ao seu momento
         </p>
       </footer>

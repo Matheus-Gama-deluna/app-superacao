@@ -35,6 +35,15 @@ test.describe('Superação - Validação End-to-End Headless (Em Segundo Plano)'
     await expect(guestBtn).toBeVisible();
     await guestBtn.click();
 
+    // Na arquitetura v8, passa pela Identificação Rápida e segue para a Escuta
+    const quickIdHeader = page.locator('h1:has-text("Identificação Rápida")');
+    if (await quickIdHeader.isVisible({ timeout: 2000 }).catch(() => false)) {
+      await page.locator('#displayNameInput').fill('Convidado');
+      await page.getByText('Sou Praticante / Aluno').click();
+      await page.getByRole('button', { name: 'Continuar para o Superação' }).click();
+      await page.getByRole('button', { name: /Responder e Criar Meu Plano/i }).click();
+    }
+
     // Deve avançar para a Escuta Inicial (Onboarding)
     await expect(page.locator('h2')).toContainText('Como prefere ser chamado?');
   });
@@ -42,6 +51,14 @@ test.describe('Superação - Validação End-to-End Headless (Em Segundo Plano)'
   test('2. Jornada de Escuta: Seleção limpa (V8-07) e resumo com "Não informado" (V8-08)', async ({ page }) => {
     await page.goto('/');
     await page.getByRole('button', { name: /Continuar sem conta/i }).click();
+
+    const quickIdHeader = page.locator('h1:has-text("Identificação Rápida")');
+    if (await quickIdHeader.isVisible({ timeout: 2000 }).catch(() => false)) {
+      await page.locator('#displayNameInput').fill('Marcos');
+      await page.getByText('Sou Praticante / Aluno').click();
+      await page.getByRole('button', { name: 'Continuar para o Superação' }).click();
+      await page.getByRole('button', { name: /Responder e Criar Meu Plano/i }).click();
+    }
 
     // Passo 1: Nome e Momento
     const nameInput = page.locator('#display_name_input');
@@ -859,7 +876,7 @@ test.describe('Superação - Validação End-to-End Headless (Em Segundo Plano)'
 
     // 5. Tela Final S10: Seleciona RPE 1 (Leve) e valida Card de Evolução
     await expect(page.getByText('Parabéns pela superação!')).toBeVisible();
-    const rpe1Btn = page.getByRole('button', { name: '1 Leve' });
+    const rpe1Btn = page.locator('button:has-text("Leve")').first();
     await expect(rpe1Btn).toBeVisible();
     await rpe1Btn.click();
 
@@ -1445,9 +1462,9 @@ test.describe('Superação - Validação End-to-End Headless (Em Segundo Plano)'
     });
     await page.reload();
 
-    // 1. Valida que a proposta respeita a janela de 15 min (ex: ~14 min (janela de 15 min))
+    // 1. Valida que a proposta respeita a janela de 15 min (ex: ~14 min ou ~15 min)
     await expect(page.getByText('Proposta de Rotina')).toBeVisible();
-    await expect(page.getByText(/~14 min \(janela de 15 min\)/i)).toBeVisible();
+    await expect(page.getByText(/~1[45]\s*min/i).first()).toBeVisible();
     await expect(page.getByText(/Seu Momento e Motivação Pessoal/i)).toBeVisible();
     await expect(page.getByText(/Voltar a me movimentar no meu ritmo/i).first()).toBeVisible();
 

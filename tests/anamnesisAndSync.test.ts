@@ -86,12 +86,16 @@ describe('Sprint 2: Anamnese Customizável, Fotos e Prescrição de Descansos', 
     const studentUid = 'student_789';
     const fakePlan: WorkoutPlan = {
       id: 'plan_treino_a',
+      ownerUid: studentUid,
       title: 'Treino A - Mobilidade & Força Base',
       description: 'Plano de adaptação',
+      version: 1,
+      isProfessional: true,
       category: 'forca',
-      level: 'iniciante',
       estimatedDurationMinutes: 20,
       exercises: [],
+      createdAt: Date.now(),
+      updatedAt: Date.now(),
     };
 
     const prescriptions: TeacherDayPrescription[] = [

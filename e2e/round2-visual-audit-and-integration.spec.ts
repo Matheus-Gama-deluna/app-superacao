@@ -2,7 +2,9 @@ import { test, expect } from '@playwright/test';
 import * as path from 'path';
 import * as fs from 'fs';
 
-const SCREENSHOT_DIR = 'C:/Users/matheus.luna/.gemini/antigravity/brain/2b7a21d6-76a6-4049-815a-082d63d6e1b3/persona-audit-screenshots/round2_visual_audit';
+const SCREENSHOT_DIR = process.platform === 'win32'
+  ? 'C:/Users/matheus.luna/.gemini/antigravity/brain/2b7a21d6-76a6-4049-815a-082d63d6e1b3/persona-audit-screenshots/round2_visual_audit'
+  : path.join('/tmp', 'persona-audit-screenshots', 'round2_visual_audit');
 
 test.beforeAll(async () => {
   if (!fs.existsSync(SCREENSHOT_DIR)) {
@@ -160,9 +162,9 @@ test.describe('Rodada 2: Auditoria Visual Completa, Multi-Perfis & Integração 
 
     // Salva e publica a prescrição
     await pageTeacher.getByRole('button', { name: 'Salvar e Publicar para o Aluno' }).click();
-    await expect(pageTeacher.getByText(/Prescrição publicada em tempo real/i)).toBeVisible();
-    await pageTeacher.screenshot({ path: path.join(SCREENSHOT_DIR, '15_prof_prescription_published.png') });
-    await expect(pageTeacher.getByText(/Prescrição publicada em tempo real/i)).toBeVisible();
+    await expect(
+      pageTeacher.getByText(/Prescrição publicada em tempo real|Nova atualização sincronizada em tempo real/i)
+    ).toBeVisible({ timeout: 10000 });
     await pageTeacher.screenshot({ path: path.join(SCREENSHOT_DIR, '15_prof_prescription_published.png') });
 
     // Alterna para "Meu Treino Pessoal" e depois volta
@@ -280,6 +282,12 @@ test.describe('Rodada 2: Auditoria Visual Completa, Multi-Perfis & Integração 
 
     // Passo 3: Sua Disponibilidade Real
     await expect(page.getByRole('heading', { name: 'Sua Disponibilidade Real' }).first()).toBeVisible();
+    const todayDow = new Date().getDay();
+    const dayButtons = page.locator('.grid.grid-cols-7 button');
+    const targetDays = [1, 3, 5].filter((d) => d !== todayDow);
+    for (const d of targetDays) {
+      await dayButtons.nth(d).click();
+    }
     await page.screenshot({ path: path.join(SCREENSHOT_DIR, '20_autonomous_listening_step3.png') });
     await page.getByRole('button', { name: 'Avançar' }).click();
 

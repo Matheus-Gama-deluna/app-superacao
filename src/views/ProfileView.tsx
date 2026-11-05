@@ -318,14 +318,14 @@ export const ProfileView: React.FC<ProfileViewProps> = ({ onClose }) => {
                 type="button"
                 aria-pressed={motivationStyle === st.id}
                 onClick={() => setMotivationStyle(st.id)}
-                className={`p-2.5 rounded-xl text-left text-xs font-semibold flex items-center gap-2 border transition-all cursor-pointer ${
+                className={`p-2.5 rounded-xl text-left text-xs font-semibold flex items-center gap-2 border transition-all cursor-pointer min-h-[44px] ${
                   motivationStyle === st.id
                     ? 'bg-[#125F55] text-white border-[#125F55]'
                     : 'bg-white text-[#152A29] border-[#C9DBD3] hover:border-[#125F55]'
                 }`}
               >
-                <span>{st.icon}</span>
-                <span className="truncate">{st.label}</span>
+                <span className="text-base shrink-0">{st.icon}</span>
+                <span className="text-[11px] sm:text-xs font-medium leading-tight line-clamp-2 min-w-0 flex-1">{st.label}</span>
               </button>
             ))}
           </div>
@@ -352,7 +352,7 @@ export const ProfileView: React.FC<ProfileViewProps> = ({ onClose }) => {
           <label className="block text-xs font-bold text-[#152A29] mb-1.5">
             Turno Preferido para Treinar
           </label>
-          <div className="grid grid-cols-4 gap-2">
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
             {[
               { id: 'manha', label: 'Manhã' },
               { id: 'tarde', label: 'Tarde' },
@@ -364,7 +364,7 @@ export const ProfileView: React.FC<ProfileViewProps> = ({ onClose }) => {
                 type="button"
                 aria-pressed={preferredTime === t.id}
                 onClick={() => setPreferredTime(t.id)}
-                className={`py-2 rounded-xl text-xs font-bold border transition-colors cursor-pointer ${
+                className={`py-2 px-1 rounded-xl text-xs font-bold border transition-colors cursor-pointer min-h-[40px] flex items-center justify-center ${
                   preferredTime === t.id
                     ? 'bg-[#125F55] text-white border-[#125F55]'
                     : 'bg-white text-[#152A29] border-[#C9DBD3] hover:bg-slate-50'

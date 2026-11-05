@@ -146,10 +146,10 @@ export const TeacherDashboardView: React.FC<TeacherDashboardViewProps> = ({
       updatedAt: Date.now(),
     };
 
-    await saveTeacherStudentLink(updatedLink);
-    setLinks(getTeacherLinks(teacherUid));
     setNotification(`✓ Prescrição publicada em tempo real para ${selectedLink.studentName}!`);
     setTimeout(() => setNotification(null), 4000);
+    await saveTeacherStudentLink(updatedLink);
+    setLinks(getTeacherLinks(teacherUid));
   };
 
   // Cria um aluno de demonstração para testes rápidos do professor
@@ -220,33 +220,33 @@ export const TeacherDashboardView: React.FC<TeacherDashboardViewProps> = ({
       )}
 
       {/* Top Header do Professor */}
-      <header className="bg-white border-b border-[#C9DBD3]/60 sticky top-0 z-30 px-4 py-3 sm:px-6">
-        <div className="max-w-4xl mx-auto flex items-center justify-between gap-3">
-          <div className="flex items-center gap-2.5">
-            <div className="w-8 h-8 rounded-xl bg-[#125F55] text-white flex items-center justify-center font-black text-sm">
+      <header className="bg-white border-b border-[#C9DBD3]/60 sticky top-0 z-30 px-3 py-2 sm:px-6 sm:py-3">
+        <div className="max-w-4xl mx-auto flex items-center justify-between gap-2 sm:gap-3">
+          <div className="flex items-center gap-2">
+            <div className="w-8 h-8 rounded-xl bg-[#125F55] text-white flex items-center justify-center font-black text-sm shrink-0">
               S
             </div>
-            <div>
-              <div className="flex items-center gap-1.5">
-                <span className="font-extrabold text-[#19231E] text-sm sm:text-base">
+            <div className="min-w-0">
+              <div className="flex items-center gap-1.5 flex-wrap">
+                <span className="font-extrabold text-[#19231E] text-xs sm:text-base truncate">
                   Painel do Treinador
                 </span>
-                <span className="text-[10px] bg-[#EAF3EF] text-[#125F55] font-bold px-2 py-0.5 rounded-full uppercase">
+                <span className="text-[9px] sm:text-[10px] bg-[#EAF3EF] text-[#125F55] font-bold px-1.5 sm:px-2 py-0.5 rounded-full uppercase">
                   Professor
                 </span>
               </div>
-              <p className="text-[11px] text-[#5B7170]">
-                {teacherName} • Gestão de Alunos & Prescrições
+              <p className="text-[10px] sm:text-[11px] text-[#5B7170] truncate">
+                {teacherName}
               </p>
             </div>
           </div>
 
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
             <button
               type="button"
               onClick={onOpenPersonalWorkout}
               aria-label="Meu Treino Pessoal"
-              className="py-1.5 px-3 rounded-full border border-[#C9DBD3] text-[#19231E] text-xs font-bold hover:bg-[#FAF8F5] transition-colors flex items-center gap-1"
+              className="py-1 px-2.5 sm:py-1.5 sm:px-3 min-h-[36px] rounded-full border border-[#C9DBD3] text-[#19231E] text-xs font-bold hover:bg-[#FAF8F5] transition-colors flex items-center gap-1"
               title="Alternar para sua rotina pessoal de treino"
             >
               <span>🏋️</span>
@@ -256,7 +256,7 @@ export const TeacherDashboardView: React.FC<TeacherDashboardViewProps> = ({
               type="button"
               onClick={() => setIsBuilderModalOpen(true)}
               aria-label="Minha Anamnese"
-              className="py-1.5 px-3 rounded-full bg-[#125F55] text-white text-xs font-bold hover:bg-[#0E4B43] shadow-xs transition-colors flex items-center gap-1"
+              className="py-1 px-2.5 sm:py-1.5 sm:px-3 min-h-[36px] rounded-full bg-[#125F55] text-white text-xs font-bold hover:bg-[#0E4B43] shadow-xs transition-colors flex items-center gap-1"
             >
               <span>📋</span>
               <span className="hidden sm:inline">Minha Anamnese</span>
@@ -266,42 +266,44 @@ export const TeacherDashboardView: React.FC<TeacherDashboardViewProps> = ({
       </header>
 
       {/* Conteúdo Principal */}
-      <main className="flex-1 max-w-4xl mx-auto w-full px-4 py-6 space-y-6">
-        {/* Banner com Código de Compartilhamento & Ações Rápidas */}
-        <div className="bg-gradient-to-r from-[#125F55] to-[#1B7F73] text-white rounded-3xl p-5 shadow-sm space-y-4">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-            <div className="space-y-1">
-              <span className="text-[10px] font-bold uppercase tracking-wider bg-white/20 px-2 py-0.5 rounded-full inline-block">
-                Convite para Alunos
-              </span>
-              <h1 className="text-xl sm:text-2xl font-black">
-                Conecte seus alunos e acompanhe resultados
-              </h1>
-              <p className="text-xs text-white/80 max-w-lg leading-relaxed">
-                Envie seu código para o aluno. Ao entrar, ele responderá sua anamnese customizada (com fotos) e você prescreve treinos e descansos que sincronizam na hora.
-              </p>
-            </div>
+      <main className="flex-1 max-w-4xl mx-auto w-full px-3 sm:px-4 py-4 sm:py-6 space-y-4 sm:space-y-6">
+        {/* Banner com Código de Compartilhamento & Ações Rápidas (oculto quando um aluno estiver selecionado) */}
+        {!selectedLink && (
+          <div className="bg-gradient-to-r from-[#125F55] to-[#1B7F73] text-white rounded-3xl p-4 sm:p-5 shadow-sm space-y-3 sm:space-y-4">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+              <div className="space-y-1">
+                <span className="text-[10px] font-bold uppercase tracking-wider bg-white/20 px-2 py-0.5 rounded-full inline-block">
+                  Convite para Alunos
+                </span>
+                <h1 className="text-xl sm:text-2xl font-black">
+                  Conecte seus alunos e acompanhe resultados
+                </h1>
+                <p className="text-xs text-white/80 max-w-lg leading-relaxed">
+                  Envie seu código para o aluno. Ao entrar, ele responderá sua anamnese customizada (com fotos) e você prescreve treinos e descansos que sincronizam na hora.
+                </p>
+              </div>
 
-            <div className="bg-white/10 backdrop-blur-xs p-3 rounded-2xl border border-white/20 flex flex-col items-center gap-2 shrink-0">
-              <span className="text-[10px] text-white/80 uppercase font-bold tracking-wider">
-                Código de Aluno
-              </span>
-              <span className="font-mono text-2xl font-black tracking-widest text-white">
-                {inviteCode}
-              </span>
-              <button
-                type="button"
-                onClick={handleCopyCode}
-                className="w-full py-1.5 px-3 rounded-xl bg-white text-[#125F55] text-xs font-extrabold hover:bg-[#FAF8F5] transition-all"
-              >
-                {copiedCode ? '✓ Copiado!' : 'Copiar Código'}
-              </button>
+              <div className="bg-white/10 backdrop-blur-xs p-3 rounded-2xl border border-white/20 flex flex-col items-center gap-2 shrink-0">
+                <span className="text-[10px] text-white/80 uppercase font-bold tracking-wider">
+                  Código de Aluno
+                </span>
+                <span className="font-mono text-2xl font-black tracking-widest text-white">
+                  {inviteCode}
+                </span>
+                <button
+                  type="button"
+                  onClick={handleCopyCode}
+                  className="w-full py-1.5 px-3 rounded-xl bg-white text-[#125F55] text-xs font-extrabold hover:bg-[#FAF8F5] transition-all"
+                >
+                  {copiedCode ? '✓ Copiado!' : 'Copiar Código'}
+                </button>
+              </div>
             </div>
           </div>
-        </div>
+        )}
 
-        {/* Radar de Alertas IA */}
-        {radarAlerts.length > 0 && (
+        {/* Radar de Alertas IA (oculto quando um aluno estiver selecionado) */}
+        {!selectedLink && radarAlerts.length > 0 && (
           <div className="bg-[#EAF3EF] border border-[#125F55]/20 rounded-3xl p-4 sm:p-5 space-y-3">
             <div className="flex items-center gap-2">
               <span className="text-lg">🤖</span>
@@ -350,20 +352,20 @@ export const TeacherDashboardView: React.FC<TeacherDashboardViewProps> = ({
         {selectedLink ? (
           <div className="space-y-4">
             {/* Barra de Navegação do Aluno */}
-            <div className="flex items-center justify-between bg-white rounded-2xl p-3 border border-[#C9DBD3]/60">
+            <div className="flex flex-wrap sm:flex-nowrap items-center justify-between bg-white rounded-2xl p-3 border border-[#C9DBD3]/60 gap-2">
               <button
                 type="button"
                 onClick={() => setSelectedStudentUid(null)}
-                className="text-xs font-bold text-[#5B7170] hover:text-[#19231E] flex items-center gap-1"
+                className="text-xs font-bold text-[#5B7170] hover:text-[#19231E] flex items-center gap-1 shrink-0"
               >
                 <span>←</span> Voltar para Carteira
               </button>
-              <div className="flex items-center gap-2">
-                <span className="text-xs font-bold text-[#19231E]">
+              <div className="flex items-center gap-2 min-w-0">
+                <span className="text-xs font-bold text-[#19231E] truncate">
                   {selectedLink.studentName}
                 </span>
                 <span
-                  className={`text-[10px] font-bold px-2 py-0.5 rounded-full uppercase ${
+                  className={`text-[10px] font-bold px-2 py-0.5 rounded-full uppercase shrink-0 ${
                     selectedLink.status === 'active'
                       ? 'bg-[#EAF3EF] text-[#125F55]'
                       : 'bg-[#C84B31]/10 text-[#C84B31]'
@@ -571,7 +573,7 @@ export const TeacherDashboardView: React.FC<TeacherDashboardViewProps> = ({
                     </p>
                   </div>
 
-                  <div className="flex items-center gap-2">
+                  <div className="flex flex-wrap items-center gap-2">
                     <button
                       type="button"
                       onClick={handleGenerateAiDraft}
@@ -861,14 +863,14 @@ export const TeacherDashboardView: React.FC<TeacherDashboardViewProps> = ({
                   })}
                 </div>
 
-                <div className="pt-3 border-t border-[#C9DBD3]/40 flex items-center justify-between gap-3">
-                  <p className="text-xs text-[#5B7170]">
+                <div className="pt-3 border-t border-[#C9DBD3]/40 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
+                  <p className="text-xs text-[#5B7170] min-w-0">
                     Ao publicar, a agenda semanal e as fichas aparecerão na tela inicial do aluno imediatamente.
                   </p>
                   <button
                     type="button"
                     onClick={handleSavePrescription}
-                    className="py-3 px-6 rounded-full bg-[#125F55] text-white text-xs font-bold hover:bg-[#0E4B43] shadow-md shadow-[#125F55]/20 shrink-0"
+                    className="py-3 px-6 rounded-full bg-[#125F55] text-white text-xs font-bold hover:bg-[#0E4B43] shadow-md shadow-[#125F55]/20 shrink-0 text-center"
                   >
                     Salvar e Publicar para o Aluno
                   </button>

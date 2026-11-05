@@ -129,7 +129,18 @@ export const ActiveWorkoutView: React.FC<ActiveWorkoutViewProps> = ({
   const [isoTargetSeconds, setIsoTargetSeconds] = useState<number>(30);
 
 
-  // Tecla Escape para fechar qualquer modal aberto
+  const isAnyWorkoutOverlayOpen = Boolean(
+    showConfirmSheet || showSwapModal || showExerciseDetail || showAbandonConfirm
+  );
+
+  // Registra entrada de histórico ao abrir qualquer overlay/gaveta do treino ativo
+  useEffect(() => {
+    if (isAnyWorkoutOverlayOpen && typeof window !== 'undefined') {
+      window.history.pushState({ modal: 'workout_overlay' }, '');
+    }
+  }, [isAnyWorkoutOverlayOpen]);
+
+  // Tecla Escape e botão Voltar nativo do Android para fechar gavetas e submodais sem minimizar o treino
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
@@ -139,8 +150,19 @@ export const ActiveWorkoutView: React.FC<ActiveWorkoutViewProps> = ({
         else if (showAbandonConfirm) setShowAbandonConfirm(false);
       }
     };
+    const handlePopState = () => {
+      if (showConfirmSheet) setShowConfirmSheet(false);
+      else if (showSwapModal) setShowSwapModal(false);
+      else if (showExerciseDetail) setShowExerciseDetail(false);
+      else if (showAbandonConfirm) setShowAbandonConfirm(false);
+    };
+
     window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
+    window.addEventListener('popstate', handlePopState);
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown);
+      window.removeEventListener('popstate', handlePopState);
+    };
   }, [showSwapModal, showExerciseDetail, showConfirmSheet, showAbandonConfirm]);
 
   // Screen Wake Lock & Media Session Lifecycle
@@ -272,6 +294,9 @@ export const ActiveWorkoutView: React.FC<ActiveWorkoutViewProps> = ({
   ]);
 
   const handleSaveSet = async () => {
+    if (typeof window !== 'undefined' && window.history.state?.modal === 'workout_overlay') {
+      window.history.back();
+    }
     setShowConfirmSheet(false);
     const result = await recordSet(
       isTimeTracking ? 0 : actualRepsInput,
@@ -942,18 +967,22 @@ export const ActiveWorkoutView: React.FC<ActiveWorkoutViewProps> = ({
 
           {/* Destaque do Foco Adaptativo da Sessão (T01 a T04 / C01 a C09 / Micro-desafio) */}
           {isChallengeExercise && sessionFocus && !isFocusDismissed && (
-            <div className="bg-[#E8EFE9] border border-[#1B4332]/30 px-3 py-1.5 rounded-2xl flex items-center justify-between text-xs mb-1.5 shrink-0">
-              <div className="flex items-center gap-2 truncate">
-                <span className="text-xs">🎯</span>
-                <span className="text-[10px] font-extrabold uppercase px-2 py-0.5 rounded-full bg-[#1B4332] text-white shrink-0">
+            <div className="bg-[#E8EFE9] border border-[#1B4332]/30 px-3 py-1.5 rounded-2xl flex items-center justify-between text-xs mb-1.5 shrink-0 gap-2">
+              <div className="flex flex-wrap sm:flex-nowrap items-center gap-1.5 min-w-0 flex-1">
+                <span className="text-xs shrink-0">🎯</span>
+                <span className="text-[9px] sm:text-[10px] font-extrabold uppercase px-1.5 sm:px-2 py-0.5 rounded-full bg-[#1B4332] text-white shrink-0">
                   {sessionFocus.badgeText}
                 </span>
-                <span className="font-bold text-[#19231E] truncate">{sessionFocus.title}</span>
+                <span className="font-bold text-[#19231E] text-[11px] sm:text-xs leading-tight line-clamp-2 min-w-0 flex-1">
+                  {sessionFocus.title}
+                </span>
               </div>
               <button
                 type="button"
                 onClick={() => setIsFocusDismissed(true)}
-                className="text-[10px] text-[#5D6E65] hover:text-[#19231E] shrink-0 ml-2 cursor-pointer font-bold"
+                className="text-[10px] text-[#5D6E65] hover:text-[#19231E] shrink-0 ml-1 cursor-pointer font-bold p-1 min-w-[36px] min-h-[36px] flex items-center justify-center rounded-lg hover:bg-black/5"
+                title="Dispensar aviso de foco"
+                aria-label="Dispensar aviso de foco da sessão"
               >
                 ✕
               </button>
@@ -1355,7 +1384,13 @@ export const ActiveWorkoutView: React.FC<ActiveWorkoutViewProps> = ({
       {/* BOTTOM SHEET DE CONFIRMAÇÃO DO REGISTRO REAL (S08) */}
       <SetConfirmDrawer
         isOpen={showConfirmSheet}
-        onClose={() => setShowConfirmSheet(false)}
+        onClose={() => {
+          if (typeof window !== 'undefined' && window.history.state?.modal === 'workout_overlay') {
+            window.history.back();
+          } else {
+            setShowConfirmSheet(false);
+          }
+        }}
         exerciseName={currentExerciseItem?.exerciseName || ''}
         setIndex={activeSession.currentSetIndex}
         totalSets={currentExerciseItem?.targetSets || 1}

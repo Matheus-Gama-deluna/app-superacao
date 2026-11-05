@@ -40,8 +40,8 @@ export const AICoachCard: React.FC<AICoachCardProps> = ({ context }) => {
       aria-label="Pílula de Sabedoria do Coach"
       className="bg-linear-to-br from-emerald-50/90 via-[#F4F9F6] to-teal-50/70 rounded-3xl p-4 sm:p-5 border border-[#C9DBD3] shadow-xs relative overflow-hidden transition-all"
     >
-      {/* Detalhe estético sutil de fundo */}
-      <div className="absolute top-0 right-0 -mt-3 -mr-3 w-20 h-20 bg-emerald-200/20 rounded-full blur-xl pointer-events-none" />
+      {/* Detalhe estético sutil de fundo sem sangria externa */}
+      <div className="absolute top-0 right-0 w-16 h-16 bg-emerald-200/20 rounded-full blur-xl pointer-events-none" />
 
       <div className="flex items-center justify-between gap-2 mb-2.5">
         <div className="flex items-center gap-2">

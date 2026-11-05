@@ -115,11 +115,14 @@ export async function saveTeacherStudentLink(link: TeacherStudentLink): Promise<
     payload: link,
   });
 
-  // 3. Tenta sincronizar com Firestore
+  // 3. Tenta sincronizar com Firestore sem prender execução local
   try {
     if (db) {
       const linkRef = doc(db, 'teacher_student_links', link.id);
-      await setDoc(linkRef, link, { merge: true });
+      await Promise.race([
+        setDoc(linkRef, link, { merge: true }),
+        new Promise((resolve) => setTimeout(resolve, 2000)),
+      ]);
     }
   } catch (err) {
     console.warn('Superação: Aviso ao sincronizar vínculo no Firestore (offline tolerado):', err);

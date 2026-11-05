@@ -1,7 +1,9 @@
 import { test, expect } from '@playwright/test';
 import * as path from 'path';
 
-const SCREENSHOT_DIR = 'C:/Users/matheus.luna/.gemini/antigravity/brain/2b7a21d6-76a6-4049-815a-082d63d6e1b3/persona-audit-screenshots';
+const SCREENSHOT_DIR = process.platform === 'win32'
+  ? 'C:/Users/matheus.luna/.gemini/antigravity/brain/2b7a21d6-76a6-4049-815a-082d63d6e1b3/persona-audit-screenshots'
+  : path.join('/tmp', 'persona-audit-screenshots');
 
 test.describe('Superação - Auditoria Visual Multi-Persona e Fluxos de Utilização', () => {
   test.beforeEach(async ({ page }) => {
@@ -30,6 +32,14 @@ test.describe('Superação - Auditoria Visual Multi-Persona e Fluxos de Utiliza�
 
     // Iniciar escuta como convidado
     await page.getByRole('button', { name: /Continuar sem conta/i }).click();
+
+    const quickIdHeader = page.locator('h1:has-text("Identificação Rápida")');
+    if (await quickIdHeader.isVisible({ timeout: 2000 }).catch(() => false)) {
+      await page.locator('#displayNameInput').fill('Joana');
+      await page.getByText('Sou Praticante / Aluno').click();
+      await page.getByRole('button', { name: 'Continuar para o Superação' }).click();
+      await page.getByRole('button', { name: /Responder e Criar Meu Plano/i }).click();
+    }
 
     // 1. Nome
     await page.locator('#display_name_input').fill('Joana');

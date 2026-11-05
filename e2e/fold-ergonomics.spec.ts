@@ -11,6 +11,7 @@ test.describe('Validação Ergonômica Mobile Viewport 390x844 (Fold 1)', () => 
       const mockProfile = {
         uid: 'user_fold_test',
         displayName: 'Matheus',
+        userRole: 'student',
         availableDays: [0, 1, 2, 3, 4, 5, 6],
         onboardingCompleted: true,
         routineConfirmed: true,

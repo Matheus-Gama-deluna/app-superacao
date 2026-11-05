@@ -102,13 +102,16 @@ const MainAppContent: React.FC = () => {
       return 'welcome';
     }
 
-    // 2. Identificação rápida pendente (usuário sem papel definido)
-    if (!profile.userRole) {
+    // Papel efetivo considerando perfil legado (onboarding concluído mas sem userRole explícito)
+    const effectiveRole = profile.userRole || (profile.onboardingCompleted ? 'student' : undefined);
+
+    // 2. Identificação rápida pendente (usuário sem papel definido e não concluído)
+    if (!effectiveRole) {
       return 'quick_id';
     }
 
     // 3. Painel do Professor ativo (quando o usuário é professor e não está no modo treino pessoal)
-    if (profile.userRole === 'teacher' && !isTeacherPersonalMode) {
+    if (effectiveRole === 'teacher' && !isTeacherPersonalMode) {
       return 'teacher_dashboard';
     }
 
@@ -148,14 +151,18 @@ const MainAppContent: React.FC = () => {
     if (p) startWorkout(p, scheduledDayId, scheduledDayId ? 'scheduled' : 'ad_hoc', false, false, scheduledActivityId);
   };
 
-  // Navegação suave com View Transitions API
-  const handleSelectTab = (nextTab: TabDestination) => {
-    if (typeof document !== 'undefined' && 'startViewTransition' in document) {
-      (document as any).startViewTransition(() => {
-        setCurrentTab(nextTab);
-      });
-    } else {
+  // Navegação suave com View Transitions API e registro no History API do Android
+  const handleSelectTab = (nextTab: TabDestination, shouldPushState = true) => {
+    if (nextTab !== currentTab && shouldPushState && typeof window !== 'undefined') {
+      window.history.pushState({ tab: nextTab }, '');
+    }
+    const update = () => {
       setCurrentTab(nextTab);
+    };
+    if (typeof document !== 'undefined' && 'startViewTransition' in document) {
+      (document as any).startViewTransition(update);
+    } else {
+      update();
     }
     if (typeof window !== 'undefined') {
       window.scrollTo({ top: 0, behavior: 'instant' });
@@ -178,25 +185,99 @@ const MainAppContent: React.FC = () => {
     setIsBuilderOpen(true);
   };
 
+  const handleOpenListening = () => {
+    if (typeof window !== 'undefined') {
+      window.history.pushState({ screen: 'listening' }, '');
+    }
+    setIsListeningOpen(true);
+  };
+
+  const handleOpenLinkTeacher = () => {
+    if (typeof window !== 'undefined') {
+      window.history.pushState({ modal: 'link_teacher' }, '');
+    }
+    setShowLinkTeacherModal(true);
+  };
+
+  const handleOpenTeacherPersonal = () => {
+    if (typeof window !== 'undefined') {
+      window.history.pushState({ screen: 'teacher_personal' }, '');
+    }
+    setIsTeacherPersonalMode(true);
+  };
+
+  // Auto-migra usuário legado para papel de aluno no storage sem provocar atualização de estado durante render
+  useEffect(() => {
+    if (profile.onboardingCompleted && !profile.userRole) {
+      updateUserProfile({ userRole: 'student' });
+    }
+  }, [profile.onboardingCompleted, profile.userRole]);
+
+  // Inicializa estado padrão de histórico para garantir navegação consistente no Android
+  useEffect(() => {
+    if (typeof window !== 'undefined' && !window.history.state?.tab) {
+      window.history.replaceState({ tab: 'home' }, '');
+    }
+  }, []);
+
+  // Registra histórico ao entrar no Modo Foco para permitir que o botão 'Voltar' do Android minimize para a Home sem fechar o app
+  useEffect(() => {
+    if (activeSession && isFocusMode && typeof window !== 'undefined') {
+      window.history.pushState({ screen: 'workout_focus' }, '');
+    }
+  }, [Boolean(activeSession && isFocusMode)]);
+
   // Suporte nativo ao botão físico / gesto "Voltar" do celular (History API)
   useEffect(() => {
-    const handlePopState = () => {
-      if (isProfileOpen) {
+    const handlePopState = (e: PopStateEvent) => {
+      if (activeSession && isFocusMode) {
+        if (e.state?.screen === 'workout_focus' || e.state?.modal === 'workout_overlay') {
+          // Retornou de uma gaveta ou submodal interno do treino; preserva o Modo Foco
+          return;
+        }
+        // Se explicitamente voltou para uma aba ou histórico anterior sem foco
+        if (e.state?.tab === 'home' || !e.state) {
+          setIsFocusMode(false);
+        }
+      } else if (isProfileOpen) {
         setIsProfileOpen(false);
       } else if (isBuilderOpen) {
         setIsBuilderOpen(false);
         setEditingPlanId(null);
         setIsBuilderPro(false);
+        setBuilderStudentCallback(null);
+      } else if (showLinkTeacherModal) {
+        setShowLinkTeacherModal(false);
+      } else if (customAnamnesisTemplate) {
+        setCustomAnamnesisTemplate(null);
+        setCustomAnamnesisTeacherUid(null);
+      } else if (isTeacherPersonalMode) {
+        setIsTeacherPersonalMode(false);
+      } else if (isListeningOpen) {
+        setIsListeningOpen(false);
       } else if (isViewingProposal) {
         setIsViewingProposal(false);
+      } else if (e.state?.tab && e.state.tab !== currentTab) {
+        handleSelectTab(e.state.tab, false);
       } else if (currentTab !== 'home') {
-        handleSelectTab('home');
+        handleSelectTab('home', false);
       }
     };
 
     window.addEventListener('popstate', handlePopState);
     return () => window.removeEventListener('popstate', handlePopState);
-  }, [isProfileOpen, isBuilderOpen, isViewingProposal, currentTab]);
+  }, [
+    activeSession,
+    isFocusMode,
+    isProfileOpen,
+    isBuilderOpen,
+    showLinkTeacherModal,
+    customAnamnesisTemplate,
+    isTeacherPersonalMode,
+    isListeningOpen,
+    isViewingProposal,
+    currentTab,
+  ]);
 
   // Suporte a atalhos rápidos do ícone PWA (?shortcut=...) e remoção da splash screen inicial
   useEffect(() => {
@@ -220,6 +301,23 @@ const MainAppContent: React.FC = () => {
     }
     if (shortcut) {
       window.history.replaceState({}, '', window.location.pathname);
+    }
+  }, []);
+
+  // Pré-carregamento proativo de views PWA em segundo plano (resiliência offline completa)
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const preloadLazyViews = () => {
+      import('./views/ExploreView').catch(() => {});
+      import('./views/CalendarView').catch(() => {});
+      import('./views/ProgressView').catch(() => {});
+      import('./views/ActiveWorkoutView').catch(() => {});
+      import('./views/ProfileView').catch(() => {});
+    };
+    if ('requestIdleCallback' in window) {
+      (window as any).requestIdleCallback(preloadLazyViews, { timeout: 1500 });
+    } else {
+      setTimeout(preloadLazyViews, 600);
     }
   }, []);
 
@@ -266,7 +364,7 @@ const MainAppContent: React.FC = () => {
             displayName: data.displayName,
             userRole: data.userRole,
             onboardingCompleted: true,
-            routineConfirmed: false,
+            routineConfirmed: profile.routineConfirmed ?? false,
           });
         }}
         onBack={accessChoice ? () => setAccessChoice(null) : undefined}
@@ -280,7 +378,7 @@ const MainAppContent: React.FC = () => {
       <TeacherDashboardView
         teacherUid={profile.uid}
         teacherName={profile.displayName}
-        onOpenPersonalWorkout={() => setIsTeacherPersonalMode(true)}
+        onOpenPersonalWorkout={handleOpenTeacherPersonal}
         onOpenBuilderForStudent={(_lims, _eqs, onSavePlan) => {
           setBuilderStudentCallback(() => onSavePlan);
           handleOpenBuilder(undefined, true);
@@ -418,7 +516,13 @@ const MainAppContent: React.FC = () => {
           </span>
           <button
             type="button"
-            onClick={() => setIsTeacherPersonalMode(false)}
+            onClick={() => {
+              if (typeof window !== 'undefined' && window.history.state?.screen === 'teacher_personal') {
+                window.history.back();
+              } else {
+                setIsTeacherPersonalMode(false);
+              }
+            }}
             className="px-3 py-1 bg-white text-[#125F55] rounded-full hover:bg-[#FAF8F5] transition-colors"
           >
             ← Voltar ao Painel do Treinador
@@ -463,8 +567,8 @@ const MainAppContent: React.FC = () => {
                 onResumeWorkout={() => setIsFocusMode(true)}
                 onNavigateTab={handleSelectTab}
                 onOpenBuilder={(id, isPro) => handleOpenBuilder(id, Boolean(isPro))}
-                onOpenListening={() => setIsListeningOpen(true)}
-                onOpenLinkTeacher={() => setShowLinkTeacherModal(true)}
+                onOpenListening={handleOpenListening}
+                onOpenLinkTeacher={handleOpenLinkTeacher}
                 onReviewProposal={
                   currentProposal
                     ? () => {

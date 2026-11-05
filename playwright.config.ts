@@ -29,6 +29,32 @@ export default defineConfig({
         headless: true,
       },
     },
+    ...(!process.env.CI
+      ? [
+          {
+            name: 'Mobile Galaxy S20 (360x800)',
+            use: {
+              ...devices['Pixel 5'],
+              viewport: { width: 360, height: 800 },
+              isMobile: true,
+              hasTouch: true,
+              deviceScaleFactor: 3,
+              headless: true,
+            },
+          },
+          {
+            name: 'Mobile Compact (320x640)',
+            use: {
+              ...devices['Pixel 5'],
+              viewport: { width: 320, height: 640 },
+              isMobile: true,
+              hasTouch: true,
+              deviceScaleFactor: 2,
+              headless: true,
+            },
+          },
+        ]
+      : []),
   ],
   webServer: {
     command: 'npm run dev',
