@@ -670,7 +670,8 @@ export const ListeningJourneyView: React.FC<ListeningJourneyViewProps> = ({
                       key={dayIdx}
                       type="button"
                       onClick={() => handleToggleDay(dayIdx)}
-                      aria-label={`${fullLabel} ${isSelected ? 'selecionado' : 'não selecionado'}`}
+                      aria-label={isSelected ? `${fullLabel} (selecionado)` : fullLabel}
+                      aria-pressed={isSelected}
                       className={`h-14 rounded-2xl border flex flex-col items-center justify-center transition-all cursor-pointer ${
                         isSelected
                           ? 'border-[#125F55] bg-[#125F55] text-white shadow-xs'
@@ -1138,12 +1139,10 @@ export const ListeningJourneyView: React.FC<ListeningJourneyViewProps> = ({
             <button
               onClick={() => {
                 if (step === 2 && orderedGoals.length === 0) {
-                  setValidationError('Por favor, selecione ao menos um objetivo principal para avançar.');
-                  return;
+                  setOrderedGoals([DEFAULT_GOALS[0]]);
                 }
                 if (step === 3 && availableDays.length === 0) {
-                  setValidationError('Por favor, selecione ao menos um dia da semana disponível para treinar.');
-                  return;
+                  setAvailableDays([1, 3, 5]);
                 }
                 setValidationError(null);
                 setStep(step + 1);
