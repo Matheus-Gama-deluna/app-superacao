@@ -35,6 +35,7 @@ import {
   getLocal,
   STORAGE_KEYS,
 } from '../lib/storage';
+import { MONDAY_FIRST_DAYS, DOW_LABELS_MAP } from '../lib/dateUtils';
 
 interface ProposalViewProps {
   proposal: ExplainableProposal;
@@ -55,6 +56,7 @@ export const ProposalView: React.FC<ProposalViewProps> = ({
   const { confirmProposal } = useWorkout();
   const { isReady: catalogReady } = useFullCatalog();
   const [currentProposal, setCurrentProposal] = useState<ExplainableProposal>(proposal);
+  const [activeRoutineIndex, setActiveRoutineIndex] = useState<number>(0);
   const [swappingExerciseIndex, setSwappingExerciseIndex] = useState<number | null>(null);
   const [isConfirming, setIsConfirming] = useState<boolean>(false);
   const [showExercisesDetail, setShowExercisesDetail] = useState<boolean>(true);
@@ -69,9 +71,6 @@ export const ProposalView: React.FC<ProposalViewProps> = ({
   const effectiveReason = profile.exerciseReason || latestDraft?.exerciseReason || '';
   const effectiveContextNotes = profile.userContextNotes || latestDraft?.userContextNotes || '';
 
-  const daysLabels = ['Domingo', 'Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado'];
-  const scheduledDaysIndices = Object.keys(currentProposal.weeklySchedule).map(Number);
-
   const handleConfirmRoutine = async () => {
     setIsConfirming(true);
     try {
@@ -84,8 +83,31 @@ export const ProposalView: React.FC<ProposalViewProps> = ({
     }
   };
 
-  const primaryPlan = currentProposal.routines[0];
-  const selectedItemToSwap = swappingExerciseIndex !== null ? primaryPlan?.exercises[swappingExerciseIndex] : null;
+  const activePlan = currentProposal.routines[activeRoutineIndex] || currentProposal.routines[0];
+  const selectedItemToSwap = swappingExerciseIndex !== null ? activePlan?.exercises[swappingExerciseIndex] : null;
+
+  const handleToggleDay = (dayOfWeek: number) => {
+    const prevSchedule = { ...currentProposal.weeklySchedule };
+    const isCurrentlyScheduled = Boolean(prevSchedule[dayOfWeek]);
+    const currentKeys = Object.keys(prevSchedule).map(Number);
+
+    if (isCurrentlyScheduled) {
+      if (currentKeys.length <= 1) return;
+      delete prevSchedule[dayOfWeek];
+    } else {
+      const routineCount = currentProposal.routines.length;
+      const assignedRoutineIndex = routineCount > 1 ? currentKeys.length % routineCount : 0;
+      const targetRoutine = currentProposal.routines[assignedRoutineIndex] || currentProposal.routines[0];
+      prevSchedule[dayOfWeek] = targetRoutine.id;
+    }
+
+    const newTargetDaysCount = Object.keys(prevSchedule).length;
+    setCurrentProposal({
+      ...currentProposal,
+      weeklySchedule: prevSchedule,
+      targetDaysCount: newTargetDaysCount,
+    });
+  };
 
   useEffect(() => {
     setCurrentProposal(proposal);
@@ -109,8 +131,8 @@ export const ProposalView: React.FC<ProposalViewProps> = ({
   }, [selectedItemToSwap, profile, catalogReady]);
 
   const handleSwapExercise = (newEx: Exercise) => {
-    if (swappingExerciseIndex === null || !primaryPlan) return;
-    const updatedExercises = [...primaryPlan.exercises];
+    if (swappingExerciseIndex === null || !activePlan) return;
+    const updatedExercises = [...activePlan.exercises];
     const prevItem = updatedExercises[swappingExerciseIndex];
     updatedExercises[swappingExerciseIndex] = {
       ...prevItem,
@@ -125,10 +147,10 @@ export const ProposalView: React.FC<ProposalViewProps> = ({
       currentProposal.sessionDurationMinutes
     );
     const recalculatedMinutes = calculateRoutineDurationMinutes(calibratedExercises);
-    const updatedTitle = (primaryPlan.title || '').replace(/\(\d+\s*min\)/, `(${recalculatedMinutes} min)`);
+    const updatedTitle = (activePlan.title || '').replace(/\(\d+\s*min\)/, `(${recalculatedMinutes} min)`);
 
     const updatedRoutines = currentProposal.routines.map((r, i) =>
-      i === 0
+      i === activeRoutineIndex
         ? {
             ...r,
             title: updatedTitle,
@@ -246,7 +268,7 @@ export const ProposalView: React.FC<ProposalViewProps> = ({
               <Clock className="w-4 h-4 text-[#1B4332] mx-auto mb-1" />
               <span className="text-[10px] text-[#5D6E65] block">Duração</span>
               <span className="font-bold text-xs text-[#19231E] block leading-tight">
-                ~{primaryPlan?.estimatedDurationMinutes || currentProposal.sessionDurationMinutes} min
+                ~{activePlan?.estimatedDurationMinutes || currentProposal.sessionDurationMinutes} min
               </span>
               <span className="text-[9px] text-[#5D6E65] block mt-0.5">
                 (janela {currentProposal.sessionDurationMinutes}m)
@@ -269,7 +291,7 @@ export const ProposalView: React.FC<ProposalViewProps> = ({
               <span className="text-[10px] text-[#5D6E65] block">Materiais</span>
               <span className="font-bold text-xs text-[#19231E] block leading-tight line-clamp-2">
                 {profile.equipments && profile.equipments.length > 0 && !profile.equipments.includes('nenhum')
-                  ? profile.equipments.map((e) => EQUIPMENT_LABELS[e] || e).slice(0, 1).join(', ')
+                  ? profile.equipments.map((e) => EQUIPMENT_LABELS[e] || e).join(', ')
                   : 'Peso corporal'}
               </span>
             </div>
@@ -359,15 +381,38 @@ export const ProposalView: React.FC<ProposalViewProps> = ({
         </section>
 
         {/* Ficha de Exercícios Detalhada */}
-        {primaryPlan && (
+        {activePlan && (
           <section className="bg-white rounded-3xl p-6 border border-[#C9DBD3] shadow-xs space-y-4">
+            {/* Abas Treino A e Treino B quando houver divisão */}
+            {currentProposal.routines.length > 1 && (
+              <div className="flex gap-2 p-1 bg-[#FAF8F5] rounded-2xl border border-[#E4DDD3]">
+                {currentProposal.routines.map((r, i) => (
+                  <button
+                    key={r.id || i}
+                    type="button"
+                    onClick={() => {
+                      setActiveRoutineIndex(i);
+                      setSwappingExerciseIndex(null);
+                    }}
+                    className={`flex-1 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+                      activeRoutineIndex === i
+                        ? 'bg-[#1B4332] text-white shadow-xs'
+                        : 'text-[#5D6E65] hover:text-[#19231E]'
+                    }`}
+                  >
+                    {r.title.includes('B') ? 'Treino B' : 'Treino A'} ({r.exercises.length} ex)
+                  </button>
+                ))}
+              </div>
+            )}
+
             <div className="flex items-center justify-between">
               <div>
                 <h2 className="text-base font-bold text-[#152A29]">
-                  {primaryPlan.title}
+                  {activePlan.title}
                 </h2>
                 <p className="text-xs text-[#5B7170] mt-0.5">
-                  {primaryPlan.exercises.length} movimentos compatíveis com seus apoios
+                  {activePlan.exercises.length} movimentos compatíveis com seus apoios
                 </p>
               </div>
               <button
@@ -381,7 +426,7 @@ export const ProposalView: React.FC<ProposalViewProps> = ({
 
             {showExercisesDetail && (
               <div className="space-y-2.5 pt-1">
-                {primaryPlan.exercises.map((ex, idx) => (
+                {activePlan.exercises.map((ex, idx) => (
                   <div
                     key={ex.exerciseId || idx}
                     className="p-3 rounded-2xl bg-[#F5F8F5] border border-[#C9DBD3]/60 flex items-start justify-between gap-2.5 text-xs"
@@ -398,12 +443,12 @@ export const ProposalView: React.FC<ProposalViewProps> = ({
                           <span className="text-[11px] text-[#5B7170]">
                             {ex.targetSets} séries · {ex.targetReps > 0 ? `${ex.targetReps} reps` : `${ex.targetDurationSeconds}s`} · {ex.restSeconds}s descanso
                           </span>
-                          {ex.notes && (
-                            <span className="text-[9px] text-[#91610D] font-bold bg-amber-50 px-1.5 py-0.2 rounded border border-amber-200">
-                              Atenção
-                            </span>
-                          )}
                         </div>
+                        {ex.notes && (
+                          <p className="mt-1.5 text-[11px] text-[#854D0E] bg-[#FEF9C3] px-2 py-1 rounded-lg border border-yellow-200 leading-snug">
+                            💡 {ex.notes}
+                          </p>
+                        )}
                       </div>
                     </div>
                     <div className="flex items-center gap-1 shrink-0 pt-0.5">
@@ -422,20 +467,30 @@ export const ProposalView: React.FC<ProposalViewProps> = ({
               </div>
             )}
 
-            {/* Dias agendados */}
+            {/* Dias agendados interativos (Segunda a Domingo) */}
             <div className="pt-2 border-t border-[#E4DDD3]/60 space-y-1.5">
               <span className="text-xs font-semibold text-[#5D6E65] block">
-                Dias de treino sugeridos na sua semana:
+                Dias de treino sugeridos na sua semana (toque para alternar):
               </span>
-              <div className="flex flex-wrap gap-1.5">
-                {scheduledDaysIndices.map((d) => (
-                  <span
-                    key={d}
-                    className="px-3 py-1 rounded-xl bg-[#E8EFE9] border border-[#1B4332]/30 text-[#1B4332] text-xs font-bold shadow-2xs"
-                  >
-                    ✓ {daysLabels[d]}
-                  </span>
-                ))}
+              <div className="grid grid-cols-7 gap-1.5 pt-1">
+                {MONDAY_FIRST_DAYS.map((d) => {
+                  const isScheduled = Boolean(currentProposal.weeklySchedule[d]);
+                  return (
+                    <button
+                      key={d}
+                      type="button"
+                      onClick={() => handleToggleDay(d)}
+                      className={`py-2 px-1 rounded-xl text-xs font-bold transition-all text-center border cursor-pointer ${
+                        isScheduled
+                          ? 'bg-[#1B4332] text-white border-[#1B4332] shadow-xs'
+                          : 'bg-[#FAF8F5] text-[#5D6E65] border-[#E4DDD3] hover:border-[#1B4332]'
+                      }`}
+                    >
+                      <span className="block text-[11px]">{DOW_LABELS_MAP[d]?.short || 'Dia'}</span>
+                      <span className="block text-[9px] mt-0.5">{isScheduled ? 'Ativo' : 'Descanso'}</span>
+                    </button>
+                  );
+                })}
               </div>
             </div>
           </section>

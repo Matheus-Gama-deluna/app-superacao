@@ -49,11 +49,15 @@ export const ProgressView: React.FC = () => {
   const weeklyReview = generateWeeklyProcessReview(sessions, calendar, targetWeeklyGoal);
 
   const handleShareProgress = async () => {
+    const goalLine =
+      targetWeeklyGoal > 0
+        ? `🎯 Meta da semana: ${completedThisWeek} de ${targetWeeklyGoal} dias concluídos`
+        : `🎯 Construindo minha rotina no Superação`;
     const summary = [
       `🌱 Minha Consistência no Superação`,
       `✅ ${metrics.completedWorkoutsCount} treinos realizados no meu ritmo`,
       `🏆 ${metrics.prsAchievedCount} recordes pessoais superados`,
-      `🎯 Meta da semana: ${completedThisWeek} de ${targetWeeklyGoal} dias concluídos`,
+      goalLine,
       `\nConstruindo saúde e vitalidade todos os dias!`,
     ].join('\n');
     const status = await shareWorkoutVictory({
@@ -101,11 +105,14 @@ export const ProgressView: React.FC = () => {
       isUnlocked: personalRecords.some((p) => !p.isBaseline && (p.prCount || 0) > 0),
       icon: '🏆',
     },
-        {
+    {
       id: 'consistencia_ferro',
       title: 'Consistência Semanal',
-      desc: `Concluir sua meta semanal de ${targetWeeklyGoal} ${targetWeeklyGoal === 1 ? 'treino' : 'treinos'}`,
-      isUnlocked: completedThisWeek >= targetWeeklyGoal,
+      desc:
+        targetWeeklyGoal > 0
+          ? `Concluir sua meta semanal de ${targetWeeklyGoal} ${targetWeeklyGoal === 1 ? 'treino' : 'treinos'}`
+          : 'Defina sua rotina para desbloquear esta meta',
+      isUnlocked: targetWeeklyGoal > 0 && completedThisWeek >= targetWeeklyGoal,
       icon: '🛡️',
     },
     {
@@ -233,42 +240,46 @@ export const ProgressView: React.FC = () => {
         </div>
 
         <p className="text-xs text-[#5D6E65] leading-relaxed">
-          {weeklyReview.suggestedAction === 'advance'
+          {targetWeeklyGoal === 0
+            ? 'Você ainda não definiu sua meta semanal. Complete a Escuta Inicial ou monte sua rotina para acompanhar sua consistência.'
+            : weeklyReview.suggestedAction === 'advance'
             ? `Você está com ritmo constante e sensação leve! Deseja calibrar sua meta para ${weeklyReview.suggestedDaysTarget} dias?`
             : weeklyReview.suggestedAction === 'soften'
             ? `Sua rotina exigiu mais energia esta semana. Você tem total liberdade para calibrar sua meta para ${weeklyReview.suggestedDaysTarget} dias sem peso.`
             : `Sua meta atual de ${targetWeeklyGoal} ${targetWeeklyGoal === 1 ? 'dia' : 'dias'} por semana está equilibrada com sua rotina.`}
         </p>
 
-        <div className="flex flex-wrap items-center gap-2 pt-1">
-          {weeklyReview.suggestedAction !== 'maintain' && (
+        {targetWeeklyGoal > 0 && (
+          <div className="flex flex-wrap items-center gap-2 pt-1">
+            {weeklyReview.suggestedAction !== 'maintain' && (
+              <button
+                type="button"
+                onClick={() => applyWeeklyReviewDecision(weeklyReview.suggestedAction, weeklyReview.suggestedDaysTarget)}
+                className="py-2 px-3.5 bg-[#1B4332] text-white rounded-xl text-xs font-bold hover:bg-[#12372A] focus-visible:ring-2 focus-visible:ring-[#1B4332] focus-visible:outline-none cursor-pointer shadow-xs transition-colors"
+              >
+                {weeklyReview.suggestedAction === 'advance'
+                  ? `Avançar para ${weeklyReview.suggestedDaysTarget} dias`
+                  : `Suavizar para ${weeklyReview.suggestedDaysTarget} dias sem culpa`}
+              </button>
+            )}
             <button
               type="button"
-              onClick={() => applyWeeklyReviewDecision(weeklyReview.suggestedAction, weeklyReview.suggestedDaysTarget)}
-              className="py-2 px-3.5 bg-[#1B4332] text-white rounded-xl text-xs font-bold hover:bg-[#12372A] focus-visible:ring-2 focus-visible:ring-[#1B4332] focus-visible:outline-none cursor-pointer shadow-xs transition-colors"
+              onClick={() => applyWeeklyReviewDecision('maintain', targetWeeklyGoal)}
+              className="py-2 px-3 bg-white border border-[#E4DDD3] text-[#5D6E65] rounded-xl text-xs font-semibold hover:bg-slate-50 focus-visible:ring-2 focus-visible:ring-[#1B4332] focus-visible:outline-none cursor-pointer transition-colors"
             >
-              {weeklyReview.suggestedAction === 'advance'
-                ? `Avançar para ${weeklyReview.suggestedDaysTarget} dias`
-                : `Suavizar para ${weeklyReview.suggestedDaysTarget} dias sem culpa`}
+              Manter meta ({targetWeeklyGoal} {targetWeeklyGoal === 1 ? 'dia' : 'dias'})
             </button>
-          )}
-          <button
-            type="button"
-            onClick={() => applyWeeklyReviewDecision('maintain', targetWeeklyGoal)}
-            className="py-2 px-3 bg-white border border-[#E4DDD3] text-[#5D6E65] rounded-xl text-xs font-semibold hover:bg-slate-50 focus-visible:ring-2 focus-visible:ring-[#1B4332] focus-visible:outline-none cursor-pointer transition-colors"
-          >
-            Manter meta ({targetWeeklyGoal} {targetWeeklyGoal === 1 ? 'dia' : 'dias'})
-          </button>
-          {targetWeeklyGoal > 1 && weeklyReview.suggestedAction === 'maintain' && (
-            <button
-              type="button"
-              onClick={() => applyWeeklyReviewDecision('soften', Math.max(1, targetWeeklyGoal - 1))}
-              className="py-2 px-3 bg-white border border-[#E4DDD3] text-[#5D6E65] hover:text-[#1B4332] rounded-xl text-xs font-semibold hover:bg-slate-50 focus-visible:ring-2 focus-visible:ring-[#1B4332] focus-visible:outline-none cursor-pointer transition-colors"
-            >
-              Suavizar (-1 dia)
-            </button>
-          )}
-        </div>
+            {targetWeeklyGoal > 1 && weeklyReview.suggestedAction === 'maintain' && (
+              <button
+                type="button"
+                onClick={() => applyWeeklyReviewDecision('soften', Math.max(1, targetWeeklyGoal - 1))}
+                className="py-2 px-3 bg-white border border-[#E4DDD3] text-[#5D6E65] hover:text-[#1B4332] rounded-xl text-xs font-semibold hover:bg-slate-50 focus-visible:ring-2 focus-visible:ring-[#1B4332] focus-visible:outline-none cursor-pointer transition-colors"
+              >
+                Suavizar (-1 dia)
+              </button>
+            )}
+          </div>
+        )}
       </section>
 
       {/* 3. Caminho Pessoal de Progresso & Próximo Marco Alcançável */}
@@ -351,7 +362,9 @@ export const ProgressView: React.FC = () => {
             </p>
             <div className="pt-1">
               <span className="inline-block text-[11px] font-bold text-[#1B4332] bg-[#E8EFE9] px-3 py-1 rounded-full border border-[#1B4332]/20">
-                0 de {targetWeeklyGoal} práticas concluídas esta semana
+                {targetWeeklyGoal > 0
+                  ? `${completedThisWeek} de ${targetWeeklyGoal} práticas concluídas esta semana`
+                  : 'Nenhuma prática registrada ainda'}
               </span>
             </div>
           </div>

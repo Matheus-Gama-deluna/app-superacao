@@ -1,4 +1,4 @@
-import { getLocalDateStr } from './dateUtils';
+import { getLocalDateStr, MONDAY_FIRST_DAYS, getWeekDatesMondayFirst, DOW_LABELS_MAP } from './dateUtils';
 import { generateSmartWorkoutRoutine, isExerciseSafeForUser } from './workoutEngine';
 import {
   WorkoutPlan,
@@ -88,31 +88,19 @@ export function setLocal<T>(key: string, value: T): void {
 }
 
 // Gera agenda neutra da semana atual (sem rotinas pré-impostas para novas contas)
-export function generateBlankWeeklyCalendar(uid: string): CalendarDay[] {
-  const today = new Date();
-  const currentDayOfWeek = today.getDay(); // 0 a 6
-  const startOfWeek = new Date(today);
-  startOfWeek.setDate(today.getDate() - currentDayOfWeek);
-
-  const days: CalendarDay[] = [];
-  for (let i = 0; i < 7; i++) {
-    const d = new Date(startOfWeek);
-    d.setDate(startOfWeek.getDate() + i);
-    const year = d.getFullYear();
-    const month = String(d.getMonth() + 1).padStart(2, '0');
-    const day = String(d.getDate()).padStart(2, '0');
-    const dateStr = `${year}-${month}-${day}`;
-
-    days.push({
+export function generateBlankWeeklyCalendar(uid: string, refDate: Date = new Date()): CalendarDay[] {
+  const weekDates = getWeekDatesMondayFirst(refDate);
+  return MONDAY_FIRST_DAYS.map((dow) => {
+    const dateStr = weekDates[dow];
+    return {
       id: `${uid}_day_${dateStr}`,
       ownerUid: uid,
       dateStr,
-      dayOfWeek: i,
+      dayOfWeek: dow,
       activityType: 'unassigned',
       isCompleted: false,
-    });
-  }
-  return days;
+    };
+  });
 }
 
 // Migração versionada e idempotente que preserva todos os dados canônicos existentes (A18)
@@ -281,12 +269,10 @@ export function generateExplainableProposal(
 export function generateWeeklyCalendarFromProposal(
   uid: string,
   proposal: ExplainableProposal,
-  preferredTime?: 'manha' | 'tarde' | 'noite' | 'flexivel' | string
+  preferredTime?: 'manha' | 'tarde' | 'noite' | 'flexivel' | string,
+  refDate: Date = new Date()
 ): CalendarDay[] {
-  const today = new Date();
-  const currentDayOfWeek = today.getDay();
-  const startOfWeek = new Date(today);
-  startOfWeek.setDate(today.getDate() - currentDayOfWeek);
+  const weekDates = getWeekDatesMondayFirst(refDate);
 
   let mappedTimeOfDay: CalendarDay['timeOfDay'] = undefined;
   if (preferredTime === 'manha' || preferredTime === 'tarde' || preferredTime === 'noite' || preferredTime === 'livre') {
@@ -295,12 +281,9 @@ export function generateWeeklyCalendarFromProposal(
     mappedTimeOfDay = 'livre';
   }
 
-  const days: CalendarDay[] = [];
-  for (let i = 0; i < 7; i++) {
-    const d = new Date(startOfWeek);
-    d.setDate(startOfWeek.getDate() + i);
-    const dateStr = getLocalDateStr(d);
-    const planId = proposal.weeklySchedule[i];
+  return MONDAY_FIRST_DAYS.map((dow) => {
+    const dateStr = weekDates[dow];
+    const planId = proposal.weeklySchedule[dow];
     const plan = planId ? proposal.routines.find((r) => r.id === planId) : undefined;
 
     let activityType: CalendarDay['activityType'] = 'rest';
@@ -309,39 +292,33 @@ export function generateWeeklyCalendarFromProposal(
     if (plan) {
       activityType = 'strength';
       planTitle = plan.title;
-    } else {
-      activityType = 'rest';
-      planTitle = 'Dia de Descanso & Recuperação';
     }
 
-    days.push({
+    return {
       id: `${uid}_day_${dateStr}`,
       ownerUid: uid,
       dateStr,
-      dayOfWeek: i,
+      dayOfWeek: dow,
       activityType,
       planId: plan?.id,
       planTitle,
       isCompleted: false,
       timeOfDay: mappedTimeOfDay,
-    });
-  }
-  return days;
+    };
+  });
 }
 
 // Cria uma agenda semanal a partir de um programa ou rotinas confirmadas
-export function generateWeeklyCalendarFromProgram(uid: string, program: WorkoutProgram): CalendarDay[] {
-  const today = new Date();
-  const currentDayOfWeek = today.getDay();
-  const startOfWeek = new Date(today);
-  startOfWeek.setDate(today.getDate() - currentDayOfWeek);
+export function generateWeeklyCalendarFromProgram(
+  uid: string,
+  program: WorkoutProgram,
+  refDate: Date = new Date()
+): CalendarDay[] {
+  const weekDates = getWeekDatesMondayFirst(refDate);
 
-  const days: CalendarDay[] = [];
-  for (let i = 0; i < 7; i++) {
-    const d = new Date(startOfWeek);
-    d.setDate(startOfWeek.getDate() + i);
-    const dateStr = getLocalDateStr(d);
-    const planId = program.weeklySchedule ? program.weeklySchedule[i] : undefined;
+  return MONDAY_FIRST_DAYS.map((dow) => {
+    const dateStr = weekDates[dow];
+    const planId = program.weeklySchedule ? program.weeklySchedule[dow] : undefined;
     const plan = planId ? program.routines.find((r) => r.id === planId) : undefined;
 
     let activityType: CalendarDay['activityType'] = 'rest';
@@ -352,21 +329,40 @@ export function generateWeeklyCalendarFromProgram(uid: string, program: WorkoutP
       planTitle = plan.title;
     }
 
-    days.push({
+    return {
       id: `${uid}_day_${dateStr}`,
       ownerUid: uid,
       dateStr,
-      dayOfWeek: i,
+      dayOfWeek: dow,
       activityType,
       planId: plan?.id,
       planTitle,
       isCompleted: false,
-    });
-  }
-
-  return days;
+    };
+  });
 }
 
+
+/**
+ * Marca um dia do calendário como concluído de forma idempotente.
+ */
+export function markCalendarDay(
+  calendar: CalendarDay[],
+  dayId: string,
+  completed: boolean = true
+): CalendarDay[] {
+  return calendar.map((c) =>
+    c.id === dayId
+      ? {
+          ...c,
+          isCompleted: completed,
+          completedAt: completed ? (c.completedAt || Date.now()) : undefined,
+        }
+      : c
+  );
+}
+
+export const markCalendarDayCompleted = markCalendarDay;
 
 // Cálculo e verificação de novo Recorde Pessoal (PR)
 // Regra canônica (E01 / Seção 5): Primeira marca é apenas linha de base (isBaseline: true, isPR: false).
@@ -570,12 +566,12 @@ export function getCanonicalWeeklyGoal(
   const personalCommittedDays = profile?.availableDays?.length || 0;
 
   // Se há treinos planejados na agenda da semana, a meta ativa da semana reflete os compromissos agendados.
-  // Caso a agenda ainda não esteja preenchida, utiliza a disponibilidade do perfil ou do programa ativo (mínimo 2).
+  // Se ainda não há rotina configurada pelo praticante, retorna 0 (sem fabricar meta fictícia prematura).
   const targetWeeklyGoal = scheduledCommittedCount > 0
     ? scheduledCommittedCount
     : personalCommittedDays > 0
     ? personalCommittedDays
-    : activeProgramFrequency || 3;
+    : (activeProgramFrequency || 0);
 
   return {
     targetWeeklyGoal,
@@ -718,11 +714,15 @@ export function generateTomorrowBridge(
   personalRecords: PersonalRecord[],
   referenceDate: Date = new Date()
 ): TomorrowBridgeInfo {
-  const daysLabels = ['Domingo', 'Segunda-feira', 'Terça-feira', 'Quarta-feira', 'Quinta-feira', 'Sexta-feira', 'Sábado'];
-  const tomorrowDayOfWeek = (referenceDate.getDay() + 1) % 7;
-  const tomorrowDayLabel = daysLabels[tomorrowDayOfWeek];
+  const tomorrow = new Date(referenceDate);
+  tomorrow.setDate(referenceDate.getDate() + 1);
+  const tomorrowDateStr = getLocalDateStr(tomorrow);
+  const tomorrowDayOfWeek = tomorrow.getDay();
+  const tomorrowDayLabel = DOW_LABELS_MAP[tomorrowDayOfWeek]?.full || 'Amanhã';
 
-  const tomorrowSchedule = calendar.find((c) => c.dayOfWeek === tomorrowDayOfWeek);
+  const tomorrowSchedule =
+    calendar.find((c) => c.dateStr === tomorrowDateStr) ||
+    calendar.find((c) => c.dayOfWeek === tomorrowDayOfWeek);
   const tomorrowPlan = tomorrowSchedule?.planId
     ? plans.find((p) => p.id === tomorrowSchedule.planId)
     : undefined;

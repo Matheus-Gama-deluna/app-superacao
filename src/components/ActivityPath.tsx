@@ -49,8 +49,12 @@ export const ActivityPath: React.FC<ActivityPathProps> = ({
   onNavigateCalendar,
   onNavigateProgress,
 }) => {
-  const daysShort = ['D', 'S', 'T', 'Q', 'Q', 'S', 'S'];
-  const daysFull = ['Domingo', 'Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado'];
+  const daysShort: Record<number, string> = {
+    1: 'S', 2: 'T', 3: 'Q', 4: 'Q', 5: 'S', 6: 'S', 0: 'D'
+  };
+  const daysFull: Record<number, string> = {
+    1: 'Segunda', 2: 'Terça', 3: 'Quarta', 4: 'Quinta', 5: 'Sexta', 6: 'Sábado', 0: 'Domingo'
+  };
 
   // Determina mensagem gentil do ritmo atual (inspirado no Gentler Streak)
   const todayItem = calendar.find((c) => c.dayOfWeek === todayDayOfWeek);
@@ -122,9 +126,13 @@ export const ActivityPath: React.FC<ActivityPathProps> = ({
       id: 'cap_2',
       stepNumber: 2,
       title: 'Capítulo 2 · Ritmo Possível',
-      subtitle: `Construir regularidade respeitando sua janela de ${targetWeeklyGoal} ${targetWeeklyGoal === 1 ? 'dia' : 'dias'} e seus descansos.`,
-      done: completedThisWeek >= targetWeeklyGoal || totalCompleted >= 2,
-      progressText: `${Math.min(completedThisWeek, targetWeeklyGoal)}/${targetWeeklyGoal} na semana atual`,
+      subtitle: targetWeeklyGoal > 0
+        ? `Construir regularidade respeitando sua janela de ${targetWeeklyGoal} ${targetWeeklyGoal === 1 ? 'dia' : 'dias'} e seus descansos.`
+        : 'Defina sua rotina para construir regularidade e respeitar seus descansos.',
+      done: targetWeeklyGoal > 0 ? (completedThisWeek >= targetWeeklyGoal || totalCompleted >= 2) : false,
+      progressText: targetWeeklyGoal > 0
+        ? `${Math.min(completedThisWeek, targetWeeklyGoal)}/${targetWeeklyGoal} na semana atual`
+        : 'Meta a definir',
     },
     {
       id: 'cap_3',

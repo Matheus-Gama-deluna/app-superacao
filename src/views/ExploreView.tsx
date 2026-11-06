@@ -23,6 +23,7 @@ import {
   SlidersHorizontal,
 } from 'lucide-react';
 import { SmartWorkoutGeneratorModal } from '../components/SmartWorkoutGeneratorModal';
+import { computeIdealTrainingDays } from '../lib/weeklyScheduler';
 
 interface ExploreViewProps {
   onStartWorkout: (plan: WorkoutPlan) => void;
@@ -362,29 +363,31 @@ export const ExploreView: React.FC<ExploreViewProps> = ({
       {activeTab === 'programs' && (
         <div className="space-y-4">
           {/* Curadoria por Perfil (Reduz densidade e guia a escolha inicial) */}
-          <div className="bg-[#EAF3EF]/75 rounded-2xl p-3.5 border border-[#125F55]/20 flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs">
-            <div className="flex items-center gap-2 text-[#152A29]">
-              <Sparkles className="w-4 h-4 text-[#125F55] shrink-0" />
-              <span>
-                <strong>Sugestão para seu perfil:</strong> rotinas {profile.environmentPreference === 'academia' ? 'de academia' : 'em casa'} alinhadas aos seus apoios ({profile.sessionDurationMinutes || 20} min).
-              </span>
+          {profile.onboardingCompleted && (
+            <div className="bg-[#EAF3EF]/75 rounded-2xl p-3.5 border border-[#125F55]/20 flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs">
+              <div className="flex items-center gap-2 text-[#152A29]">
+                <Sparkles className="w-4 h-4 text-[#125F55] shrink-0" />
+                <span>
+                  <strong>Sugestão para seu perfil:</strong> rotinas {profile.environmentPreference === 'academia' ? 'de academia' : 'em casa'} alinhadas aos seus apoios ({profile.sessionDurationMinutes || 20} min).
+                </span>
+              </div>
+              <button
+                type="button"
+                onClick={() =>
+                  setProgramFilter(
+                    profile.environmentPreference === 'academia'
+                      ? 'academia'
+                      : profile.avoidedMovements?.includes('sobrecarga_lombar') || profile.reportedLimitations?.includes('lombar')
+                      ? 'sentado'
+                      : 'calistenia'
+                  )
+                }
+                className="text-[#125F55] font-bold hover:underline shrink-0 cursor-pointer text-left sm:text-right"
+              >
+                Filtrar para meu perfil →
+              </button>
             </div>
-            <button
-              type="button"
-              onClick={() =>
-                setProgramFilter(
-                  profile.environmentPreference === 'academia'
-                    ? 'academia'
-                    : profile.avoidedMovements?.includes('sobrecarga_lombar') || profile.reportedLimitations?.includes('lombar')
-                    ? 'sentado'
-                    : 'calistenia'
-                )
-              }
-              className="text-[#125F55] font-bold hover:underline shrink-0 cursor-pointer text-left sm:text-right"
-            >
-              Filtrar para meu perfil →
-            </button>
-          </div>
+          )}
 
           {/* Filtros de Categoria de Programas / Momentos de Vida */}
           <div className="flex items-center gap-1.5 overflow-x-auto pb-1 no-scrollbar">
@@ -1155,30 +1158,27 @@ export const ExploreView: React.FC<ExploreViewProps> = ({
                 </p>
 
                 <div className="space-y-2">
-                  <button
-                    type="button"
-                    onClick={async () => {
-                      const userDays = profile.availableDays || [1, 3, 5];
-                      await activateProgram(activationModal.program, userDays, { mode: 'replace' });
-                      setActivationModal(null);
-                    }}
-                    className="w-full p-3 rounded-2xl bg-[#125F55] text-white font-bold text-xs hover:bg-[#0C5148] transition-all cursor-pointer shadow-xs text-left flex flex-col gap-0.5"
-                  >
-                    <span>(Recomendado) Adaptar aos meus {(profile.availableDays || []).length} dias</span>
-                    <span className="text-[10px] font-normal text-white/80">
-                      Mantém sua meta semanal intacta e distribui os treinos nos seus dias de preferência.
-                    </span>
-                  </button>
+                  {(profile.availableDays || []).length > 0 && (
+                    <button
+                      type="button"
+                      onClick={async () => {
+                        const userDays = profile.availableDays || [1, 3, 5];
+                        await activateProgram(activationModal.program, userDays, { mode: 'replace' });
+                        setActivationModal(null);
+                      }}
+                      className="w-full p-3 rounded-2xl bg-[#125F55] text-white font-bold text-xs hover:bg-[#0C5148] transition-all cursor-pointer shadow-xs text-left flex flex-col gap-0.5"
+                    >
+                      <span>(Recomendado) Adaptar aos meus {profile.availableDays?.length} dias</span>
+                      <span className="text-[10px] font-normal text-white/80">
+                        Mantém sua meta semanal intacta e distribui os treinos nos seus dias de preferência.
+                      </span>
+                    </button>
+                  )}
 
                   <button
                     type="button"
                     onClick={async () => {
-                      const newDays =
-                        activationModal.program.weeklyFrequency === 3
-                          ? [1, 3, 5]
-                          : activationModal.program.weeklyFrequency === 4
-                          ? [1, 2, 4, 5]
-                          : [1, 3, 5];
+                      const newDays = computeIdealTrainingDays(activationModal.program.weeklyFrequency);
                       await updateUserProfile({ availableDays: newDays });
                       await activateProgram(activationModal.program, newDays, { mode: 'replace' });
                       setActivationModal(null);

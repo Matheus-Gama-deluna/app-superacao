@@ -23,13 +23,29 @@ import { ensurePersistentStorage, getStorageEstimate, StorageEstimateResult } fr
 import { Mail, HardDrive, Mic, Shield } from 'lucide-react';
 import { MotivationStyle } from '../types';
 
+import { MONDAY_FIRST_DAYS, DOW_LABELS_MAP } from '../lib/dateUtils';
+import { buildSmartWeeklyCalendar } from '../lib/weeklyScheduler';
+import { setLocal } from '../lib/storage';
+
 interface ProfileViewProps {
   onClose: () => void;
+  onOpenListening?: () => void;
+  onOpenLinkTeacher?: () => void;
 }
 
-export const ProfileView: React.FC<ProfileViewProps> = ({ onClose }) => {
+export const ProfileView: React.FC<ProfileViewProps> = ({
+  onClose,
+  onOpenListening,
+  onOpenLinkTeacher,
+}) => {
   const { user, profile, isGuest, loginGoogle, logout, updateUserProfile, pendingConflict, resolveConflict } = useAuth();
-  const { exportBackup, syncStatus } = useWorkout();
+  const { exportBackup, syncStatus, calendar, plans, setCalendar } = useWorkout();
+
+  const hasConfiguredRoutine = Boolean(
+    profile.routineConfirmed ||
+    profile.linkedTeacherId ||
+    (calendar.some((c) => c.activityType !== 'unassigned') && profile.onboardingCompleted)
+  );
 
   const [displayName, setDisplayName] = useState<string>(profile.displayName || '');
   const [habitAnchor, setHabitAnchor] = useState<string>(profile.habitAnchor || '');
@@ -119,6 +135,16 @@ export const ProfileView: React.FC<ProfileViewProps> = ({ onClose }) => {
       avoidedMovements,
       motivationStyle,
     });
+    if (hasConfiguredRoutine && plans.length > 0) {
+      const updatedCalendar = buildSmartWeeklyCalendar({
+        uid: profile.uid || 'local',
+        plans,
+        targetDays: availableDays,
+        preferredTime,
+      });
+      setCalendar(updatedCalendar);
+      setLocal('superacao_calendar', updatedCalendar);
+    }
     setIsSaved(true);
     setTimeout(() => setIsSaved(false), 4000);
   };
@@ -259,6 +285,27 @@ export const ProfileView: React.FC<ProfileViewProps> = ({ onClose }) => {
           Sua Rotina de Superação
         </h4>
 
+        {!profile.onboardingCompleted && !hasConfiguredRoutine && (
+          <div className="p-3.5 bg-[#FAF8F5] border border-[#E4DDD3] rounded-2xl space-y-2 text-xs">
+            <div className="flex items-center gap-2 text-[#125F55] font-bold">
+              <Sparkles className="w-4 h-4" />
+              <span>Preferências ainda não definidas</span>
+            </div>
+            <p className="text-[#5B7170] leading-relaxed">
+              Você ainda não respondeu à Escuta Inicial. Responda para calibrar seus dias, horários e limitações articulares de forma guiada.
+            </p>
+            {onOpenListening && (
+              <button
+                type="button"
+                onClick={onOpenListening}
+                className="w-full py-2 px-3 rounded-xl bg-[#125F55] text-white font-bold text-xs hover:bg-[#0C5148] transition-colors"
+              >
+                Iniciar Escuta Inicial
+              </button>
+            )}
+          </div>
+        )}
+
         <div>
           <label className="block text-xs font-bold text-[#152A29] mb-1">Como quer ser chamado?</label>
           <input
@@ -382,31 +429,24 @@ export const ProfileView: React.FC<ProfileViewProps> = ({ onClose }) => {
             Dias Disponíveis na Semana ({availableDays.length} selecionados)
           </label>
           <div className="grid grid-cols-7 gap-1.5">
-            {[
-              { idx: 0, label: 'D' },
-              { idx: 1, label: 'S' },
-              { idx: 2, label: 'T' },
-              { idx: 3, label: 'Q' },
-              { idx: 4, label: 'Q' },
-              { idx: 5, label: 'S' },
-              { idx: 6, label: 'S' },
-            ].map((d) => {
+            {MONDAY_FIRST_DAYS.map((dayIdx) => {
               const fullDayNames = ['Domingo', 'Segunda-feira', 'Terça-feira', 'Quarta-feira', 'Quinta-feira', 'Sexta-feira', 'Sábado'];
-              const isSelected = availableDays.includes(d.idx);
+              const shortLabels: Record<number, string> = { 1: 'S', 2: 'T', 3: 'Q', 4: 'Q', 5: 'S', 6: 'S', 0: 'D' };
+              const isSelected = availableDays.includes(dayIdx);
               return (
                 <button
-                  key={d.idx}
+                  key={dayIdx}
                   type="button"
                   aria-pressed={isSelected}
-                  aria-label={fullDayNames[d.idx]}
-                  onClick={() => handleToggleDay(d.idx)}
+                  aria-label={fullDayNames[dayIdx]}
+                  onClick={() => handleToggleDay(dayIdx)}
                   className={`h-10 rounded-xl font-bold text-xs transition-all cursor-pointer ${
                     isSelected
                       ? 'bg-[#125F55] text-white shadow-xs'
                       : 'bg-[#F5F8F5] text-[#5B7170] border border-[#C9DBD3] hover:border-[#125F55]'
                   }`}
                 >
-                  {d.label}
+                  {shortLabels[dayIdx]}
                 </button>
               );
             })}
@@ -501,6 +541,70 @@ export const ProfileView: React.FC<ProfileViewProps> = ({ onClose }) => {
             );
           })}
         </div>
+      </section>
+
+      {/* Vínculo com Professor & Papel */}
+      <section className="bg-white rounded-3xl p-5 border border-[#C9DBD3] shadow-xs space-y-3.5">
+        <h4 className="text-xs font-bold text-[#125F55] uppercase tracking-wider">
+          Treinador & Papel
+        </h4>
+
+        {profile.linkedTeacherId ? (
+          <div className="p-3 bg-[#EAF3EF] rounded-2xl border border-[#125F55]/20 flex items-center justify-between text-xs">
+            <div>
+              <span className="text-[#5B7170] block text-[10px] uppercase font-bold">Vinculado ao Professor</span>
+              <span className="font-extrabold text-[#125F55]">{profile.linkedTeacherName || profile.linkedTeacherId}</span>
+            </div>
+            <span className="text-[10px] bg-[#125F55] text-white px-2 py-0.5 rounded-full font-bold">Conectado</span>
+          </div>
+        ) : (
+          <div className="p-3 bg-[#FAF8F5] rounded-2xl border border-[#C9DBD3] space-y-2 text-xs">
+            <p className="text-[#5B7170]">
+              Treina com um personal ou fisioterapeuta? Conecte-se usando o código <strong>PROF-XXXX</strong> dele para receber fichas e acompanhamento sincronizados.
+            </p>
+            {onOpenLinkTeacher && (
+              <button
+                type="button"
+                onClick={onOpenLinkTeacher}
+                className="w-full py-2.5 px-3 rounded-xl bg-[#125F55] text-white text-xs font-bold hover:bg-[#0E4B43] transition-colors cursor-pointer"
+              >
+                Conectar com Professor (Código PROF-XXXX)
+              </button>
+            )}
+          </div>
+        )}
+
+        <div className="pt-2 border-t border-[#C9DBD3]/40 flex items-center justify-between">
+          <div>
+            <span className="text-xs font-bold text-[#19231E] block">
+              Modo Atual: {profile.userRole === 'teacher' ? 'Professor / Treinador' : 'Aluno / Praticante'}
+            </span>
+            <span className="text-[11px] text-[#5B7170]">Alterne entre os papéis da plataforma</span>
+          </div>
+          <button
+            type="button"
+            onClick={async () => {
+              const nextRole = profile.userRole === 'teacher' ? 'student' : 'teacher';
+              await updateUserProfile({ userRole: nextRole });
+            }}
+            className="px-3 py-1.5 rounded-xl border border-[#125F55] text-[#125F55] text-xs font-bold hover:bg-[#EAF3EF] transition-colors cursor-pointer"
+          >
+            Mudar para {profile.userRole === 'teacher' ? 'Aluno' : 'Professor'}
+          </button>
+        </div>
+
+        {onOpenListening && (
+          <div className="pt-2 border-t border-[#C9DBD3]/40">
+            <button
+              type="button"
+              onClick={onOpenListening}
+              className="w-full py-2.5 rounded-xl border border-[#C9DBD3] text-[#19231E] text-xs font-bold hover:bg-[#FAF8F5] transition-colors flex items-center justify-center gap-1.5 cursor-pointer"
+            >
+              <Sparkles className="w-3.5 h-3.5 text-[#125F55]" />
+              <span>Refazer Escuta Inicial</span>
+            </button>
+          </div>
+        )}
       </section>
 
       {/* Retorno Sensorial (Som e Vibração) */}

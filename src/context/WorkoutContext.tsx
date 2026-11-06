@@ -30,6 +30,7 @@ import {
   persistUserProfile,
   persistPersonalRecords,
 } from '../lib/persistence';
+import { performSmartWeeklyRollover, rebalanceRemainingWeek } from '../lib/weeklyScheduler';
 import { useAuth } from './AuthContext';
 import {
   db,
@@ -83,6 +84,7 @@ interface WorkoutContextType {
   sessions: WorkoutSession[];
   setEvents: SetEvent[];
   calendar: CalendarDay[];
+  setCalendar: React.Dispatch<React.SetStateAction<CalendarDay[]>>;
   personalRecords: PersonalRecord[];
   activeSession: WorkoutSession | null;
   isFocusMode: boolean;
@@ -150,6 +152,10 @@ interface WorkoutContextType {
   // Ações de Calendário & Agenda
   updateCalendarDay: (dayId: string, activityType: ActivityType, planId?: string, planTitle?: string) => Promise<void>;
   toggleCalendarDayCompleted: (dayId: string) => Promise<void>;
+  markCalendarDayCompleted: (dayId: string, completed?: boolean) => Promise<void>;
+  rebalanceAlert: { message: string; previousCalendar: CalendarDay[] } | null;
+  undoRebalance: () => void;
+  dismissRebalanceAlert: () => void;
   confirmLegacyRoutine: () => Promise<void>;
   confirmProposal: (proposal: ExplainableProposal) => Promise<void>;
 
@@ -195,6 +201,70 @@ export const WorkoutProvider: React.FC<{ children: React.ReactNode }> = ({ child
   const [personalRecords, setPersonalRecords] = useState<PersonalRecord[]>(() => {
     return isGuest ? getInitialGuestData().prs : [];
   });
+
+  const [rebalanceAlert, setRebalanceAlert] = useState<{
+    message: string;
+    previousCalendar: CalendarDay[];
+  } | null>(null);
+
+  const undoRebalance = () => {
+    if (rebalanceAlert?.previousCalendar) {
+      const prev = rebalanceAlert.previousCalendar;
+      setCalendar(prev);
+      setLocal('superacao_calendar', prev);
+      if (user && !isGuest) {
+        void persistCalendarDays(uid, prev);
+      }
+      setRebalanceAlert(null);
+    }
+  };
+
+  const dismissRebalanceAlert = () => setRebalanceAlert(null);
+
+  // Rollover Semanal Automático e Inteligente (Segunda a Domingo) e Rebalanceamento Intra-Semana
+  useEffect(() => {
+    if (!calendar || calendar.length === 0 || plans.length === 0) return;
+    const hasConfigured = profile?.routineConfirmed || calendar.some((c) => c.activityType !== 'unassigned');
+    if (!hasConfigured) return;
+
+    const { needsRollover, updatedCalendar } = performSmartWeeklyRollover({
+      calendar,
+      sessions,
+      plans,
+      uid,
+    });
+
+    if (needsRollover) {
+      setCalendar(updatedCalendar);
+      setLocal('superacao_calendar', updatedCalendar);
+      if (user && !isGuest) {
+        void persistCalendarDays(uid, updatedCalendar);
+      }
+    } else {
+      const today = new Date();
+      const todayDow = today.getDay();
+      const rebalanceRes = rebalanceRemainingWeek({
+        calendar,
+        todayDow,
+        plans,
+        sessions,
+        routineConfirmedAt: profile?.updatedAt || profile?.createdAt,
+      });
+      if (rebalanceRes.rebalanced && rebalanceRes.message) {
+        setCalendar(rebalanceRes.updatedCalendar);
+        setLocal('superacao_calendar', rebalanceRes.updatedCalendar);
+        if (user && !isGuest) {
+          void persistCalendarDays(uid, rebalanceRes.updatedCalendar);
+        }
+        if (rebalanceRes.previousCalendar) {
+          setRebalanceAlert({
+            message: rebalanceRes.message,
+            previousCalendar: rebalanceRes.previousCalendar,
+          });
+        }
+      }
+    }
+  }, [uid, plans.length, profile?.routineConfirmed]);
 
   // Sessão ativa em andamento
   const [activeSession, setActiveSession] = useState<WorkoutSession | null>(() => {
@@ -1113,7 +1183,7 @@ export const WorkoutProvider: React.FC<{ children: React.ReactNode }> = ({ child
           await toggleDayActivityCompleted(targetDay.id, completedSession.scheduledActivityId);
         } else {
           await updateCalendarDay(targetDay.id, 'strength', completedSession.planId, completedSession.planTitle);
-          await toggleCalendarDayCompleted(targetDay.id);
+          await markCalendarDayCompleted(targetDay.id, true);
         }
       }
     } else {
@@ -1121,7 +1191,7 @@ export const WorkoutProvider: React.FC<{ children: React.ReactNode }> = ({ child
       const todayCal = calendar.find((c) => c.dateStr === todayStr);
       if (todayCal && todayCal.activityType !== 'rest' && todayCal.activityType !== 'unassigned') {
         await updateCalendarDay(todayCal.id, todayCal.activityType, completedSession.planId, completedSession.planTitle);
-        await toggleCalendarDayCompleted(todayCal.id);
+        await markCalendarDayCompleted(todayCal.id, true);
       }
     }
 
@@ -1698,16 +1768,34 @@ export const WorkoutProvider: React.FC<{ children: React.ReactNode }> = ({ child
     planId?: string,
     planTitle?: string
   ) => {
-    const updated = calendar.map((c) =>
-      c.id === dayId
-        ? {
-            ...c,
-            activityType,
-            planId: planId || c.planId,
-            planTitle: planTitle || c.planTitle,
-          }
-        : c
-    );
+    const updated = calendar.map((c) => {
+      if (c.id !== dayId) return c;
+
+      const isStrength = activityType === 'strength';
+      const effectivePlanId = isStrength ? (planId ?? c.planId) : undefined;
+      let effectivePlanTitle = planTitle;
+
+      if (!effectivePlanTitle) {
+        if (isStrength) {
+          effectivePlanTitle = c.planTitle || 'Treino de Força';
+        } else if (activityType === 'rest') {
+          effectivePlanTitle = 'Dia de Descanso & Recuperação';
+        } else if (activityType === 'active_recovery') {
+          effectivePlanTitle = 'Recuperação Ativa';
+        } else if (activityType === 'walk') {
+          effectivePlanTitle = 'Caminhada Regenerativa';
+        } else {
+          effectivePlanTitle = 'Atividade Livre';
+        }
+      }
+
+      return {
+        ...c,
+        activityType,
+        planId: effectivePlanId,
+        planTitle: effectivePlanTitle,
+      };
+    });
 
     setCalendar(updated);
     setLocal('superacao_calendar', updated);
@@ -1732,6 +1820,33 @@ export const WorkoutProvider: React.FC<{ children: React.ReactNode }> = ({ child
             ...c,
             isCompleted: !c.isCompleted,
             completedAt: !c.isCompleted ? Date.now() : undefined,
+          }
+        : c
+    );
+
+    setCalendar(updated);
+    setLocal('superacao_calendar', updated);
+
+    if (user && !isGuest) {
+      const dayDoc = updated.find((c) => c.id === dayId);
+      if (dayDoc) {
+        try {
+          const docRef = doc(db, 'users', user.uid, 'calendar', dayId);
+          await setDoc(docRef, dayDoc);
+        } catch (err) {
+          handleFirestoreError(err, OperationType.UPDATE, `users/${user.uid}/calendar/${dayId}`);
+        }
+      }
+    }
+  };
+
+  const markCalendarDayCompleted = async (dayId: string, completed: boolean = true) => {
+    const updated = calendar.map((c) =>
+      c.id === dayId
+        ? {
+            ...c,
+            isCompleted: completed,
+            completedAt: completed ? (c.completedAt || Date.now()) : undefined,
           }
         : c
     );
@@ -2034,7 +2149,12 @@ export const WorkoutProvider: React.FC<{ children: React.ReactNode }> = ({ child
         updateCopingPlans,
         applyWeeklyReviewDecision,
         updateCalendarDay,
+        setCalendar,
         toggleCalendarDayCompleted,
+        markCalendarDayCompleted,
+        rebalanceAlert,
+        undoRebalance,
+        dismissRebalanceAlert,
         confirmLegacyRoutine,
         confirmProposal,
         exportBackup,

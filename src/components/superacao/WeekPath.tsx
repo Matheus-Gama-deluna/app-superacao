@@ -1,6 +1,7 @@
 import React from 'react';
 import { CalendarDay, WorkoutSession } from '../../types';
 import { Check, Heart } from 'lucide-react';
+import { MONDAY_FIRST_DAYS, getWeekDatesMondayFirst } from '../../lib/dateUtils';
 
 interface WeekPathProps {
   calendar: CalendarDay[];
@@ -10,7 +11,7 @@ interface WeekPathProps {
   onNavigateCalendar: () => void;
 }
 
-const DAY_LABELS = ['D', 'S', 'T', 'Q', 'Q', 'S', 'S'];
+const MONDAY_LABELS_1LETTER = ['S', 'T', 'Q', 'Q', 'S', 'S', 'D'];
 
 export const WeekPath: React.FC<WeekPathProps> = ({
   calendar,
@@ -19,10 +20,7 @@ export const WeekPath: React.FC<WeekPathProps> = ({
   todayStr,
   onNavigateCalendar,
 }) => {
-  // Gera os 7 dias da semana atual
-  const today = new Date();
-  const startOfWeek = new Date(today);
-  startOfWeek.setDate(today.getDate() - todayDayOfWeek);
+  const weekDates = getWeekDatesMondayFirst();
 
   return (
     <div
@@ -30,22 +28,18 @@ export const WeekPath: React.FC<WeekPathProps> = ({
       role="button"
       tabIndex={0}
       title="Ver calendário completo da semana"
-      aria-label="Calendário semanal. Toque para ver detalhes."
+      aria-label="Calendário semanal de Segunda a Domingo. Toque para ver detalhes."
       className="bg-white border border-[#E4DDD3] rounded-2xl p-2 sm:p-3 shadow-2xs hover:border-[#1B4332]/40 transition-colors cursor-pointer"
     >
       <div className="flex items-center justify-between gap-1">
-        {DAY_LABELS.map((label, dayIdx) => {
-          const d = new Date(startOfWeek);
-          d.setDate(startOfWeek.getDate() + dayIdx);
-          const y = d.getFullYear();
-          const m = String(d.getMonth() + 1).padStart(2, '0');
-          const dayNum = String(d.getDate()).padStart(2, '0');
-          const dateStr = `${y}-${m}-${dayNum}`;
+        {MONDAY_FIRST_DAYS.map((dow, idx) => {
+          const dateStr = weekDates[dow];
+          const isToday = dow === todayDayOfWeek;
+          const dayNum = dateStr.split('-')[2];
 
-          const isToday = dayIdx === todayDayOfWeek;
           const daySchedule =
             calendar.find((c) => c.dateStr === dateStr) ||
-            calendar.find((c) => c.dayOfWeek === dayIdx);
+            calendar.find((c) => c.dayOfWeek === dow);
 
           const hasCompletedSession =
             daySchedule?.isCompleted ||
@@ -63,7 +57,7 @@ export const WeekPath: React.FC<WeekPathProps> = ({
 
           return (
             <div
-              key={dayIdx}
+              key={dow}
               className={`flex-1 flex flex-col items-center gap-1 py-0.5 sm:py-1 rounded-xl transition-all ${
                 isToday ? 'bg-[#E8EFE9]/80 font-bold' : ''
               }`}
@@ -73,7 +67,7 @@ export const WeekPath: React.FC<WeekPathProps> = ({
                   isToday ? 'text-[#1B4332] font-black' : 'text-[#5D6E65]'
                 }`}
               >
-                {label}
+                {MONDAY_LABELS_1LETTER[idx]}
               </span>
 
               <div
@@ -92,7 +86,7 @@ export const WeekPath: React.FC<WeekPathProps> = ({
                 ) : isRest ? (
                   <Heart className="w-3 h-3 fill-[#E07A5F]/30" />
                 ) : (
-                  <span className="text-[10px]">{d.getDate()}</span>
+                  <span className="text-[10px]">{Number(dayNum)}</span>
                 )}
               </div>
             </div>

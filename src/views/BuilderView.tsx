@@ -24,6 +24,9 @@ import { SmartWorkoutGeneratorModal } from '../components/SmartWorkoutGeneratorM
 interface BuilderViewProps {
   existingPlanId?: string;
   initialIsProfessional?: boolean;
+  studentLimitations?: string[];
+  studentEquipments?: string[];
+  onPlanSaved?: (plan: WorkoutPlan) => void;
   onClose: () => void;
   onStartWorkout?: (plan: WorkoutPlan) => void;
 }
@@ -31,6 +34,9 @@ interface BuilderViewProps {
 export const BuilderView: React.FC<BuilderViewProps> = ({
   existingPlanId,
   initialIsProfessional = false,
+  studentLimitations,
+  studentEquipments,
+  onPlanSaved,
   onClose,
   onStartWorkout,
 }) => {
@@ -166,24 +172,29 @@ export const BuilderView: React.FC<BuilderViewProps> = ({
 
     setIsSaving(true);
     try {
-      await savePlan(
-        {
-          ownerUid: '', // Atribuído no context
-          title: title.trim(),
-          description: description.trim(),
-          version: 1,
-          isProfessional,
-          authorName: isProfessional ? authorName.trim() : undefined,
-          isTemplate: false,
-          category,
-          estimatedDurationMinutes: estimatedDuration,
-          exercises: items,
-        },
-        existingPlanId
-      );
+      const fullPlanData = {
+        ownerUid: '', // Atribuído no context
+        title: title.trim(),
+        description: description.trim(),
+        version: 1,
+        isProfessional,
+        authorName: isProfessional ? authorName.trim() : undefined,
+        isTemplate: false,
+        category,
+        estimatedDurationMinutes: estimatedDuration,
+        exercises: items,
+      };
+      const savedId = await savePlan(fullPlanData, existingPlanId);
       if (!profile.routineConfirmed) {
         await updateUserProfile({ routineConfirmed: true });
       }
+      onPlanSaved?.({
+        ...fullPlanData,
+        id: savedId,
+        ownerUid: profile.uid || '',
+        createdAt: Date.now(),
+        updatedAt: Date.now(),
+      });
       onClose();
     } catch (err) {
       console.error('Erro ao salvar plano:', err);
@@ -223,6 +234,21 @@ export const BuilderView: React.FC<BuilderViewProps> = ({
           <span>Salvar</span>
         </button>
       </div>
+
+      {studentLimitations && studentLimitations.length > 0 && (
+        <div className="bg-[#FAF0E6] border border-[#DEB887] p-3.5 rounded-2xl flex items-start gap-2.5">
+          <AlertCircle className="w-4 h-4 text-[#8B4513] shrink-0 mt-0.5" />
+          <div className="text-xs text-[#5C4033] leading-relaxed">
+            <span className="font-bold text-[#8B4513]">Atenção às Limitações do Aluno: </span>
+            {studentLimitations.join(', ')}
+            {studentEquipments && studentEquipments.length > 0 && (
+              <span className="block mt-1 text-[11px] text-[#705030]">
+                Equipamentos disponíveis: {studentEquipments.join(', ')}
+              </span>
+            )}
+          </div>
+        </div>
+      )}
 
       {validationError && (
         <div role="alert" className="p-3.5 bg-red-50 border border-red-200 text-red-800 text-xs rounded-2xl flex items-center gap-2 animate-in fade-in">

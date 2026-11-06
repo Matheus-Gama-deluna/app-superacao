@@ -1,6 +1,8 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { useWorkout } from '../context/WorkoutContext';
+import { useAuth } from '../context/AuthContext';
 import { CalendarDay, ActivityType, TimeOfDay } from '../types';
+import { getMondayFirstIndex } from '../lib/dateUtils';
 import {
   Calendar as CalendarIcon,
   CheckCircle2,
@@ -15,13 +17,15 @@ import {
   Info,
   Plus,
   Trash2,
+  Compass,
 } from 'lucide-react';
 
 interface CalendarViewProps {
   onStartPlanById: (planId: string, scheduledDayId?: string, scheduledActivityId?: string) => void;
+  onOpenListening?: () => void;
 }
 
-export const CalendarView: React.FC<CalendarViewProps> = ({ onStartPlanById }) => {
+export const CalendarView: React.FC<CalendarViewProps> = ({ onStartPlanById, onOpenListening }) => {
   const {
     calendar,
     plans,
@@ -31,10 +35,12 @@ export const CalendarView: React.FC<CalendarViewProps> = ({ onStartPlanById }) =
     removeActivityFromDay,
     addActivityToDay,
   } = useWorkout();
+  const { profile } = useAuth();
   const [isAddingExtra, setIsAddingExtra] = useState<boolean>(false);
   const [selectedExtraPlanId, setSelectedExtraPlanId] = useState<string>('');
   const [selectedExtraTime, setSelectedExtraTime] = useState<TimeOfDay>('noite');
   const [editingDay, setEditingDay] = useState<CalendarDay | null>(null);
+  const [selectedStrengthPlanId, setSelectedStrengthPlanId] = useState<string>('');
 
   const daysLabels = ['Domingo', 'Segunda-feira', 'Terça-feira', 'Quarta-feira', 'Quinta-feira', 'Sexta-feira', 'Sábado'];
   const today = new Date();
@@ -42,6 +48,17 @@ export const CalendarView: React.FC<CalendarViewProps> = ({ onStartPlanById }) =
   const todayMonth = String(today.getMonth() + 1).padStart(2, '0');
   const todayDate = String(today.getDate()).padStart(2, '0');
   const todayStr = `${todayYear}-${todayMonth}-${todayDate}`;
+
+  // Ordenação canônica da semana: Segunda a Domingo
+  const sortedCalendar = useMemo(() => {
+    return [...calendar].sort(
+      (a, b) => getMondayFirstIndex(a.dayOfWeek) - getMondayFirstIndex(b.dayOfWeek)
+    );
+  }, [calendar]);
+
+  const hasConfiguredRoutine =
+    Boolean(profile?.routineConfirmed) ||
+    calendar.some((c) => c.activityType !== 'unassigned');
 
   const formatDateLabel = (dateStr?: string) => {
     if (!dateStr) return '';
@@ -111,9 +128,33 @@ export const CalendarView: React.FC<CalendarViewProps> = ({ onStartPlanById }) =
         </p>
       </div>
 
-      {/* Lista dos 7 Dias da Semana */}
+      {/* Banner se ainda não configurou rotina */}
+      {!hasConfiguredRoutine && (
+        <div className="bg-[#FAF8F5] border-2 border-dashed border-[#E4DDD3] rounded-3xl p-5 text-center space-y-3">
+          <div className="w-10 h-10 rounded-2xl bg-[#E8EFE9] text-[#1B4332] flex items-center justify-center mx-auto">
+            <Compass className="w-5 h-5" />
+          </div>
+          <div>
+            <h3 className="font-serif text-lg font-bold text-[#19231E]">Sua semana ainda não foi planejada</h3>
+            <p className="text-xs text-[#5D6E65] max-w-sm mx-auto mt-1 leading-relaxed">
+              Você pode responder à Escuta Inicial para gerar uma sugestão inteligente equilibrada com seus dias ou personalizar manualmente as atividades abaixo.
+            </p>
+          </div>
+          {onOpenListening && (
+            <button
+              onClick={onOpenListening}
+              className="inline-flex items-center gap-1.5 px-4 py-2.5 rounded-2xl bg-[#1B4332] text-white text-xs font-bold shadow-sm hover:bg-[#153427] cursor-pointer transition-colors"
+            >
+              <span>Fazer Escuta Inicial</span>
+              <ChevronRight className="w-3.5 h-3.5" />
+            </button>
+          )}
+        </div>
+      )}
+
+      {/* Lista dos 7 Dias da Semana (Segunda a Domingo) */}
       <div className="space-y-2.5">
-        {calendar.map((day) => {
+        {sortedCalendar.map((day) => {
           const cfg = activityBadges[day.activityType] || activityBadges.unassigned;
           const Icon = cfg.icon;
           const isToday = day.dateStr === todayStr || (!day.dateStr && day.dayOfWeek === today.getDay());
@@ -309,15 +350,52 @@ export const CalendarView: React.FC<CalendarViewProps> = ({ onStartPlanById }) =
 
             {/* Opções de Atividade */}
             <div className="space-y-2">
+              <div className="p-3 rounded-2xl border border-[#C9DBD3] bg-white space-y-2">
+                <div className="flex items-center justify-between">
+                  <span className="font-bold text-xs text-[#152A29]">Treino de Força</span>
+                  <span className="text-[10px] text-[#5B7170]">Pernas, braços ou core</span>
+                </div>
+                {plans.length > 1 ? (
+                  <div className="space-y-1.5 pt-1">
+                    <p className="text-[11px] text-[#5B7170]">Selecione a ficha para este dia:</p>
+                    <div className="grid grid-cols-1 gap-1.5">
+                      {plans.map((p) => (
+                        <button
+                          key={p.id}
+                          type="button"
+                          onClick={() => handleSaveDayEdit('strength', p.id)}
+                          className={`w-full p-2.5 rounded-xl border text-left text-xs font-semibold transition-all cursor-pointer flex items-center justify-between ${
+                            editingDay.activityType === 'strength' && editingDay.planId === p.id
+                              ? 'bg-[#EAF3EF] border-[#125F55] text-[#125F55] font-bold'
+                              : 'bg-[#F5F8F5] border-[#C9DBD3] text-[#152A29] hover:border-[#125F55]'
+                          }`}
+                        >
+                          <span>{p.title}</span>
+                          <span className="text-[10px] text-[#5B7170]">~{p.estimatedDurationMinutes} min</span>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => handleSaveDayEdit('strength', plans[0]?.id)}
+                    className="w-full py-2 px-3 rounded-xl bg-[#125F55] text-white text-xs font-bold cursor-pointer hover:bg-[#0C5148]"
+                  >
+                    Confirmar Treino de Força
+                  </button>
+                )}
+              </div>
+
               {[
-                { type: 'strength' as ActivityType, label: 'Treino de Força', desc: 'Exercícios para pernas, braços ou core' },
                 { type: 'active_recovery' as ActivityType, label: 'Recuperação Ativa', desc: 'Mobilidade suave & alongamento (5-10 min)' },
                 { type: 'walk' as ActivityType, label: 'Caminhada & Respiração', desc: 'Movimento ao ar livre ou esteira leve' },
                 { type: 'rest' as ActivityType, label: 'Descanso Total', desc: 'Recuperação plena sem atividade' },
+                { type: 'unassigned' as ActivityType, label: 'Dia Livre', desc: 'Sem compromisso fixo' },
               ].map((opt) => (
                 <button
                   key={opt.type}
-                  onClick={() => handleSaveDayEdit(opt.type, opt.type === 'strength' ? plans[0]?.id : undefined)}
+                  onClick={() => handleSaveDayEdit(opt.type)}
                   className={`w-full p-3 rounded-2xl border text-left transition-all cursor-pointer ${
                     editingDay.activityType === opt.type
                       ? 'border-[#125F55] bg-[#EAF3EF]'
