@@ -22,7 +22,7 @@ export const QuickIdentificationView: React.FC<QuickIdentificationViewProps> = (
   const [name, setName] = useState<string>(hasKnownName ? initialName.trim() : '');
   const [isEditingName, setIsEditingName] = useState<boolean>(!hasKnownName);
   const [role, setRole] = useState<UserRole>('student');
-  const [studentChoice, setStudentChoice] = useState<StudentFirstStepChoice>('listening');
+  const [studentChoice, setStudentChoice] = useState<StudentFirstStepChoice>('explore');
   const [error, setError] = useState<string | null>(null);
 
   const handleSubmit = (e: React.FormEvent) => {

@@ -58,12 +58,9 @@ test.describe('Superação - Auditoria Visual Multi-Persona e Fluxos de Utiliza�
     const daysLabels = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'];
     const todayDow = new Date().getDay();
     const todayLabel = daysLabels[todayDow];
-    const todayDayBtn = page.locator(`button:has-text("${todayLabel}")`).first();
+    const todayDayBtn = page.locator(`.grid.grid-cols-7 button:has-text("${todayLabel}")`).first();
     if (await todayDayBtn.isVisible()) {
-      const ariaLabel = await todayDayBtn.getAttribute('aria-label');
-      if (ariaLabel && !ariaLabel.includes('selecionado')) {
-        await todayDayBtn.click();
-      }
+      await todayDayBtn.click();
     }
     await page.screenshot({ path: path.join(SCREENSHOT_DIR, 'persona1_04_listening_availability.png') });
     await page.getByRole('button', { name: /Avançar/i }).click();

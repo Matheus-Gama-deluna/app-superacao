@@ -414,49 +414,35 @@ export const ListeningJourneyView: React.FC<ListeningJourneyViewProps> = ({
           <section className="bg-white rounded-3xl p-6 border border-[#C9DBD3] shadow-xs space-y-5 animate-in fade-in">
             <div className="space-y-1">
               <h2 className="text-xl font-bold text-[#152A29]">
-                {displayName && displayName !== 'Praticante'
-                  ? `Olá, ${displayName}! Vamos entender seu momento`
-                  : 'Como prefere ser chamado?'}
+                Como prefere ser chamado?
               </h2>
               <p className="text-xs text-[#5B7170]">
-                Não pedimos peso, medidas nem informações desnecessárias. Apenas o que for útil para organizar sua rotina.
+                {displayName && displayName !== 'Praticante'
+                  ? `Identificamos você como ${displayName}. Se preferir outro nome, ajuste abaixo:`
+                  : 'Não pedimos peso, medidas nem informações desnecessárias. Apenas o que for útil para organizar sua rotina.'}
               </p>
             </div>
 
-            {displayName && displayName !== 'Praticante' ? (
-              <div className="p-3.5 bg-[#EAF3EF] rounded-2xl border border-[#125F55]/20 flex items-center justify-between">
-                <div>
-                  <span className="text-[10px] font-bold uppercase tracking-wider text-[#125F55] block">
-                    Nome Identificado
-                  </span>
-                  <span className="text-sm font-bold text-[#152A29]">{displayName}</span>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => {
-                    const edited = window.prompt('Editar nome de preferência:', displayName);
-                    if (edited && edited.trim()) setDisplayName(edited.trim());
-                  }}
-                  className="text-xs text-[#125F55] font-semibold hover:underline cursor-pointer"
-                >
-                  Editar
-                </button>
-              </div>
-            ) : (
-              <div className="space-y-2">
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
                 <label htmlFor="display_name_input" className="block text-xs font-bold text-[#152A29]">
                   Seu nome de preferência
                 </label>
-                <input
-                  id="display_name_input"
-                  type="text"
-                  value={displayName}
-                  onChange={(e) => setDisplayName(e.target.value)}
-                  placeholder="Ex: Matheus, Ana..."
-                  className="w-full h-12 px-3.5 rounded-xl border border-[#C9DBD3] text-sm focus:outline-none focus:border-[#125F55] bg-[#F5F8F5]"
-                />
+                {displayName && displayName !== 'Praticante' && (
+                  <span className="text-[11px] text-[#246747] font-semibold bg-[#EAF3EF] px-2 py-0.5 rounded-full">
+                    ✓ Preenchido na triagem
+                  </span>
+                )}
               </div>
-            )}
+              <input
+                id="display_name_input"
+                type="text"
+                value={displayName}
+                onChange={(e) => setDisplayName(e.target.value)}
+                placeholder="Ex: Matheus, Ana..."
+                className="w-full h-12 px-3.5 rounded-xl border border-[#C9DBD3] text-sm focus:outline-none focus:border-[#125F55] bg-[#F5F8F5]"
+              />
+            </div>
 
             <div className="space-y-2 pt-2">
               <label className="block text-xs font-bold text-[#152A29]">
