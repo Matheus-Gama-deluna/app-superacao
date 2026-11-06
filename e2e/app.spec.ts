@@ -1008,7 +1008,7 @@ test.describe('Superação - Validação End-to-End Headless (Em Segundo Plano)'
 
     // 2. Valida opções na WelcomeView
     await expect(page.getByRole('button', { name: /Continuar sem conta/i })).toBeVisible();
-    await expect(page.getByRole('button', { name: /Continuar com Google|Criar conta com Google/i })).toBeVisible();
+    await expect(page.getByRole('button', { name: /Criar conta com Google/i })).toBeVisible();
     const emailSignupBtn = page.getByRole('button', { name: /Criar conta com E-mail/i });
     await expect(emailSignupBtn).toBeVisible();
 
