@@ -94,9 +94,9 @@ export const TeacherDashboardView: React.FC<TeacherDashboardViewProps> = ({
       } else {
         // Inicializa 7 dias neutros
         setCurrentPrescriptions(
-          [0, 1, 2, 3, 4, 5, 6].map((dayOfWeek) => ({
+          MONDAY_FIRST_DAYS.map((dayOfWeek) => ({
             dayOfWeek,
-            regime: 'unassigned',
+            regime: 'unassigned' as TeacherDayRegime,
           }))
         );
       }

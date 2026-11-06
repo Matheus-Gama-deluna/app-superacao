@@ -215,11 +215,15 @@ export const WorkoutProvider: React.FC<{ children: React.ReactNode }> = ({ child
       if (user && !isGuest) {
         void persistCalendarDays(uid, prev);
       }
+      setLocal('superacao_rebalance_handled_date', getLocalDateStr());
       setRebalanceAlert(null);
     }
   };
 
-  const dismissRebalanceAlert = () => setRebalanceAlert(null);
+  const dismissRebalanceAlert = () => {
+    setLocal('superacao_rebalance_handled_date', getLocalDateStr());
+    setRebalanceAlert(null);
+  };
 
   // Rollover Semanal Automático e Inteligente (Segunda a Domingo) e Rebalanceamento Intra-Semana
   useEffect(() => {
@@ -242,29 +246,34 @@ export const WorkoutProvider: React.FC<{ children: React.ReactNode }> = ({ child
       }
     } else {
       const today = new Date();
-      const todayDow = today.getDay();
-      const rebalanceRes = rebalanceRemainingWeek({
-        calendar,
-        todayDow,
-        plans,
-        sessions,
-        routineConfirmedAt: profile?.updatedAt || profile?.createdAt,
-      });
-      if (rebalanceRes.rebalanced && rebalanceRes.message) {
-        setCalendar(rebalanceRes.updatedCalendar);
-        setLocal('superacao_calendar', rebalanceRes.updatedCalendar);
-        if (user && !isGuest) {
-          void persistCalendarDays(uid, rebalanceRes.updatedCalendar);
-        }
-        if (rebalanceRes.previousCalendar) {
-          setRebalanceAlert({
-            message: rebalanceRes.message,
-            previousCalendar: rebalanceRes.previousCalendar,
-          });
+      const todayStr = getLocalDateStr(today);
+      const isAlreadyHandledToday = getLocal('superacao_rebalance_handled_date', '') === todayStr;
+
+      if (!isAlreadyHandledToday) {
+        const todayDow = today.getDay();
+        const rebalanceRes = rebalanceRemainingWeek({
+          calendar,
+          todayDow,
+          plans,
+          sessions,
+          routineConfirmedAt: profile?.updatedAt || profile?.createdAt,
+        });
+        if (rebalanceRes.rebalanced && rebalanceRes.message) {
+          setCalendar(rebalanceRes.updatedCalendar);
+          setLocal('superacao_calendar', rebalanceRes.updatedCalendar);
+          if (user && !isGuest) {
+            void persistCalendarDays(uid, rebalanceRes.updatedCalendar);
+          }
+          if (rebalanceRes.previousCalendar) {
+            setRebalanceAlert({
+              message: rebalanceRes.message,
+              previousCalendar: rebalanceRes.previousCalendar,
+            });
+          }
         }
       }
     }
-  }, [uid, plans.length, profile?.routineConfirmed]);
+  }, [uid, plans.length, profile?.routineConfirmed, calendar]);
 
   // Sessão ativa em andamento
   const [activeSession, setActiveSession] = useState<WorkoutSession | null>(() => {

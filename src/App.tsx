@@ -107,8 +107,8 @@ const MainAppContent: React.FC = () => {
     // Papel efetivo considerando perfil legado (onboarding concluído mas sem userRole explícito)
     const effectiveRole = profile.userRole || (profile.onboardingCompleted ? 'student' : undefined);
 
-    // 2. Identificação rápida pendente (usuário sem papel definido ou sem nome informado)
-    if (!effectiveRole || !profile.displayName?.trim() || profile.displayName === 'Praticante') {
+    // 2. Identificação rápida pendente (usuário sem papel definido ou com perfil neutro inicial)
+    if (!profile.userRole || (!profile.onboardingCompleted && (!profile.displayName?.trim() || profile.displayName === 'Praticante'))) {
       return 'quick_id';
     }
 
@@ -370,7 +370,13 @@ const MainAppContent: React.FC = () => {
           if (data.userRole === 'teacher') {
             return;
           }
-          handleSelectTab('home');
+          if (data.initialChoice === 'listening') {
+            setIsListeningOpen(true);
+          } else if (data.initialChoice === 'link_teacher') {
+            setShowLinkTeacherModal(true);
+          } else {
+            handleSelectTab('home');
+          }
         }}
         onBack={() => {
           setAccessChoice(null);
