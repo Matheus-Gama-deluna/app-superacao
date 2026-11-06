@@ -277,6 +277,10 @@ test.describe('Rodada 2: Auditoria Visual Completa, Multi-Perfis & Integração 
 
     // Passo 2: Seus Objetivos & Prioridades
     await expect(page.getByRole('heading', { name: 'Seus Objetivos & Prioridades' }).first()).toBeVisible();
+    const addGoalBtn = page.locator('button:has-text("+ Construir o hábito"), button:has-text("+ Melhorar postura")').first();
+    if (await addGoalBtn.isVisible()) {
+      await addGoalBtn.click();
+    }
     await page.screenshot({ path: path.join(SCREENSHOT_DIR, '19_autonomous_listening_step2.png') });
     await page.getByRole('button', { name: 'Avançar' }).click();
 
