@@ -1,4 +1,4 @@
-import { getLocalDateStr } from '../lib/dateUtils';
+import { getLocalDateStr, getMondayFirstIndex } from '../lib/dateUtils';
 import React, { useState } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useWorkout } from '../context/WorkoutContext';
@@ -82,6 +82,9 @@ export const HomeView: React.FC<HomeViewProps> = ({
     activeSession,
     personalRecords,
     activeProgram,
+    rebalanceAlert,
+    undoRebalance,
+    dismissRebalanceAlert,
     startEmergencyWorkout,
     recordWalkSession,
     recordExternalPractice,
@@ -109,7 +112,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
   const [showStyleSelector, setShowStyleSelector] = useState<boolean>(false);
   const [showReviewOnboarding, setShowReviewOnboarding] = useState<boolean>(false);
   const [showPreWorkoutModal, setShowPreWorkoutModal] = useState<boolean>(false);
-  const [preMood, setPreMood] = useState<PreWorkoutMood>('normal');
+  const [preMood, setPreMood] = useState<PreWorkoutMood | null>(null);
   const [showExerciseDetails, setShowExerciseDetails] = useState<boolean>(false);
   const [showAutonomousOption, setShowAutonomousOption] = useState<boolean>(false);
 
@@ -120,8 +123,15 @@ export const HomeView: React.FC<HomeViewProps> = ({
   const todaySchedule =
     calendar.find((c) => c.dateStr === todayStr) || calendar.find((c) => c.dayOfWeek === dayOfWeek);
 
-  // Plano estritamente associado ao dia de hoje
-  const todayPlan = todaySchedule?.planId
+  // Define se o usuário já possui rotina ou ficha configurada de verdade
+  const hasConfiguredRoutine = Boolean(
+    profile.routineConfirmed ||
+    profile.linkedTeacherId ||
+    (calendar.some((c) => c.activityType !== 'unassigned') && profile.onboardingCompleted)
+  );
+
+  // Plano estritamente associado ao dia de hoje (apenas se for dia de força agendado)
+  const todayPlan = (todaySchedule?.activityType === 'strength' && todaySchedule?.planId)
     ? plans.find((p) => p.id === todaySchedule.planId) || null
     : null;
 
@@ -204,12 +214,53 @@ export const HomeView: React.FC<HomeViewProps> = ({
       const softened = createSoftenedPlanSnapshot(todayPlan);
       onStartWorkout(softened, todaySchedule?.id, 'scheduled', false, false, undefined, preMood);
     } else {
-      onStartWorkout(todayPlan, todaySchedule?.id, 'scheduled', false, false, undefined, preMood);
+      onStartWorkout(todayPlan, todaySchedule?.id, 'scheduled', false, false, undefined, preMood || undefined);
     }
   };
 
   return (
     <div className="space-y-3 sm:space-y-4 pb-24">
+      {/* ─────────────────────────────────────────────────────────────
+          FOLD 1: HEADER EDITORIAL ACOLHEDOR & RITMO SEMANAL
+          Garante que o Card de Ação Principal e o botão CTA fiquem
+          completamente visíveis no viewport mobile 390×844 sem rolagem.
+         ───────────────────────────────────────────────────────────── */}
+      {/* Banner de Rebalanceamento Inteligente da Semana */}
+      {rebalanceAlert && (
+        <section className="bg-amber-50 border border-amber-300 rounded-3xl p-4 shadow-2xs space-y-2 animate-in fade-in">
+          <div className="flex items-start justify-between gap-2">
+            <div className="flex items-center gap-2 text-xs font-bold text-amber-900">
+              <span>⚖️</span>
+              <span>Ajuste Inteligente da Semana</span>
+            </div>
+            <button
+              onClick={dismissRebalanceAlert}
+              className="text-amber-800 hover:text-amber-950 p-1 text-xs"
+              aria-label="Dispensar aviso"
+            >
+              ✕
+            </button>
+          </div>
+          <p className="text-xs text-amber-900 leading-relaxed font-medium">
+            {rebalanceAlert.message}
+          </p>
+          <div className="flex items-center gap-2 pt-1 flex-wrap">
+            <button
+              onClick={dismissRebalanceAlert}
+              className="px-3 py-1.5 bg-amber-800 text-white font-bold text-xs rounded-xl hover:bg-amber-900 transition-all cursor-pointer"
+            >
+              Entendido
+            </button>
+            <button
+              onClick={undoRebalance}
+              className="px-3 py-1.5 bg-white border border-amber-300 text-amber-900 font-semibold text-xs rounded-xl hover:bg-amber-100 transition-all cursor-pointer"
+            >
+              Desfazer / Manter agenda anterior
+            </button>
+          </div>
+        </section>
+      )}
+
       {/* ─────────────────────────────────────────────────────────────
           FOLD 1: HEADER EDITORIAL ACOLHEDOR & RITMO SEMANAL
           Garante que o Card de Ação Principal e o botão CTA fiquem
@@ -227,79 +278,87 @@ export const HomeView: React.FC<HomeViewProps> = ({
             </h1>
           </div>
 
-          {/* Badge de Consistência Semanal */}
-          <div className="flex items-center gap-1.5 px-2.5 py-1 sm:px-3 sm:py-1.5 bg-[#E8EFE9] text-[#1B4332] rounded-full border border-[#1B4332]/15 shrink-0 shadow-2xs">
-            <Flame className="w-3.5 h-3.5 text-[#1B4332]" />
-            <span className="text-[11px] sm:text-xs font-bold">
-              {totalPlannedThisWeek > 0
-                ? `${completedThisWeek}/${totalPlannedThisWeek} na semana`
-                : `${completedThisWeek} sessões`}
-            </span>
-          </div>
+          {/* Badge de Consistência Semanal (H1: Apenas quando houver rotina configurada e meta real) */}
+          {hasConfiguredRoutine && targetWeeklyGoal > 0 && (
+            <div className="flex items-center gap-1.5 px-2.5 py-1 sm:px-3 sm:py-1.5 bg-[#E8EFE9] text-[#1B4332] rounded-full border border-[#1B4332]/15 shrink-0 shadow-2xs">
+              <Flame className="w-3.5 h-3.5 text-[#1B4332]" />
+              <span className="text-[11px] sm:text-xs font-bold">
+                {totalPlannedThisWeek > 0
+                  ? `${completedThisWeek}/${totalPlannedThisWeek} na semana`
+                  : `${completedThisWeek} sessões`}
+              </span>
+            </div>
+          )}
         </div>
 
-        {/* Estilo de Incentivo Compacto (T01 Autonomia) */}
-        <div className="flex items-center justify-between text-xs text-[#5D6E65]">
-          <div className="flex items-center gap-1.5 flex-wrap">
-            <span>Incentivo:</span>
-            <span className="font-bold text-[#1B4332] bg-[#E8EFE9] px-2.5 py-0.5 rounded-full border border-[#1B4332]/20 flex items-center gap-1">
-              {currentMotivationStyle === 'consistency' && '🎯 Constância & Hábito'}
-              {currentMotivationStyle === 'mastery' && '📐 Domínio Técnico'}
-              {currentMotivationStyle === 'wellbeing' && '🌿 Bem-Estar & Alívio'}
-              {currentMotivationStyle === 'performance' && '🏆 Superação (PRs)'}
-              {currentMotivationStyle === 'variety' && '🎲 Variedade'}
-              {currentMotivationStyle === 'social' && '🤝 Compromisso'}
-              {currentMotivationStyle === 'none' && '🛡️ Apenas Meu Plano'}
-            </span>
-          </div>
-          <button
-            type="button"
-            onClick={() => setShowStyleSelector((prev) => !prev)}
-            className="text-[11px] font-bold text-[#1B4332] hover:underline cursor-pointer shrink-0 ml-2"
-          >
-            {showStyleSelector ? 'Fechar' : 'Mudar estilo'}
-          </button>
-        </div>
-
-        {/* Menu rápido de estilos de incentivo quando acionado */}
-        {showStyleSelector && (
-          <div className="grid grid-cols-2 sm:grid-cols-3 gap-1.5 p-2 bg-[#FAF8F5] rounded-2xl border border-[#E4DDD3] animate-in fade-in">
-            {[
-              { id: 'consistency' as const, label: 'Constância', icon: '🎯' },
-              { id: 'mastery' as const, label: 'Domínio Técnico', icon: '📐' },
-              { id: 'wellbeing' as const, label: 'Bem-Estar', icon: '🌿' },
-              { id: 'performance' as const, label: 'Superação (PRs)', icon: '🏆' },
-              { id: 'variety' as const, label: 'Variedade', icon: '🎲' },
-              { id: 'none' as const, label: 'Sem desafios', icon: '🛡️' },
-            ].map((st) => (
+        {/* Estilo de Incentivo Compacto (H2: Apenas quando houver rotina ativa) */}
+        {hasConfiguredRoutine && (
+          <>
+            <div className="flex items-center justify-between text-xs text-[#5D6E65]">
+              <div className="flex items-center gap-1.5 flex-wrap">
+                <span>Incentivo:</span>
+                <span className="font-bold text-[#1B4332] bg-[#E8EFE9] px-2.5 py-0.5 rounded-full border border-[#1B4332]/20 flex items-center gap-1">
+                  {currentMotivationStyle === 'consistency' && '🎯 Constância & Hábito'}
+                  {currentMotivationStyle === 'mastery' && '📐 Domínio Técnico'}
+                  {currentMotivationStyle === 'wellbeing' && '🌿 Bem-Estar & Alívio'}
+                  {currentMotivationStyle === 'performance' && '🏆 Superação (PRs)'}
+                  {currentMotivationStyle === 'variety' && '🎲 Variedade'}
+                  {currentMotivationStyle === 'social' && '🤝 Compromisso'}
+                  {currentMotivationStyle === 'none' && '🛡️ Apenas Meu Plano'}
+                </span>
+              </div>
               <button
-                key={st.id}
                 type="button"
-                onClick={async () => {
-                  await updateMotivationStyle(st.id);
-                  setShowStyleSelector(false);
-                }}
-                className={`p-2 rounded-xl text-left text-xs font-semibold flex items-center gap-1.5 transition-all cursor-pointer min-h-[40px] ${
-                  currentMotivationStyle === st.id
-                    ? 'bg-[#1B4332] text-white'
-                    : 'bg-white text-[#19231E] border border-[#E4DDD3] hover:border-[#1B4332]'
-                }`}
+                onClick={() => setShowStyleSelector((prev) => !prev)}
+                className="text-[11px] font-bold text-[#1B4332] hover:underline cursor-pointer shrink-0 ml-2"
               >
-                <span>{st.icon}</span>
-                <span className="text-[11px] sm:text-xs leading-tight line-clamp-1 min-w-0 flex-1">{st.label}</span>
+                {showStyleSelector ? 'Fechar' : 'Mudar estilo'}
               </button>
-            ))}
-          </div>
+            </div>
+
+            {/* Menu rápido de estilos de incentivo quando acionado */}
+            {showStyleSelector && (
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-1.5 p-2 bg-[#FAF8F5] rounded-2xl border border-[#E4DDD3] animate-in fade-in">
+                {[
+                  { id: 'consistency' as const, label: 'Constância', icon: '🎯' },
+                  { id: 'mastery' as const, label: 'Domínio Técnico', icon: '📐' },
+                  { id: 'wellbeing' as const, label: 'Bem-Estar', icon: '🌿' },
+                  { id: 'performance' as const, label: 'Superação (PRs)', icon: '🏆' },
+                  { id: 'variety' as const, label: 'Variedade', icon: '🎲' },
+                  { id: 'none' as const, label: 'Sem desafios', icon: '🛡️' },
+                ].map((st) => (
+                  <button
+                    key={st.id}
+                    type="button"
+                    onClick={async () => {
+                      await updateMotivationStyle(st.id);
+                      setShowStyleSelector(false);
+                    }}
+                    className={`p-2 rounded-xl text-left text-xs font-semibold flex items-center gap-1.5 transition-all cursor-pointer min-h-[40px] ${
+                      currentMotivationStyle === st.id
+                        ? 'bg-[#1B4332] text-white'
+                        : 'bg-white text-[#19231E] border border-[#E4DDD3] hover:border-[#1B4332]'
+                    }`}
+                  >
+                    <span>{st.icon}</span>
+                    <span className="text-[11px] sm:text-xs leading-tight line-clamp-1 min-w-0 flex-1">{st.label}</span>
+                  </button>
+                ))}
+              </div>
+            )}
+          </>
         )}
 
-        {/* Trilha Semanal de 1 Linha (Bolinhas Semânticas) */}
-        <WeekPath
-          calendar={calendar}
-          sessions={sessions}
-          todayDayOfWeek={dayOfWeek}
-          todayStr={todayStr}
-          onNavigateCalendar={() => onNavigateTab('calendar')}
-        />
+        {/* Trilha Semanal de 1 Linha (H3: Apenas quando houver rotina configurada) */}
+        {hasConfiguredRoutine && (
+          <WeekPath
+            calendar={calendar}
+            sessions={sessions}
+            todayDayOfWeek={dayOfWeek}
+            todayStr={todayStr}
+            onNavigateCalendar={() => onNavigateTab('calendar')}
+          />
+        )}
       </section>
 
       {/* ─────────────────────────────────────────────────────────────
@@ -381,6 +440,21 @@ export const HomeView: React.FC<HomeViewProps> = ({
             </p>
           </div>
 
+          {/* Orientação do Professor para o descanso */}
+          {todaySchedule?.notes && (
+            <div className="bg-[#FAF8F5] border border-[#E4DDD3] rounded-2xl p-3 flex items-start gap-2.5">
+              <span className="text-base shrink-0 mt-0.5">👨‍🏫</span>
+              <div className="flex-1 min-w-0">
+                <span className="text-[10px] font-bold uppercase tracking-wider text-[#125F55] block">
+                  Orientação do seu Treinador
+                </span>
+                <p className="text-xs text-[#19231E] mt-0.5 leading-relaxed">
+                  {todaySchedule.notes}
+                </p>
+              </div>
+            </div>
+          )}
+
           <div className="pt-1 grid grid-cols-1 sm:grid-cols-2 gap-2">
             {recoveryPlan && (
               <button
@@ -433,6 +507,21 @@ export const HomeView: React.FC<HomeViewProps> = ({
               {todayPlan.description}
             </p>
           </div>
+
+          {/* Orientação do Professor para o treino de força */}
+          {todaySchedule?.notes && (
+            <div className="bg-[#EAF3EF]/80 border border-[#125F55]/20 rounded-2xl p-3 flex items-start gap-2.5">
+              <span className="text-base shrink-0 mt-0.5">👨‍🏫</span>
+              <div className="flex-1 min-w-0">
+                <span className="text-[10px] font-bold uppercase tracking-wider text-[#125F55] block">
+                  Orientação do seu Treinador
+                </span>
+                <p className="text-xs text-[#19231E] mt-0.5 leading-relaxed">
+                  {todaySchedule.notes}
+                </p>
+              </div>
+            </div>
+          )}
 
           {/* Foco Adaptativo da Sessão (se houver) */}
           {sessionFocus && (
@@ -636,6 +725,44 @@ export const HomeView: React.FC<HomeViewProps> = ({
             )}
           </div>
         </section>
+      ) : todaySchedule?.activityType === 'unassigned' && hasConfiguredRoutine ? (
+        /* CARD: DIA LIVRE / FLEXÍVEL */
+        <section className="bg-white border border-[#E4DDD3] rounded-3xl p-5 shadow-sm space-y-3.5">
+          <div className="flex items-center justify-between text-xs">
+            <span className="font-bold text-[#1B4332] uppercase tracking-wider text-[11px] flex items-center gap-1.5">
+              <span>🌿</span>
+              <span>Dia Livre / Sem Treino Planejado</span>
+            </span>
+            <span className="text-[#5D6E65] text-[11px]">Seu Ritmo</span>
+          </div>
+          <div>
+            <h3 className="font-serif text-xl font-bold text-[#19231E]">
+              Hoje não há treino obrigatório na sua agenda
+            </h3>
+            <p className="text-xs text-[#5D6E65] mt-1 leading-relaxed">
+              Você pode aproveitar para descansar, registrar uma caminhada suave ao ar livre ou iniciar uma sessão avulsa se estiver com disposição!
+            </p>
+          </div>
+          <div className="pt-1 grid grid-cols-1 sm:grid-cols-2 gap-2">
+            <button
+              onClick={() => onNavigateTab('workouts')}
+              className="h-12 bg-[#E8EFE9] text-[#1B4332] font-bold text-xs rounded-xl flex items-center justify-center gap-2 hover:bg-[#1B4332] hover:text-white transition-all cursor-pointer"
+            >
+              <Dumbbell className="w-4 h-4 text-[#1B4332]" />
+              <span>Fazer Treino Avulso</span>
+            </button>
+            <button
+              onClick={() => {
+                setPracticeModality('caminhada_corrida');
+                setShowPracticeModal(true);
+              }}
+              className="h-12 bg-white text-[#19231E] font-semibold text-xs rounded-xl flex items-center justify-center gap-2 hover:bg-[#FAF8F5] transition-all border border-[#E4DDD3] cursor-pointer"
+            >
+              <Footprints className="w-4 h-4 text-[#1B4332]" />
+              <span>Registrar Caminhada</span>
+            </button>
+          </div>
+        </section>
       ) : (
         /* FOLD 1: CARDS PARA ALUNO (VINCULADO AO PERSONAL OU AUTÔNOMO) */
         <section className="space-y-3">
@@ -739,7 +866,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
                 <button
                   type="button"
                   onClick={onOpenListening || onReviewProposal}
-                  className="w-full h-12 bg-[#1B4332] hover:bg-[#12372A] text-white font-bold text-xs sm:text-sm rounded-2xl flex items-center justify-center gap-2 shadow-sm transition-all"
+                  className="w-full h-12 bg-[#1B4332] hover:bg-[#12372A] text-white font-bold text-xs sm:text-sm rounded-2xl flex items-center justify-center gap-2 shadow-sm transition-all cursor-pointer"
                 >
                   <Sparkles className="w-4 h-4 text-[#D9F277]" />
                   <span>Responder e Criar Meu Plano</span>
@@ -771,8 +898,66 @@ export const HomeView: React.FC<HomeViewProps> = ({
                   <ChevronRight className="w-4 h-4" />
                 </button>
               </div>
+
+              {/* Card 3: Explorar Catálogo & Fichas Prontas */}
+              <div className="bg-white rounded-3xl p-5 border border-[#E4DDD3] shadow-xs space-y-3">
+                <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-[#5D6E65]">
+                  <span className="text-base">🧭</span>
+                  <span>Explorar Catálogo & Fichas Prontas</span>
+                </div>
+                <div>
+                  <h3 className="font-serif text-base sm:text-lg font-bold text-[#19231E]">
+                    Conhecer treinos e exercícios no seu ritmo
+                  </h3>
+                  <p className="text-xs text-[#5D6E65] mt-1 leading-relaxed">
+                    Navegue pelos programas curados, exercícios com demonstração biomecânica ou monte uma ficha manual personalizada.
+                  </p>
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                  <button
+                    type="button"
+                    onClick={() => onNavigateTab('workouts')}
+                    className="h-11 bg-[#FAF8F5] border border-[#C9DBD3] text-[#19231E] hover:bg-[#EAF3EF] font-bold text-xs rounded-xl flex items-center justify-center gap-1.5 transition-all cursor-pointer"
+                  >
+                    <span>Ver Catálogo de Treinos</span>
+                    <ChevronRight className="w-4 h-4 text-[#5D6E65]" />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => onOpenBuilder?.(undefined, false)}
+                    className="h-11 bg-[#FAF8F5] border border-[#C9DBD3] text-[#125F55] hover:bg-[#EAF3EF] font-bold text-xs rounded-xl flex items-center justify-center gap-1.5 transition-all cursor-pointer"
+                  >
+                    <span>+ Criar Ficha Manual</span>
+                  </button>
+                </div>
+              </div>
             </>
           )}
+        </section>
+      )}
+
+      {/* Banner de Rotina de Cuidado de 6 min prometida na véspera */}
+      {todaySchedule?.hasCareRoutine && !todaySchedule?.isCompleted && (
+        <section className="bg-gradient-to-r from-[#EAF3EF] to-[#F5F8F5] border border-[#125F55]/30 rounded-3xl p-4.5 shadow-2xs space-y-2.5">
+          <div className="flex items-center gap-2 text-[#125F55] text-xs font-bold uppercase tracking-wider">
+            <span>🌿</span>
+            <span>Rotina de Cuidado Agendada</span>
+          </div>
+          <p className="text-xs text-[#19231E] leading-relaxed">
+            Na conclusão do treino de ontem, você separou <strong>6 minutos de mobilidade e soltura</strong> para hoje. Seu corpo agradece o carinho!
+          </p>
+          <button
+            onClick={() => {
+              const mobPlan = plans.find((p) => p.category === 'mobilidade') || premadeWorkouts.find((p) => p.category === 'mobilidade') || plans[0];
+              if (mobPlan) {
+                onStartWorkout(mobPlan, todaySchedule.id, 'ad_hoc');
+              }
+            }}
+            className="px-4 py-2.5 bg-[#125F55] hover:bg-[#0E4B43] text-white font-bold text-xs rounded-xl transition-all flex items-center gap-2 cursor-pointer"
+          >
+            <Sparkles className="w-4 h-4 text-[#D9F277]" />
+            <span>Iniciar 6 min de Cuidado Leve</span>
+          </button>
         </section>
       )}
 
@@ -830,7 +1015,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
       )}
 
       {/* Card de Revisão Semanal de Processo (T04, T05, T17) */}
-      {hasWeeklySessions && !isWeeklyReviewCompleted && dayOfWeek >= 4 && (
+      {hasWeeklySessions && !isWeeklyReviewCompleted && getMondayFirstIndex(dayOfWeek) >= 3 && (
         <section className="bg-gradient-to-r from-[#E8EFE9] to-white rounded-3xl p-4.5 border border-[#1B4332]/20 shadow-xs space-y-3">
           <div className="flex items-start justify-between gap-3">
             <div className="flex items-center gap-2">
@@ -917,16 +1102,18 @@ export const HomeView: React.FC<HomeViewProps> = ({
         </section>
       )}
 
-      {/* Ritual de Preparação (T06) - Acordeão Retrátil */}
-      <PreparationCard
-        ritual={ritual}
-        isDoneToday={isRitualDoneToday}
-        habitAnchor={profile.habitAnchor}
-        onComplete={completePreparationRitual}
-      />
+      {/* Ritual de Preparação (T06) - Acordeão Retrátil (Apenas em dias de prática não concluídos) */}
+      {hasConfiguredRoutine && (todaySchedule?.activityType === 'strength' || todaySchedule?.activityType === 'active_recovery') && !todaySchedule?.isCompleted && (
+        <PreparationCard
+          ritual={ritual}
+          isDoneToday={isRitualDoneToday}
+          habitAnchor={profile.habitAnchor}
+          onComplete={completePreparationRitual}
+        />
+      )}
 
       {/* Lembretes Sutis de Âncora e Porquê */}
-      {(profile.habitAnchor || profile.exerciseReason) && (
+      {hasConfiguredRoutine && (profile.habitAnchor || profile.exerciseReason) && (
         <div className="flex flex-wrap items-center gap-2 pt-0.5">
           {profile.habitAnchor && (
             <div className="flex items-center gap-1.5 text-xs text-[#5D6E65] bg-white px-3 py-1.5 rounded-xl border border-[#E4DDD3]">
@@ -1055,21 +1242,23 @@ export const HomeView: React.FC<HomeViewProps> = ({
       )}
 
       {/* Caminho Pessoal da Semana Completo (Inspirado no Gentler Streak) */}
-      <ActivityPath
-        calendar={calendar}
-        sessions={sessions}
-        metrics={canonical}
-        personalRecords={personalRecords}
-        targetWeeklyGoal={targetWeeklyGoal}
-        completedThisWeek={completedThisWeek}
-        todayDayOfWeek={dayOfWeek}
-        hideWeeklyNodes={true}
-        onNavigateCalendar={() => onNavigateTab('calendar')}
-        onNavigateProgress={() => onNavigateTab('progress')}
-      />
+      {hasConfiguredRoutine && (
+        <ActivityPath
+          calendar={calendar}
+          sessions={sessions}
+          metrics={canonical}
+          personalRecords={personalRecords}
+          targetWeeklyGoal={targetWeeklyGoal}
+          completedThisWeek={completedThisWeek}
+          todayDayOfWeek={dayOfWeek}
+          hideWeeklyNodes={true}
+          onNavigateCalendar={() => onNavigateTab('calendar')}
+          onNavigateProgress={() => onNavigateTab('progress')}
+        />
+      )}
 
       {/* Espelho de Bem-Estar (Estratégia D: Termômetro Antes vs Depois) */}
-      {wellbeingInsight && (
+      {hasConfiguredRoutine && wellbeingInsight && (
         <section className="bg-white rounded-3xl p-4.5 border border-[#E4DDD3] flex items-start gap-3.5 shadow-2xs">
           <div className="w-9 h-9 rounded-2xl bg-[#E8EFE9] text-[#1B4332] flex items-center justify-center shrink-0 text-base shadow-2xs">
             ✨
@@ -1085,8 +1274,10 @@ export const HomeView: React.FC<HomeViewProps> = ({
         </section>
       )}
 
-      {/* Coach de IA Contextual */}
-      <AICoachCard context={coachContext} />
+      {/* Coach de IA Contextual (Apenas quando houver rotina configurada) */}
+      {hasConfiguredRoutine && (
+        <AICoachCard context={coachContext} />
+      )}
 
       {/* Banner de Instalação PWA */}
       <PWAInstallButton variant="banner" />

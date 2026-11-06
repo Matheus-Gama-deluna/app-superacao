@@ -15,7 +15,7 @@ import {
 } from '../lib/firebase';
 import { doc, getDoc, setDoc, onSnapshot } from 'firebase/firestore';
 import { UserProfile } from '../types';
-import { defaultGuestProfile, getLocal, setLocal } from '../lib/storage';
+import { defaultGuestProfile, getLocal, setLocal, STORAGE_KEYS } from '../lib/storage';
 import { migrateGuestDataToFirestore } from '../lib/persistence';
 
 interface ConflictState {
@@ -57,20 +57,17 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   // Escuta mudanças de autenticação do Firebase
   useEffect(() => {
+    let stopProfileListener: (() => void) | null = null;
+
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
       if (firebaseUser) {
         setUser(firebaseUser);
         setIsGuest(false);
         setLocal('superacao_is_guest', false);
 
-        // Migra dados de convidado se existirem no aparelho
-        try {
-          await migrateGuestDataToFirestore(firebaseUser.uid);
-        } catch (migErr) {
-          console.warn('Superação: Aviso durante migração de convidado:', migErr);
-        }
         const userRef = doc(db, 'users', firebaseUser.uid);
         try {
+          // Checa primeiro se já existe documento remoto no Firestore antes de qualquer migração
           const userSnap = await getDoc(userRef);
           const localSessions = getLocal<any[]>('superacao_sessions', []);
 
@@ -88,6 +85,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             }
           } else {
             // Conta nova: migra dados locais do convidado sem perda de histórico (C31)
+            try {
+              await migrateGuestDataToFirestore(firebaseUser.uid);
+            } catch (migErr) {
+              console.warn('Superação: Aviso durante migração de convidado:', migErr);
+            }
+
             const newProfile: UserProfile = {
               ...profile,
               uid: firebaseUser.uid,
@@ -104,7 +107,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         }
 
         // Listener reativo do perfil
-        const stopProfileListener = onSnapshot(userRef, { includeMetadataChanges: true }, (snap) => {
+        if (stopProfileListener) {
+          stopProfileListener();
+        }
+        stopProfileListener = onSnapshot(userRef, { includeMetadataChanges: true }, (snap) => {
           if (snap.exists() && !pendingConflict) {
             const data = snap.data() as UserProfile;
             setProfile(data);
@@ -113,14 +119,22 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         });
 
         setIsLoading(false);
-        return () => stopProfileListener();
       } else {
+        if (stopProfileListener) {
+          stopProfileListener();
+          stopProfileListener = null;
+        }
         setUser(null);
         setIsLoading(false);
       }
     });
 
-    return () => unsubscribe();
+    return () => {
+      if (stopProfileListener) {
+        stopProfileListener();
+      }
+      unsubscribe();
+    };
   }, []);
 
   const loginEmail = async (email: string, pass: string): Promise<boolean> => {
@@ -143,6 +157,16 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setLoginError(null);
     try {
       await createUserWithEmail(email, pass, displayName);
+      if (displayName?.trim()) {
+        const updated = {
+          ...profile,
+          displayName: displayName.trim(),
+          email,
+          updatedAt: Date.now(),
+        };
+        setProfile(updated);
+        setLocal('superacao_user_profile', updated);
+      }
       return true;
     } catch (err: any) {
       console.warn('Erro ao registrar conta com e-mail:', err);
@@ -226,6 +250,18 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setLocal('superacao_is_guest', true);
       setProfile(defaultGuestProfile);
       setPendingConflict(null);
+      // Limpeza completa de dados locais para evitar contaminação entre contas no mesmo dispositivo
+      localStorage.removeItem(STORAGE_KEYS.SESSIONS);
+      localStorage.removeItem(STORAGE_KEYS.PLANS);
+      localStorage.removeItem(STORAGE_KEYS.SET_EVENTS);
+      localStorage.removeItem(STORAGE_KEYS.CALENDAR);
+      localStorage.removeItem(STORAGE_KEYS.PERSONAL_RECORDS);
+      localStorage.removeItem(STORAGE_KEYS.ACTIVE_PROGRAM);
+      localStorage.removeItem(STORAGE_KEYS.ACTIVE_SESSION);
+      localStorage.removeItem(STORAGE_KEYS.ACCESS_CHOICE);
+      localStorage.removeItem(STORAGE_KEYS.ONBOARDING_DRAFT);
+      localStorage.removeItem(STORAGE_KEYS.PROPOSAL);
+      setLocal(STORAGE_KEYS.USER_PROFILE, defaultGuestProfile);
     } catch (err) {
       console.error('Erro ao sair:', err);
     }

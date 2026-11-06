@@ -1,9 +1,15 @@
 import React, { useState } from 'react';
 import { UserRole } from '../types';
 
+export type StudentFirstStepChoice = 'listening' | 'link_teacher' | 'explore';
+
 interface QuickIdentificationViewProps {
   initialName?: string;
-  onComplete: (data: { displayName: string; userRole: UserRole }) => void;
+  onComplete: (data: {
+    displayName: string;
+    userRole: UserRole;
+    initialChoice?: StudentFirstStepChoice;
+  }) => void;
   onBack?: () => void;
 }
 
@@ -12,8 +18,11 @@ export const QuickIdentificationView: React.FC<QuickIdentificationViewProps> = (
   onComplete,
   onBack,
 }) => {
-  const [name, setName] = useState<string>(initialName);
+  const hasKnownName = Boolean(initialName && initialName.trim() !== '' && initialName !== 'Praticante');
+  const [name, setName] = useState<string>(hasKnownName ? initialName.trim() : '');
+  const [isEditingName, setIsEditingName] = useState<boolean>(!hasKnownName);
   const [role, setRole] = useState<UserRole>('student');
+  const [studentChoice, setStudentChoice] = useState<StudentFirstStepChoice>('listening');
   const [error, setError] = useState<string | null>(null);
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -21,12 +30,14 @@ export const QuickIdentificationView: React.FC<QuickIdentificationViewProps> = (
     const cleanName = name.trim();
     if (!cleanName) {
       setError('Por favor, informe como podemos chamar você.');
+      setIsEditingName(true);
       return;
     }
     setError(null);
     onComplete({
       displayName: cleanName,
       userRole: role,
+      initialChoice: role === 'student' ? studentChoice : undefined,
     });
   };
 
@@ -62,36 +73,61 @@ export const QuickIdentificationView: React.FC<QuickIdentificationViewProps> = (
             Boas-vindas
           </span>
           <h1 className="text-2xl sm:text-3xl font-black text-[#19231E] tracking-tight">
-            Identificação Rápida
+            {hasKnownName && !isEditingName ? `Olá, ${name}!` : 'Identificação Rápida'}
           </h1>
           <p className="text-sm text-[#5B7170] max-w-md mx-auto">
-            Apenas 2 perguntas simples para personalizar sua experiência com cuidado e respeito.
+            {hasKnownName && !isEditingName
+              ? 'Como você gostaria de começar sua jornada no Superação hoje?'
+              : 'Apenas 2 perguntas simples para personalizar sua experiência com cuidado e respeito.'}
           </p>
         </div>
 
-        <form onSubmit={handleSubmit} className="space-y-6">
+        <form onSubmit={handleSubmit} className="space-y-5">
           {/* Pergunta 1: Nome */}
           <div className="bg-white rounded-3xl p-5 border border-[#C9DBD3]/60 shadow-sm space-y-2">
-            <label htmlFor="displayNameInput" className="block text-sm font-bold text-[#19231E]">
-              1. Como podemos chamar você?
-            </label>
-            <input
-              id="displayNameInput"
-              type="text"
-              value={name}
-              onChange={(e) => {
-                setName(e.target.value);
-                if (error) setError(null);
-              }}
-              placeholder="Ex.: Maria, Lucas, Dr. Ricardo"
-              maxLength={40}
-              className="w-full px-4 py-3 rounded-2xl border border-[#C9DBD3] bg-[#F5F8F5] text-[#19231E] placeholder-[#5B7170]/60 focus:outline-none focus:ring-2 focus:ring-[#125F55] focus:bg-white text-base transition-all"
-              autoFocus
-            />
-            {error && (
-              <p className="text-xs font-medium text-[#C84B31] mt-1 flex items-center gap-1">
-                <span>⚠️</span> {error}
-              </p>
+            <div className="flex items-center justify-between">
+              <label htmlFor="displayNameInput" className="block text-sm font-bold text-[#19231E]">
+                1. Como podemos chamar você?
+              </label>
+              {hasKnownName && !isEditingName && (
+                <button
+                  type="button"
+                  onClick={() => setIsEditingName(true)}
+                  className="text-xs text-[#125F55] font-semibold hover:underline"
+                >
+                  Editar nome
+                </button>
+              )}
+            </div>
+
+            {hasKnownName && !isEditingName ? (
+              <div className="flex items-center justify-between px-4 py-3 rounded-2xl bg-[#EAF3EF]/60 border border-[#C9DBD3]/60">
+                <span className="font-bold text-[#19231E] text-base">{name}</span>
+                <span className="text-xs text-[#246747] font-medium bg-[#E8EFE9] px-2.5 py-1 rounded-full">
+                  ✓ Identificado
+                </span>
+              </div>
+            ) : (
+              <div>
+                <input
+                  id="displayNameInput"
+                  type="text"
+                  value={name}
+                  onChange={(e) => {
+                    setName(e.target.value);
+                    if (error) setError(null);
+                  }}
+                  placeholder="Ex.: Maria, Lucas, Dr. Ricardo"
+                  maxLength={40}
+                  className="w-full px-4 py-3 rounded-2xl border border-[#C9DBD3] bg-[#F5F8F5] text-[#19231E] placeholder-[#5B7170]/60 focus:outline-none focus:ring-2 focus:ring-[#125F55] focus:bg-white text-base transition-all"
+                  autoFocus={isEditingName}
+                />
+                {error && (
+                  <p className="text-xs font-medium text-[#C84B31] mt-1.5 flex items-center gap-1">
+                    <span>⚠️</span> {error}
+                  </p>
+                )}
+              </div>
             )}
           </div>
 
@@ -171,6 +207,92 @@ export const QuickIdentificationView: React.FC<QuickIdentificationViewProps> = (
               </button>
             </div>
           </div>
+
+          {/* Sub-escolha do primeiro passo (somente quando Aluno) */}
+          {role === 'student' && (
+            <div className="bg-white rounded-3xl p-5 border border-[#C9DBD3]/60 shadow-sm space-y-3">
+              <label className="block text-sm font-bold text-[#19231E]">
+                3. Como você prefere começar agora?
+              </label>
+
+              <div className="space-y-2.5">
+                <label
+                  className={`p-3 rounded-2xl border text-left transition-all flex items-center gap-3 cursor-pointer ${
+                    studentChoice === 'listening'
+                      ? 'border-[#125F55] bg-[#EAF3EF]'
+                      : 'border-[#E4DDD3] bg-[#FAF8F5] hover:border-[#125F55]/40'
+                  }`}
+                >
+                  <input
+                    type="radio"
+                    name="studentChoice"
+                    value="listening"
+                    checked={studentChoice === 'listening'}
+                    onChange={() => setStudentChoice('listening')}
+                    className="w-4 h-4 text-[#125F55] accent-[#125F55]"
+                  />
+                  <div className="flex-1 text-xs">
+                    <span className="font-bold text-[#19231E] block">
+                      ✨ Montar meu treino personalizado <span className="text-[#246747] font-semibold">(Recomendado · 2 min)</span>
+                    </span>
+                    <span className="text-[#5B7170]">
+                      Responda à Escuta Inicial para adaptarmos exercícios, apoios e descansos.
+                    </span>
+                  </div>
+                </label>
+
+                <label
+                  className={`p-3 rounded-2xl border text-left transition-all flex items-center gap-3 cursor-pointer ${
+                    studentChoice === 'link_teacher'
+                      ? 'border-[#125F55] bg-[#EAF3EF]'
+                      : 'border-[#E4DDD3] bg-[#FAF8F5] hover:border-[#125F55]/40'
+                  }`}
+                >
+                  <input
+                    type="radio"
+                    name="studentChoice"
+                    value="link_teacher"
+                    checked={studentChoice === 'link_teacher'}
+                    onChange={() => setStudentChoice('link_teacher')}
+                    className="w-4 h-4 text-[#125F55] accent-[#125F55]"
+                  />
+                  <div className="flex-1 text-xs">
+                    <span className="font-bold text-[#19231E] block">
+                      👨‍🏫 Tenho código de um Professor (PROF-XXXX)
+                    </span>
+                    <span className="text-[#5B7170]">
+                      Conecte-se diretamente ao seu personal ou treinador.
+                    </span>
+                  </div>
+                </label>
+
+                <label
+                  className={`p-3 rounded-2xl border text-left transition-all flex items-center gap-3 cursor-pointer ${
+                    studentChoice === 'explore'
+                      ? 'border-[#125F55] bg-[#EAF3EF]'
+                      : 'border-[#E4DDD3] bg-[#FAF8F5] hover:border-[#125F55]/40'
+                  }`}
+                >
+                  <input
+                    type="radio"
+                    name="studentChoice"
+                    value="explore"
+                    checked={studentChoice === 'explore'}
+                    onChange={() => setStudentChoice('explore')}
+                    className="w-4 h-4 text-[#125F55] accent-[#125F55]"
+                  />
+                  <div className="flex-1 text-xs">
+                    <span className="font-bold text-[#19231E] block">
+                      🧭 Quero conhecer o aplicativo primeiro
+                    </span>
+                    <span className="text-[#5B7170]">
+                      Entre na Home limpa e explore as opções no seu ritmo.
+                    </span>
+                  </div>
+                </label>
+              </div>
+            </div>
+          )}
 
           <button
             type="submit"

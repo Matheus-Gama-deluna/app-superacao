@@ -58,7 +58,7 @@ import { CustomAnamnesisFlowView } from './views/CustomAnamnesisFlowView';
 type AppFlowState = 'welcome' | 'quick_id' | 'teacher_dashboard' | 'custom_anamnesis' | 'onboarding' | 'proposal' | 'main';
 
 const MainAppContent: React.FC = () => {
-  const { user, profile, isGuest, isLoading: authLoading, updateUserProfile } = useAuth();
+  const { user, profile, isGuest, isLoading: authLoading, updateUserProfile, logout, pendingConflict, resolveConflict } = useAuth();
   const {
     activeSession,
     isFocusMode,
@@ -94,6 +94,8 @@ const MainAppContent: React.FC = () => {
   const [customAnamnesisTeacherUid, setCustomAnamnesisTeacherUid] = useState<string | null>(null);
   const [isListeningOpen, setIsListeningOpen] = useState<boolean>(false);
   const [builderStudentCallback, setBuilderStudentCallback] = useState<((plan: WorkoutPlan) => void) | null>(null);
+  const [builderStudentLims, setBuilderStudentLims] = useState<string[]>([]);
+  const [builderStudentEqs, setBuilderStudentEqs] = useState<string[]>([]);
 
   // Calcula o estado determinístico de fluxo (Seção 4, Critérios C01, C02, C09 + Sprint 1 a 4)
   const flowState: AppFlowState = (() => {
@@ -105,8 +107,8 @@ const MainAppContent: React.FC = () => {
     // Papel efetivo considerando perfil legado (onboarding concluído mas sem userRole explícito)
     const effectiveRole = profile.userRole || (profile.onboardingCompleted ? 'student' : undefined);
 
-    // 2. Identificação rápida pendente (usuário sem papel definido e não concluído)
-    if (!effectiveRole) {
+    // 2. Identificação rápida pendente (usuário sem papel definido ou sem nome informado)
+    if (!effectiveRole || !profile.displayName?.trim() || profile.displayName === 'Praticante') {
       return 'quick_id';
     }
 
@@ -363,23 +365,98 @@ const MainAppContent: React.FC = () => {
           await updateUserProfile({
             displayName: data.displayName,
             userRole: data.userRole,
-            onboardingCompleted: true,
             routineConfirmed: profile.routineConfirmed ?? false,
           });
+          if (data.userRole === 'teacher') {
+            return;
+          }
+          handleSelectTab('home');
         }}
-        onBack={accessChoice ? () => setAccessChoice(null) : undefined}
+        onBack={() => {
+          setAccessChoice(null);
+          setLocal(STORAGE_KEYS.ACCESS_CHOICE, null);
+          if (user) {
+            void logout();
+          }
+        }}
       />
     );
   }
 
-  // 3. PAINEL DO PROFESSOR / TREINADOR
+  // 3. EDITOR MANUAL OU PROFISSIONAL ABERTO COM PRIORIDADE
+  if (isBuilderOpen) {
+    return (
+      <div className="min-h-screen bg-[#FAF8F5] text-[#19231E] flex flex-col justify-between font-sans">
+        <TopStatusBar onOpenProfile={handleOpenProfile} />
+        <main className="flex-1 max-w-xl mx-auto w-full px-4 pt-4 pb-24">
+          <React.Suspense fallback={<ViewLoadingFallback />}>
+            <BuilderView
+              existingPlanId={editingPlanId || undefined}
+              initialIsProfessional={isBuilderPro}
+              studentLimitations={builderStudentLims}
+              studentEquipments={builderStudentEqs}
+              onPlanSaved={(plan) => {
+                if (builderStudentCallback) {
+                  builderStudentCallback(plan);
+                  setBuilderStudentCallback(null);
+                }
+              }}
+              onClose={() => {
+                setIsBuilderOpen(false);
+                setEditingPlanId(null);
+                setIsBuilderPro(false);
+                setBuilderStudentCallback(null);
+                setBuilderStudentLims([]);
+                setBuilderStudentEqs([]);
+              }}
+              onStartWorkout={(plan) => {
+                if (builderStudentCallback) {
+                  builderStudentCallback(plan);
+                  setBuilderStudentCallback(null);
+                }
+                setIsBuilderOpen(false);
+                setEditingPlanId(null);
+                setIsBuilderPro(false);
+                setBuilderStudentLims([]);
+                setBuilderStudentEqs([]);
+                handleStartPlan(plan);
+              }}
+            />
+          </React.Suspense>
+        </main>
+      </div>
+    );
+  }
+
+  // 4. PERFIL DO USUÁRIO ABERTO COM PRIORIDADE
+  if (isProfileOpen) {
+    return (
+      <div className="min-h-screen bg-[#FAF8F5] text-[#19231E] flex flex-col justify-between font-sans">
+        <TopStatusBar onOpenProfile={handleOpenProfile} />
+        <main className="flex-1 max-w-xl mx-auto w-full px-4 pt-4 pb-24">
+          <React.Suspense fallback={<ViewLoadingFallback />}>
+            <ProfileView
+              onClose={() => setIsProfileOpen(false)}
+              onOpenListening={handleOpenListening}
+              onOpenLinkTeacher={handleOpenLinkTeacher}
+            />
+          </React.Suspense>
+        </main>
+      </div>
+    );
+  }
+
+  // 5. PAINEL DO PROFESSOR / TREINADOR
   if (flowState === 'teacher_dashboard') {
     return (
       <TeacherDashboardView
         teacherUid={profile.uid}
         teacherName={profile.displayName}
         onOpenPersonalWorkout={handleOpenTeacherPersonal}
-        onOpenBuilderForStudent={(_lims, _eqs, onSavePlan) => {
+        onOpenProfile={handleOpenProfile}
+        onOpenBuilderForStudent={(lims, eqs, onSavePlan) => {
+          setBuilderStudentLims(lims || []);
+          setBuilderStudentEqs(eqs || []);
           setBuilderStudentCallback(() => onSavePlan);
           handleOpenBuilder(undefined, true);
         }}
@@ -387,7 +464,7 @@ const MainAppContent: React.FC = () => {
     );
   }
 
-  // 4. FLUXO DE ANAMNESE PERSONALIZADA COM FOTOS (Aluno respondendo ao professor)
+  // 6. FLUXO DE ANAMNESE PERSONALIZADA COM FOTOS (Aluno respondendo ao professor)
   if (flowState === 'custom_anamnesis' && customAnamnesisTemplate && customAnamnesisTeacherUid) {
     return (
       <CustomAnamnesisFlowView
@@ -406,7 +483,7 @@ const MainAppContent: React.FC = () => {
     );
   }
 
-  // 5. ESCUTA INICIAL / ONBOARDING PROGRESSIVO (Seção 5, Critérios C04, C05, C06, C07, C08)
+  // 7. ESCUTA INICIAL / ONBOARDING PROGRESSIVO (Seção 5, Critérios C04, C05, C06, C07, C08)
   if (flowState === 'onboarding') {
     return (
       <React.Suspense fallback={<ViewLoadingFallback />}>
@@ -432,35 +509,7 @@ const MainAppContent: React.FC = () => {
     );
   }
 
-  // 3. EDITOR MANUAL OU PROFISSIONAL ABERTO COM PRIORIDADE (Critérios C09, C10, C15)
-  if (isBuilderOpen) {
-    return (
-      <div className="min-h-screen bg-[#FAF8F5] text-[#19231E] flex flex-col justify-between font-sans">
-        <TopStatusBar onOpenProfile={handleOpenProfile} />
-        <main className="flex-1 max-w-xl mx-auto w-full px-4 pt-4">
-          <React.Suspense fallback={<ViewLoadingFallback />}>
-            <BuilderView
-              existingPlanId={editingPlanId || undefined}
-              initialIsProfessional={isBuilderPro}
-              onClose={() => {
-                setIsBuilderOpen(false);
-                setEditingPlanId(null);
-                setIsBuilderPro(false);
-              }}
-              onStartWorkout={(plan) => {
-                setIsBuilderOpen(false);
-                setEditingPlanId(null);
-                setIsBuilderPro(false);
-                handleStartPlan(plan);
-              }}
-            />
-          </React.Suspense>
-        </main>
-      </div>
-    );
-  }
-
-  // 4. REVISÃO DA PROPOSTA EXPLICÁVEL (Seção 6, Critérios C09, C10, C11, C15)
+  // 8. REVISÃO DA PROPOSTA EXPLICÁVEL (Seção 6, Critérios C09, C10, C11, C15)
   if (flowState === 'proposal' && currentProposal) {
     return (
       <React.Suspense fallback={<ViewLoadingFallback />}>
@@ -482,6 +531,7 @@ const MainAppContent: React.FC = () => {
             setIsViewingProposal(false);
             setIsBuilderOpen(false);
             setIsBuilderPro(false);
+            setIsListeningOpen(true);
           }}
           onClose={() => {
             setIsViewingProposal(false);
@@ -536,61 +586,37 @@ const MainAppContent: React.FC = () => {
       {/* Conteúdo Principal com Container Responsivo Mobile-First */}
       <main className="flex-1 max-w-xl mx-auto w-full px-4 pt-4">
         <React.Suspense fallback={<ViewLoadingFallback />}>
-        {isProfileOpen ? (
-          <ProfileView onClose={() => setIsProfileOpen(false)} />
-        ) : isBuilderOpen ? (
-          <BuilderView
-            existingPlanId={editingPlanId || undefined}
-            initialIsProfessional={isBuilderPro}
-            onClose={() => {
-              setIsBuilderOpen(false);
-              setEditingPlanId(null);
-              setIsBuilderPro(false);
-              setBuilderStudentCallback(null);
-            }}
-            onStartWorkout={(plan) => {
-              if (builderStudentCallback) {
-                builderStudentCallback(plan);
-                setBuilderStudentCallback(null);
+          {currentTab === 'home' && (
+            <HomeView
+              onStartWorkout={handleStartPlan}
+              onResumeWorkout={() => setIsFocusMode(true)}
+              onNavigateTab={handleSelectTab}
+              onOpenBuilder={(id, isPro) => handleOpenBuilder(id, Boolean(isPro))}
+              onOpenListening={handleOpenListening}
+              onOpenLinkTeacher={handleOpenLinkTeacher}
+              onReviewProposal={
+                currentProposal
+                  ? () => {
+                      setIsViewingProposal(true);
+                    }
+                  : undefined
               }
-              setIsBuilderOpen(false);
-              setEditingPlanId(null);
-              setIsBuilderPro(false);
-              handleStartPlan(plan);
-            }}
-          />
-        ) : (
-          <>
-            {currentTab === 'home' && (
-              <HomeView
-                onStartWorkout={handleStartPlan}
-                onResumeWorkout={() => setIsFocusMode(true)}
-                onNavigateTab={handleSelectTab}
-                onOpenBuilder={(id, isPro) => handleOpenBuilder(id, Boolean(isPro))}
-                onOpenListening={handleOpenListening}
-                onOpenLinkTeacher={handleOpenLinkTeacher}
-                onReviewProposal={
-                  currentProposal
-                    ? () => {
-                        setIsViewingProposal(true);
-                      }
-                    : undefined
-                }
-              />
-            )}
-            {currentTab === 'workouts' && (
-              <ExploreView
-                onStartWorkout={handleStartPlan}
-                onOpenBuilder={(id) => handleOpenBuilder(id, false)}
-              />
-            )}
-            {currentTab === 'calendar' && (
-              <CalendarView onStartPlanById={handleStartPlanById} />
-            )}
-            {currentTab === 'progress' && <ProgressView />}
-          </>
-        )}
-      </React.Suspense>
+            />
+          )}
+          {currentTab === 'workouts' && (
+            <ExploreView
+              onStartWorkout={handleStartPlan}
+              onOpenBuilder={(id) => handleOpenBuilder(id, false)}
+            />
+          )}
+          {currentTab === 'calendar' && (
+            <CalendarView
+              onStartPlanById={handleStartPlanById}
+              onOpenListening={() => setIsListeningOpen(true)}
+            />
+          )}
+          {currentTab === 'progress' && <ProgressView />}
+        </React.Suspense>
       </main>
 
       {/* Modal para Aluno Conectar ao Professor */}
@@ -602,11 +628,46 @@ const MainAppContent: React.FC = () => {
           setCustomAnamnesisTemplate(tmpl);
           setCustomAnamnesisTeacherUid(tUid);
         }}
-        onLinkSuccess={(link) => {
+        onLinkSuccess={(_link) => {
           setShowLinkTeacherModal(false);
           handleSelectTab('home');
         }}
       />
+
+      {/* Modal Global de Resolução de Conflito de Conta */}
+      {pendingConflict && (
+        <div
+          role="dialog"
+          aria-modal="true"
+          className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4"
+        >
+          <div className="bg-white rounded-3xl p-6 max-w-sm w-full space-y-4 border border-[#C9DBD3] shadow-xl">
+            <h3 className="text-base font-bold text-[#152A29]">
+              Conflito de Dados Detectado
+            </h3>
+            <p className="text-xs text-[#5B7170] leading-relaxed">
+              Sua conta Google já possui um histórico gravado, e você também realizou treinos neste dispositivo. Como deseja prosseguir?
+            </p>
+
+            <div className="space-y-2 pt-1">
+              <button
+                type="button"
+                onClick={() => resolveConflict('merge_local')}
+                className="w-full p-3.5 rounded-2xl bg-[#125F55] text-white font-bold text-xs hover:bg-[#0C5148] transition-all cursor-pointer min-h-[48px]"
+              >
+                Mesclar treinos deste aparelho com a conta
+              </button>
+              <button
+                type="button"
+                onClick={() => resolveConflict('keep_remote')}
+                className="w-full p-3.5 rounded-2xl border border-[#C9DBD3] bg-white text-[#152A29] font-semibold text-xs hover:bg-slate-50 transition-all cursor-pointer min-h-[48px]"
+              >
+                Manter apenas os dados da conta na nuvem
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Banner de Atualização Segura do Service Worker */}
       <SWUpdateBanner isWorkoutActive={Boolean(activeSession && isFocusMode)} />

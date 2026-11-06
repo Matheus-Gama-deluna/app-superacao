@@ -38,7 +38,7 @@ export const PreWorkoutModal: React.FC<PreWorkoutModalProps> = ({
       aria-labelledby="pre-workout-modal-title"
       className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-xs animate-in fade-in duration-200"
     >
-      <div className="bg-[#FAF8F5] border border-[#E4DDD3] rounded-3xl max-w-md w-full p-6 shadow-xl space-y-5 overflow-hidden">
+      <div className="bg-[#FAF8F5] border border-[#E4DDD3] rounded-3xl max-w-md w-full p-5 sm:p-6 shadow-xl space-y-4 sm:space-y-5 max-h-[92vh] overflow-y-auto">
         {/* Top Header */}
         <div className="flex items-center justify-between">
           <span className="text-[11px] font-bold uppercase tracking-wider text-[#1B4332] bg-[#E8EFE9] px-2.5 py-1 rounded-full">

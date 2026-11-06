@@ -16,9 +16,12 @@ service cloud.firestore {
 
       match /setEvents/{eventId} {
         allow read: if signedInAs(uid);
-        allow create: if signedInAs(uid) && owned(uid);
-        allow update: if false; // Append-only: correções gravadas como novos eventos
+        allow create, update: if signedInAs(uid) && owned(uid);
         allow delete: if false;
+      }
+
+      match /stats/{docId} {
+        allow read, write: if signedInAs(uid);
       }
 
       match /progressEvents/{eventId} {
@@ -75,7 +78,8 @@ service cloud.firestore {
     // Modelos de Anamnese Customizada do Professor
     match /anamnesis_templates/{templateId} {
       allow read: if true; // Alunos precisam ler o template para responder
-      allow create, update, delete: if request.auth != null && request.resource.data.teacherUid == request.auth.uid;
+      allow create, update: if request.auth != null && request.resource.data.teacherUid == request.auth.uid;
+      allow delete: if request.auth != null && resource.data.teacherUid == request.auth.uid;
     }
 
     // Submissões de Anamnese (Respostas e Fotos)

@@ -28,12 +28,14 @@ import {
 } from '../lib/aiTeacherCopilot';
 import { AnamnesisBuilderModal } from '../components/teacher/AnamnesisBuilderModal';
 import { allTemplates } from '../data/catalog';
+import { MONDAY_FIRST_DAYS } from '../lib/dateUtils';
 
 interface TeacherDashboardViewProps {
   teacherUid: string;
   teacherName?: string;
   onOpenPersonalWorkout: () => void;
   onOpenBuilderForStudent: (studentLimitations: string[], studentEquipments: string[], onSavePlan: (plan: WorkoutPlan) => void) => void;
+  onOpenProfile?: () => void;
 }
 
 const DAY_LABELS = ['Domingo', 'Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado'];
@@ -43,6 +45,7 @@ export const TeacherDashboardView: React.FC<TeacherDashboardViewProps> = ({
   teacherName = 'Professor(a)',
   onOpenPersonalWorkout,
   onOpenBuilderForStudent,
+  onOpenProfile,
 }) => {
   const [links, setLinks] = useState<TeacherStudentLink[]>(() => getTeacherLinks(teacherUid));
   const [submissions, setSubmissions] = useState<AnamnesisSubmission[]>(() =>
@@ -61,6 +64,11 @@ export const TeacherDashboardView: React.FC<TeacherDashboardViewProps> = ({
   const [zoomPhotoUrl, setZoomPhotoUrl] = useState<string | null>(null);
 
   const inviteCode = generateTeacherInviteCode(teacherUid);
+
+  // Garante que o template default PROF-XXXX esteja salvo no storage ao abrir o painel
+  useEffect(() => {
+    getSavedTeacherTemplate(teacherUid);
+  }, [teacherUid]);
 
   // Atualiza dados locais quando houver sincronização em tempo real
   useEffect(() => {
@@ -250,7 +258,7 @@ export const TeacherDashboardView: React.FC<TeacherDashboardViewProps> = ({
               title="Alternar para sua rotina pessoal de treino"
             >
               <span>🏋️</span>
-              <span className="hidden sm:inline">Meu Treino Pessoal</span>
+              <span className="inline text-[11px] sm:text-xs">Treino Pessoal</span>
             </button>
             <button
               type="button"
@@ -259,8 +267,19 @@ export const TeacherDashboardView: React.FC<TeacherDashboardViewProps> = ({
               className="py-1 px-2.5 sm:py-1.5 sm:px-3 min-h-[36px] rounded-full bg-[#125F55] text-white text-xs font-bold hover:bg-[#0E4B43] shadow-xs transition-colors flex items-center gap-1"
             >
               <span>📋</span>
-              <span className="hidden sm:inline">Minha Anamnese</span>
+              <span className="inline text-[11px] sm:text-xs">Anamnese</span>
             </button>
+            {onOpenProfile && (
+              <button
+                type="button"
+                onClick={onOpenProfile}
+                aria-label="Meu Perfil"
+                className="py-1 px-2.5 sm:py-1.5 sm:px-3 min-h-[36px] rounded-full border border-[#C9DBD3] text-[#19231E] text-xs font-bold hover:bg-[#FAF8F5] transition-colors flex items-center gap-1"
+              >
+                <span>👤</span>
+                <span className="inline text-[11px] sm:text-xs">Perfil</span>
+              </button>
+            )}
           </div>
         </div>
       </header>
@@ -500,6 +519,67 @@ export const TeacherDashboardView: React.FC<TeacherDashboardViewProps> = ({
                           </p>
                         </div>
                       )}
+
+                      {/* Análise Clínica e Postural • Co-Piloto IA */}
+                      {(() => {
+                        const clinical = runClinicalHeuristicAnalysis(selectedSubmission);
+                        return (
+                          <div className="p-4 rounded-2xl bg-[#EAF3EF] border border-[#125F55]/25 space-y-2.5 text-xs">
+                            <div className="flex items-center gap-2 text-[#125F55] font-extrabold text-xs uppercase tracking-wider">
+                              <span>🤖</span>
+                              <span>Análise Clínica & Postural • Co-Piloto IA</span>
+                            </div>
+                            <p className="text-[#19231E] leading-relaxed">
+                              {clinical.clinicalSummary}
+                            </p>
+                            {clinical.posturalFlags.length > 0 && (
+                              <div className="space-y-1">
+                                <span className="font-bold text-[#8B4513] text-[11px] block">Pontos de Atenção Postural:</span>
+                                <ul className="list-disc list-inside space-y-0.5 text-[11px] text-[#5C4033]">
+                                  {clinical.posturalFlags.map((flag, i) => (
+                                    <li key={i}>{flag}</li>
+                                  ))}
+                                </ul>
+                              </div>
+                            )}
+                            {clinical.avoidedMovements.length > 0 && (
+                              <div className="space-y-1">
+                                <span className="font-bold text-[#C84B31] text-[11px] block">Movimentos Sugeridos a Evitar:</span>
+                                <div className="flex flex-wrap gap-1">
+                                  {clinical.avoidedMovements.map((mov, i) => (
+                                    <span key={i} className="bg-[#C84B31]/15 text-[#C84B31] font-bold text-[10px] px-2 py-0.5 rounded-full">
+                                      {mov.replace(/_/g, ' ')}
+                                    </span>
+                                  ))}
+                                </div>
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })()}
+
+                      {/* Outras Respostas Customizadas da Anamnese */}
+                      {Object.entries(selectedSubmission.answers)
+                        .filter(
+                          ([key]) =>
+                            ![
+                              'q_primary_goal',
+                              'q_weekly_frequency',
+                              'q_joint_limitations',
+                              'q_equipments_available',
+                              'q_daily_routine_and_health',
+                            ].includes(key)
+                        )
+                        .map(([key, val]) => (
+                          <div key={key} className="p-3.5 rounded-2xl bg-[#FAF8F5] border border-[#C9DBD3]/40 space-y-1">
+                            <span className="font-bold text-[#5B7170] uppercase text-[10px]">
+                              {key.replace(/^q_/, '').replace(/_/g, ' ')}
+                            </span>
+                            <p className="text-xs text-[#19231E] leading-relaxed">
+                              {Array.isArray(val) ? val.join(', ') : String(val)}
+                            </p>
+                          </div>
+                        ))}
                     </div>
 
                     {/* Galeria de Fotos da Anamnese */}
@@ -583,13 +663,19 @@ export const TeacherDashboardView: React.FC<TeacherDashboardViewProps> = ({
                     </button>
                     <button
                       type="button"
-                      onClick={() =>
-                        onOpenBuilderForStudent([], [], (newPlan) => {
+                      onClick={() => {
+                        const lims = Array.isArray(selectedSubmission?.answers['q_joint_limitations'])
+                          ? (selectedSubmission?.answers['q_joint_limitations'] as string[])
+                          : [];
+                        const eqs = Array.isArray(selectedSubmission?.answers['q_equipments_available'])
+                          ? (selectedSubmission?.answers['q_equipments_available'] as string[])
+                          : [];
+                        onOpenBuilderForStudent(lims, eqs, (newPlan) => {
                           setCurrentAssignedPlans((prev) => [...prev, newPlan]);
                           setNotification(`Plano "${newPlan.title}" adicionado à lista do aluno!`);
                           setTimeout(() => setNotification(null), 3000);
-                        })
-                      }
+                        });
+                      }}
                       className="py-2 px-3 rounded-full border border-[#125F55] text-[#125F55] text-xs font-bold hover:bg-[#EAF3EF] transition-all"
                     >
                       + Criar Nova Ficha
@@ -597,9 +683,9 @@ export const TeacherDashboardView: React.FC<TeacherDashboardViewProps> = ({
                   </div>
                 </div>
 
-                {/* Lista dos 7 Dias da Semana */}
+                {/* Lista dos 7 Dias da Semana (Segunda a Domingo) */}
                 <div className="space-y-3">
-                  {[0, 1, 2, 3, 4, 5, 6].map((dayOfWeek) => {
+                  {MONDAY_FIRST_DAYS.map((dayOfWeek) => {
                     const presc =
                       currentPrescriptions.find((p) => p.dayOfWeek === dayOfWeek) || {
                         dayOfWeek,

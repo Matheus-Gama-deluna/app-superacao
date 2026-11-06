@@ -21,6 +21,7 @@ import {
 } from 'lucide-react';
 import { UserProfile, OnboardingDraft } from '../types';
 import { getLocal, setLocal, STORAGE_KEYS, EQUIPMENT_LABELS, AVOIDANCE_LABELS } from '../lib/storage';
+import { MONDAY_FIRST_DAYS, DOW_LABELS_MAP } from '../lib/dateUtils';
 
 interface ListeningJourneyViewProps {
   onCompleteListening: (draft: OnboardingDraft, nextAction: 'proposal' | 'builder_manual' | 'builder_pro') => void;
@@ -113,6 +114,7 @@ export const ListeningJourneyView: React.FC<ListeningJourneyViewProps> = ({
     }
     return [];
   });
+  const [validationError, setValidationError] = useState<string | null>(null);
   const [sessionDurationMinutes, setSessionDurationMinutes] = useState<number>(
     savedDraft?.sessionDurationMinutes || profile.sessionDurationMinutes || 20
   );
@@ -330,7 +332,12 @@ export const ListeningJourneyView: React.FC<ListeningJourneyViewProps> = ({
       routineConfirmed: false, // Só confirma quando aceitar a proposta na tela seguinte! (Critério C09)
     });
 
-    onCompleteListening(currentDraftData, action);
+    const resetDraft: OnboardingDraft = {
+      ...currentDraftData,
+      step: 1,
+    };
+    setLocal(STORAGE_KEYS.ONBOARDING_DRAFT, resetDraft);
+    onCompleteListening(resetDraft, action);
   };
 
   const stepTitles = [
@@ -379,11 +386,23 @@ export const ListeningJourneyView: React.FC<ListeningJourneyViewProps> = ({
             </div>
           </div>
 
-          <div className="w-24 bg-[#EAF3EF] h-2 rounded-full overflow-hidden border border-[#C9DBD3]/50">
-            <div
-              className="bg-[#125F55] h-full transition-all duration-300 rounded-full"
-              style={{ width: `${Math.round((step / 7) * 100)}%` }}
-            />
+          <div className="flex items-center gap-2">
+            <div className="w-20 sm:w-24 bg-[#EAF3EF] h-2 rounded-full overflow-hidden border border-[#C9DBD3]/50">
+              <div
+                className="bg-[#125F55] h-full transition-all duration-300 rounded-full"
+                style={{ width: `${Math.round((step / 7) * 100)}%` }}
+              />
+            </div>
+            {onCancel && (
+              <button
+                type="button"
+                onClick={onCancel}
+                className="px-2 py-1 text-xs font-semibold text-[#5B7170] hover:text-[#152A29] rounded-lg hover:bg-slate-100 cursor-pointer"
+                aria-label="Sair da escuta"
+              >
+                ✕ Sair
+              </button>
+            )}
           </div>
         </div>
       </header>
@@ -616,20 +635,24 @@ export const ListeningJourneyView: React.FC<ListeningJourneyViewProps> = ({
                 </span>
               </div>
               <div className="grid grid-cols-7 gap-1.5">
-                {daysLabels.map((label, idx) => {
-                  const isSelected = availableDays.includes(idx);
+                {MONDAY_FIRST_DAYS.map((dayIdx) => {
+                  const isSelected = availableDays.includes(dayIdx);
+                  const dayInfo = DOW_LABELS_MAP[dayIdx];
+                  const shortLabel = dayInfo?.short || 'Dia';
+                  const fullLabel = dayInfo?.full || 'Dia';
                   return (
                     <button
-                      key={idx}
-                      onClick={() => handleToggleDay(idx)}
-                      aria-label={`${label} ${isSelected ? 'selecionado' : 'não selecionado'}`}
+                      key={dayIdx}
+                      type="button"
+                      onClick={() => handleToggleDay(dayIdx)}
+                      aria-label={`${fullLabel} ${isSelected ? 'selecionado' : 'não selecionado'}`}
                       className={`h-14 rounded-2xl border flex flex-col items-center justify-center transition-all cursor-pointer ${
                         isSelected
                           ? 'border-[#125F55] bg-[#125F55] text-white shadow-xs'
                           : 'border-[#C9DBD3] bg-[#F5F8F5] text-[#5B7170] hover:bg-slate-100'
                       }`}
                     >
-                      <span className="text-xs font-bold">{label}</span>
+                      <span className="text-xs font-bold">{shortLabel}</span>
                       <div className="w-2 h-2 rounded-full mt-1 bg-current opacity-60" />
                     </button>
                   );
@@ -957,7 +980,7 @@ export const ListeningJourneyView: React.FC<ListeningJourneyViewProps> = ({
                     Disponibilidade
                   </span>
                   <div className="font-semibold text-[#152A29] mt-0.5">
-                    {availableDays.length} {availableDays.length === 1 ? 'dia' : 'dias'} por semana ({availableDays.map((d) => daysLabels[d]).join(', ')}) · {sessionDurationMinutes} min por sessão
+                    {availableDays.length} {availableDays.length === 1 ? 'dia' : 'dias'} por semana ({availableDays.map((d) => DOW_LABELS_MAP[d] || 'Dia').join(', ')}) · {sessionDurationMinutes} min por sessão
                   </div>
                   {habitAnchor && (
                     <div className="text-[11px] text-[#5B7170] mt-0.5">
@@ -1078,10 +1101,15 @@ export const ListeningJourneyView: React.FC<ListeningJourneyViewProps> = ({
 
         {/* Botão de Avançar nos Passos 1 a 6 */}
         {step < 7 && (
-          <div className="flex items-center justify-between pt-2">
+          <div className="flex flex-col sm:flex-row items-center justify-between gap-2 pt-2">
             <span className="text-xs text-[#5B7170]">
               Passo {step} de 7 · Salvo automaticamente
             </span>
+            {validationError && (
+              <span className="text-xs text-[#C84B31] font-bold">
+                ⚠️ {validationError}
+              </span>
+            )}
             <button
               onClick={() => {
                 if (step === 2 && orderedGoals.length === 0) {
@@ -1090,9 +1118,10 @@ export const ListeningJourneyView: React.FC<ListeningJourneyViewProps> = ({
                 if (step === 3 && availableDays.length === 0) {
                   setAvailableDays([1, 3, 5]);
                 }
+                setValidationError(null);
                 setStep(step + 1);
               }}
-              className="px-6 h-12 bg-[#125F55] text-white font-bold text-xs sm:text-sm rounded-xl flex items-center gap-2 hover:bg-[#0C5148] transition-all cursor-pointer shadow-sm"
+              className="px-6 h-12 bg-[#125F55] text-white font-bold text-xs sm:text-sm rounded-xl flex items-center gap-2 hover:bg-[#0C5148] transition-all cursor-pointer shadow-sm ml-auto"
             >
               <span>Avançar</span>
               <ArrowRight className="w-4 h-4" />
