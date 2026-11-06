@@ -413,25 +413,50 @@ export const ListeningJourneyView: React.FC<ListeningJourneyViewProps> = ({
         {step === 1 && (
           <section className="bg-white rounded-3xl p-6 border border-[#C9DBD3] shadow-xs space-y-5 animate-in fade-in">
             <div className="space-y-1">
-              <h2 className="text-xl font-bold text-[#152A29]">Como prefere ser chamado?</h2>
+              <h2 className="text-xl font-bold text-[#152A29]">
+                {displayName && displayName !== 'Praticante'
+                  ? `Olá, ${displayName}! Vamos entender seu momento`
+                  : 'Como prefere ser chamado?'}
+              </h2>
               <p className="text-xs text-[#5B7170]">
                 Não pedimos peso, medidas nem informações desnecessárias. Apenas o que for útil para organizar sua rotina.
               </p>
             </div>
 
-            <div className="space-y-2">
-              <label htmlFor="display_name_input" className="block text-xs font-bold text-[#152A29]">
-                Seu nome de preferência
-              </label>
-              <input
-                id="display_name_input"
-                type="text"
-                value={displayName}
-                onChange={(e) => setDisplayName(e.target.value)}
-                placeholder="Ex: Matheus, Ana..."
-                className="w-full h-12 px-3.5 rounded-xl border border-[#C9DBD3] text-sm focus:outline-none focus:border-[#125F55] bg-[#F5F8F5]"
-              />
-            </div>
+            {displayName && displayName !== 'Praticante' ? (
+              <div className="p-3.5 bg-[#EAF3EF] rounded-2xl border border-[#125F55]/20 flex items-center justify-between">
+                <div>
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-[#125F55] block">
+                    Nome Identificado
+                  </span>
+                  <span className="text-sm font-bold text-[#152A29]">{displayName}</span>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => {
+                    const edited = window.prompt('Editar nome de preferência:', displayName);
+                    if (edited && edited.trim()) setDisplayName(edited.trim());
+                  }}
+                  className="text-xs text-[#125F55] font-semibold hover:underline cursor-pointer"
+                >
+                  Editar
+                </button>
+              </div>
+            ) : (
+              <div className="space-y-2">
+                <label htmlFor="display_name_input" className="block text-xs font-bold text-[#152A29]">
+                  Seu nome de preferência
+                </label>
+                <input
+                  id="display_name_input"
+                  type="text"
+                  value={displayName}
+                  onChange={(e) => setDisplayName(e.target.value)}
+                  placeholder="Ex: Matheus, Ana..."
+                  className="w-full h-12 px-3.5 rounded-xl border border-[#C9DBD3] text-sm focus:outline-none focus:border-[#125F55] bg-[#F5F8F5]"
+                />
+              </div>
+            )}
 
             <div className="space-y-2 pt-2">
               <label className="block text-xs font-bold text-[#152A29]">
@@ -980,7 +1005,7 @@ export const ListeningJourneyView: React.FC<ListeningJourneyViewProps> = ({
                     Disponibilidade
                   </span>
                   <div className="font-semibold text-[#152A29] mt-0.5">
-                    {availableDays.length} {availableDays.length === 1 ? 'dia' : 'dias'} por semana ({availableDays.map((d) => DOW_LABELS_MAP[d] || 'Dia').join(', ')}) · {sessionDurationMinutes} min por sessão
+                    {availableDays.length} {availableDays.length === 1 ? 'dia' : 'dias'} por semana ({availableDays.map((d) => DOW_LABELS_MAP[d]?.short || 'Dia').join(', ')}) · {sessionDurationMinutes} min por sessão
                   </div>
                   {habitAnchor && (
                     <div className="text-[11px] text-[#5B7170] mt-0.5">
@@ -1113,10 +1138,12 @@ export const ListeningJourneyView: React.FC<ListeningJourneyViewProps> = ({
             <button
               onClick={() => {
                 if (step === 2 && orderedGoals.length === 0) {
-                  setOrderedGoals([DEFAULT_GOALS[0]]);
+                  setValidationError('Por favor, selecione ao menos um objetivo principal para avançar.');
+                  return;
                 }
                 if (step === 3 && availableDays.length === 0) {
-                  setAvailableDays([1, 3, 5]);
+                  setValidationError('Por favor, selecione ao menos um dia da semana disponível para treinar.');
+                  return;
                 }
                 setValidationError(null);
                 setStep(step + 1);

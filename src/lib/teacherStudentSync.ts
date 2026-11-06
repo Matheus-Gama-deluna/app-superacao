@@ -7,6 +7,7 @@ import {
 } from '../types';
 import { getLocal, setLocal, STORAGE_KEYS } from './storage';
 import { ANAMNESIS_STORAGE_KEYS } from './anamnesisEngine';
+import { MONDAY_FIRST_DAYS, getWeekDatesMondayFirst } from './dateUtils';
 import { db } from './firebase';
 import { doc, setDoc, onSnapshot, collection, query, where } from 'firebase/firestore';
 
@@ -161,20 +162,13 @@ export function applyTeacherPrescriptionToCalendar(
   studentUid: string,
   prescriptions: TeacherDayPrescription[],
   assignedPlans: WorkoutPlan[],
-  existingCalendar: CalendarDay[]
+  existingCalendar: CalendarDay[],
+  referenceDate: Date = new Date()
 ): CalendarDay[] {
-  const today = new Date();
-  const currentDayOfWeek = today.getDay(); // 0 a 6
-  const startOfWeek = new Date(today);
-  startOfWeek.setDate(today.getDate() - currentDayOfWeek);
+  const weekDates = getWeekDatesMondayFirst(referenceDate);
 
-  return [0, 1, 2, 3, 4, 5, 6].map((dayOfWeek) => {
-    const d = new Date(startOfWeek);
-    d.setDate(startOfWeek.getDate() + dayOfWeek);
-    const year = d.getFullYear();
-    const month = String(d.getMonth() + 1).padStart(2, '0');
-    const day = String(d.getDate()).padStart(2, '0');
-    const dateStr = `${year}-${month}-${day}`;
+  return MONDAY_FIRST_DAYS.map((dayOfWeek) => {
+    const dateStr = weekDates[dayOfWeek];
 
     const existingDay = existingCalendar.find((c) => c.dayOfWeek === dayOfWeek);
     const presc = prescriptions.find((p) => p.dayOfWeek === dayOfWeek);

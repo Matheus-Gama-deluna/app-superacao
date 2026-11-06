@@ -7,6 +7,7 @@ import {
 } from '../types';
 import { allExercises } from '../data/catalog';
 import { generateSmartWorkoutRoutine } from './workoutEngine';
+import { MONDAY_FIRST_DAYS } from './dateUtils';
 
 /**
  * Co-Piloto de IA para Professores e Treinadores.
@@ -150,7 +151,7 @@ export function draftWeeklyPrescriptionForTeacher(
     ? [1, 2, 4, 5]
     : [1, 3, 5];
 
-  const weeklyPrescriptions: TeacherDayPrescription[] = [0, 1, 2, 3, 4, 5, 6].map((dayOfWeek) => {
+  const weeklyPrescriptions: TeacherDayPrescription[] = MONDAY_FIRST_DAYS.map((dayOfWeek) => {
     // Dia de Treino
     if (daysWithWorkout.includes(dayOfWeek)) {
       const planIdx = daysWithWorkout.indexOf(dayOfWeek) % plans.length;

@@ -112,7 +112,7 @@ export const WelcomeView: React.FC<WelcomeViewProps> = ({ onSelectAccess }) => {
                 <Sparkles className="w-4 h-4" />
               </div>
               <div>
-                <div>Criar conta com Google</div>
+                <div>Continuar com Google</div>
                 <div className="text-[11px] font-normal text-[#5B7170]">
                   Sincronização instantânea em nuvem
                 </div>

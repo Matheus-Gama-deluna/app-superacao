@@ -4,6 +4,7 @@ import {
   getMondayFirstIndex,
   getCurrentWeekMondayStr,
   getWeekDatesMondayFirst,
+  DOW_LABELS_MAP,
 } from '../src/lib/dateUtils';
 import {
   computeIdealTrainingDays,
@@ -16,7 +17,9 @@ import {
   markCalendarDayCompleted,
   generateTomorrowBridge,
 } from '../src/lib/storage';
-import { WorkoutPlan, CalendarDay, UserProfile, WorkoutSession } from '../src/types';
+import { applyTeacherPrescriptionToCalendar } from '../src/lib/teacherStudentSync';
+import { draftWeeklyPrescriptionForTeacher, runClinicalHeuristicAnalysis } from '../src/lib/aiTeacherCopilot';
+import { WorkoutPlan, CalendarDay, UserProfile, WorkoutSession, TeacherDayPrescription } from '../src/types';
 
 describe('Smart Weekly Scheduler & Persistence Suite', () => {
   const dummyPlanA: WorkoutPlan = {
@@ -349,6 +352,70 @@ describe('Smart Weekly Scheduler & Persistence Suite', () => {
       expect(bridge).toBeDefined();
       expect(bridge.tomorrowPlanTitle).toBe(dummyPlanA.title);
       expect(bridge.tomorrowActivityType).toBe('strength');
+    });
+  });
+
+  describe('9. Prescrição do Professor em Segunda-a-Domingo', () => {
+    it('applyTeacherPrescriptionToCalendar deve ordenar rigorosamente os 7 dias em MONDAY_FIRST_DAYS', () => {
+      const prescriptions: TeacherDayPrescription[] = [
+        { dayOfWeek: 1, regime: 'workout', planId: 'plan_a', planTitle: 'Treino A' },
+        { dayOfWeek: 2, regime: 'rest_total', teacherNotes: 'Descanso' },
+        { dayOfWeek: 3, regime: 'workout', planId: 'plan_b', planTitle: 'Treino B' },
+        { dayOfWeek: 4, regime: 'rest_active', activeRestActivity: 'caminhada_leve' },
+        { dayOfWeek: 5, regime: 'workout', planId: 'plan_a', planTitle: 'Treino A' },
+        { dayOfWeek: 6, regime: 'rest_total' },
+        { dayOfWeek: 0, regime: 'rest_total' },
+      ];
+
+      const cal = applyTeacherPrescriptionToCalendar(
+        'student_test',
+        prescriptions,
+        [dummyPlanA, dummyPlanB],
+        [],
+        new Date(2026, 4, 6) // Quarta-feira 06/05/2026
+      );
+
+      expect(cal.length).toBe(7);
+      // Ordem dos dias DEVE ser MONDAY_FIRST_DAYS: [1, 2, 3, 4, 5, 6, 0]
+      expect(cal.map((c) => c.dayOfWeek)).toEqual([1, 2, 3, 4, 5, 6, 0]);
+
+      // Primeira posição deve ser Segunda (1)
+      expect(cal[0].dayOfWeek).toBe(1);
+      expect(cal[0].activityType).toBe('strength');
+
+      // Última posição deve ser Domingo (0)
+      expect(cal[6].dayOfWeek).toBe(0);
+      expect(cal[6].activityType).toBe('rest');
+    });
+
+    it('draftWeeklyPrescriptionForTeacher deve gerar prescrições na ordem Segunda a Domingo', () => {
+      const submission = {
+        id: 'sub_1',
+        studentUid: 'student_1',
+        studentName: 'Aluno Teste',
+        templateId: 'tmpl_1',
+        submittedAt: Date.now(),
+        answers: {
+          q_primary_goal: 'Ganhar força muscular',
+          q_weekly_frequency: '3',
+          q_joint_limitations: ['nenhuma'],
+          q_equipments_available: ['peso_corporal'],
+        },
+      };
+
+      const analysis = runClinicalHeuristicAnalysis(submission as any);
+      const result = draftWeeklyPrescriptionForTeacher('Aluno Teste', analysis);
+      expect(result.weeklyPrescriptions.length).toBe(7);
+      expect(result.weeklyPrescriptions.map((p) => p.dayOfWeek)).toEqual([1, 2, 3, 4, 5, 6, 0]);
+    });
+  });
+
+  describe('10. DOW_LABELS_MAP integridade de texto', () => {
+    it('deve formatar corretamente rótulos curtos sem retornar [object Object]', () => {
+      const days = [1, 3, 5];
+      const formatted = days.map((d) => DOW_LABELS_MAP[d]?.short || 'Dia').join(', ');
+      expect(formatted).toBe('Seg, Qua, Sex');
+      expect(formatted).not.toContain('[object');
     });
   });
 });

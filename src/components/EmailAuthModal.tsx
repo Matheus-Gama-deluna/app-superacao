@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useAuth } from '../context/AuthContext';
-import { Mail, Lock, User, X, AlertCircle, CheckCircle2, ArrowRight } from 'lucide-react';
+import { Mail, Lock, User, X, AlertCircle, CheckCircle2, ArrowRight, Sparkles } from 'lucide-react';
 
 interface EmailAuthModalProps {
   isOpen: boolean;
@@ -15,7 +15,7 @@ export const EmailAuthModal: React.FC<EmailAuthModalProps> = ({
   initialMode = 'login',
   onSuccess,
 }) => {
-  const { loginEmail, registerEmail, resetPassword, loginError, clearLoginError } = useAuth();
+  const { loginEmail, registerEmail, resetPassword, loginGoogle, loginError, clearLoginError } = useAuth();
   const [mode, setMode] = useState<'login' | 'register' | 'reset'>(initialMode);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -117,6 +117,35 @@ export const EmailAuthModal: React.FC<EmailAuthModalProps> = ({
             <X className="w-5 h-5" />
           </button>
         </div>
+
+        {/* Opção Rápida de Login com Google no Modal */}
+        {mode !== 'reset' && (
+          <>
+            <button
+              type="button"
+              onClick={async () => {
+                setIsSubmitting(true);
+                const success = await loginGoogle();
+                setIsSubmitting(false);
+                if (success) {
+                  if (onSuccess) onSuccess();
+                  onClose();
+                }
+              }}
+              disabled={isSubmitting}
+              className="w-full min-h-[46px] p-2.5 bg-white border border-[#C9DBD3] text-[#152A29] rounded-2xl flex items-center justify-center gap-2.5 font-bold text-xs hover:bg-slate-50 transition-all cursor-pointer shadow-2xs"
+            >
+              <Sparkles className="w-4 h-4 text-[#125F55]" />
+              <span>Continuar com Google</span>
+            </button>
+
+            <div className="flex items-center gap-2 my-1">
+              <div className="h-px bg-[#C9DBD3]/60 flex-1" />
+              <span className="text-[10px] uppercase font-bold text-[#5B7170]">ou com e-mail</span>
+              <div className="h-px bg-[#C9DBD3]/60 flex-1" />
+            </div>
+          </>
+        )}
 
         {/* Abas Alternadoras (Login / Cadastro) */}
         {mode !== 'reset' && (
