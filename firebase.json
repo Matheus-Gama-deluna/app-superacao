@@ -1,4 +1,17 @@
 {
+  "auth": {
+    "providers": {
+      "emailPassword": true,
+      "googleSignIn": {
+        "oAuthBrandDisplayName": "SuperAção",
+        "supportEmail": "gamamatheus65@gmail.com",
+        "authorizedRedirectUris": [
+          "https://gen-lang-client-0687330979.firebaseapp.com/__/auth/handler",
+          "http://localhost"
+        ]
+      }
+    }
+  },
   "firestore": {
     "databaseId": "ai-studio-9241b6d4-5ba0-4baa-83fb-3b97bb466615",
     "rules": "firestore.rules",
