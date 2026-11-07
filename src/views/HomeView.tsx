@@ -99,7 +99,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
   // Estados locais de prática externa multimodal (T04)
   const [showPracticeModal, setShowPracticeModal] = useState<boolean>(false);
   const [practiceModality, setPracticeModality] = useState<
-    'caminhada_corrida' | 'forca_academia' | 'mobilidade_yoga' | 'esporte_coletivo' | 'ciclismo_natacao' | 'outra'
+    'caminhada_corrida' | 'forca_academia' | 'mobilidade_yoga' | 'esporte_coletivo' | 'ciclismo_natacao' | 'artes_marciais' | 'outra'
   >('caminhada_corrida');
   const [practiceDuration, setPracticeDuration] = useState<number>(30);
   const [practiceEffort, setPracticeEffort] = useState<number>(3);
@@ -417,64 +417,111 @@ export const HomeView: React.FC<HomeViewProps> = ({
           </button>
         </section>
       ) : todaySchedule?.activityType === 'rest' ? (
-        /* CARD: DIA DE DESCANSO & REGENERAÇÃO */
+        /* CARD: DIA DE DESCANSO & REGENERAÇÃO ATIVA GUIADA */
         <section className="bg-white border border-[#E4DDD3] rounded-3xl p-5 shadow-sm space-y-3.5">
           <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2 text-xs font-bold text-[#E07A5F] uppercase tracking-wider">
-              <Heart className="w-4 h-4" />
-              <span>Dia de Descanso & Regeneração</span>
+            <div className="flex items-center gap-2 text-xs font-bold text-[#1B4332] uppercase tracking-wider">
+              <Heart className="w-4 h-4 text-[#E07A5F]" />
+              <span>Dia de Descanso & Regeneração Ativa</span>
             </div>
-            {todaySchedule.vitalityBonusCompleted && (
+            {todaySchedule.vitalityBonusCompleted ? (
               <span className="px-2.5 py-0.5 rounded-full bg-[#E8EFE9] border border-[#1B4332]/20 text-[10px] font-bold text-[#1B4332] flex items-center gap-1">
                 <Sparkles className="w-3 h-3" /> Elo Conquistado
+              </span>
+            ) : (
+              <span className="px-2.5 py-0.5 rounded-full bg-[#FAF8F5] border border-[#E4DDD3] text-[10px] font-semibold text-[#5D6E65]">
+                Sem cobrança
               </span>
             )}
           </div>
 
           <div>
             <h3 className="font-serif text-xl font-bold text-[#19231E]">
-              O descanso é onde o corpo se regenera
+              O descanso é onde seu corpo reconstrói a força
             </h3>
             <p className="text-xs text-[#5D6E65] mt-1 leading-relaxed">
-              Hoje não há cobrança de treino. Descansar é vencer! Se quiser se movimentar levemente sem cansar os músculos, você pode registrar uma prática regenerativa:
+              Hoje não há meta obrigatória de força. Descansar faz parte do progresso! Escolha uma proposta suave de alívio ou registre sua prática se tiver se movimentado:
             </p>
           </div>
 
-          {/* Orientação do Professor para o descanso */}
-          {todaySchedule?.notes && (
-            <div className="bg-[#FAF8F5] border border-[#E4DDD3] rounded-2xl p-3 flex items-start gap-2.5">
-              <span className="text-base shrink-0 mt-0.5">👨‍🏫</span>
-              <div className="flex-1 min-w-0">
-                <span className="text-[10px] font-bold uppercase tracking-wider text-[#125F55] block">
-                  Orientação do seu Treinador
-                </span>
-                <p className="text-xs text-[#19231E] mt-0.5 leading-relaxed">
-                  {todaySchedule.notes}
-                </p>
-              </div>
-            </div>
-          )}
-
-          <div className="pt-1 grid grid-cols-1 sm:grid-cols-2 gap-2">
-            {recoveryPlan && (
+          {/* Propostas Regenerativas em 1 Toque */}
+          <div className="space-y-2 pt-1">
+            <span className="text-[11px] font-bold uppercase tracking-wider text-[#1B4332] block">
+              🌿 Propostas de Soltura & Alongamento (Sempre Prontas):
+            </span>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
               <button
-                onClick={() => onStartWorkout(recoveryPlan, todaySchedule?.id, 'ad_hoc')}
-                className="h-12 bg-[#E8EFE9] text-[#1B4332] font-bold text-xs rounded-xl flex items-center justify-center gap-2 hover:bg-[#1B4332] hover:text-white transition-all cursor-pointer shadow-2xs"
+                type="button"
+                onClick={() => {
+                  const p = recoveryPlan || premadeWorkouts.find((w) => w.category === 'mobilidade') || plans[0];
+                  if (p) onStartWorkout(p, todaySchedule?.id, 'ad_hoc');
+                }}
+                className="p-3 bg-[#E8EFE9] hover:bg-[#1B4332] text-[#1B4332] hover:text-white rounded-2xl border border-[#1B4332]/20 text-left transition-all cursor-pointer shadow-2xs group"
               >
-                <Sparkles className="w-4 h-4 text-[#E07A5F]" />
-                <span>Alongamento / Mobilidade (8 min)</span>
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-bold flex items-center gap-1.5">
+                    <span>🧘</span> Alongamento / Mobilidade (8 min)
+                  </span>
+                  <span className="text-[10px] font-semibold px-2 py-0.5 rounded-md bg-white text-[#1B4332] group-hover:bg-white/20 group-hover:text-white">
+                    8 min
+                  </span>
+                </div>
+                <p className="text-[11px] opacity-80 mt-1 line-clamp-1">Gato e Vaca, Postura da Criança e alívio do tronco.</p>
               </button>
-            )}
-            <button
-              onClick={() => {
-                setPracticeModality('caminhada_corrida');
-                setShowPracticeModal(true);
-              }}
-              className="h-12 bg-white text-[#19231E] font-semibold text-xs rounded-xl flex items-center justify-center gap-2 hover:bg-[#FAF8F5] transition-all border border-[#E4DDD3] cursor-pointer"
-            >
-              <Footprints className="w-4 h-4 text-[#1B4332]" />
-              <span>Caminhada Regenerativa Livre (Registrar Prática)</span>
-            </button>
+
+              <button
+                type="button"
+                onClick={() => {
+                  setPracticeModality('artes_marciais');
+                  setShowPracticeModal(true);
+                }}
+                className="p-3 bg-white hover:bg-[#FAF8F5] text-[#19231E] rounded-2xl border border-[#E4DDD3] hover:border-[#1B4332]/40 text-left transition-all cursor-pointer shadow-2xs"
+              >
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-bold flex items-center gap-1.5 text-[#125F55]">
+                    <span>🥋</span> Treinei Arte Marcial / Luta
+                  </span>
+                  <span className="text-[10px] font-bold text-[#125F55] bg-[#EAF3EF] px-2 py-0.5 rounded-md">
+                    Registrar
+                  </span>
+                </div>
+                <p className="text-[11px] text-[#5D6E65] mt-1 line-clamp-1">Jiu-Jitsu, Muay Thai, Boxe, Judô na meta semanal.</p>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => {
+                  setPracticeModality('caminhada_corrida');
+                  setShowPracticeModal(true);
+                }}
+                className="p-3 bg-white hover:bg-[#FAF8F5] text-[#19231E] rounded-2xl border border-[#E4DDD3] hover:border-[#1B4332]/40 text-left transition-all cursor-pointer shadow-2xs"
+              >
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-bold flex items-center gap-1.5">
+                    <span>🚶</span> Caminhada Regenerativa
+                  </span>
+                  <span className="text-[10px] text-[#5D6E65]">Livre</span>
+                </div>
+                <p className="text-[11px] text-[#5D6E65] mt-1 line-clamp-1">Circulação suave e ar livre sem cobrança de ritmo.</p>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => {
+                  setPracticeModality('mobilidade_yoga');
+                  setShowPracticeModal(true);
+                }}
+                className="p-3 bg-white hover:bg-[#FAF8F5] text-[#19231E] rounded-2xl border border-[#E4DDD3] hover:border-[#1B4332]/40 text-left transition-all cursor-pointer shadow-2xs"
+              >
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-bold flex items-center gap-1.5">
+                    <span>✨</span> Outra Prática Externa
+                  </span>
+                  <span className="text-[10px] text-[#5D6E65]">Esportes/Yoga</span>
+                </div>
+                <p className="text-[11px] text-[#5D6E65] mt-1 line-clamp-1">Natação, ciclismo, futebol ou aula coletiva.</p>
+              </button>
+            </div>
           </div>
         </section>
       ) : todayPlan ? (
@@ -1339,9 +1386,10 @@ export const HomeView: React.FC<HomeViewProps> = ({
             {/* Modalidades */}
             <div className="space-y-1.5">
               <label className="block text-xs font-bold text-[#19231E]">Modalidade</label>
-              <div className="grid grid-cols-2 gap-2">
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
                 {[
                   { id: 'caminhada_corrida' as const, label: 'Caminhada / Corrida', icon: '🚶' },
+                  { id: 'artes_marciais' as const, label: 'Arte Marcial / Luta', icon: '🥋' },
                   { id: 'forca_academia' as const, label: 'Musculação / Força', icon: '🏋️' },
                   { id: 'mobilidade_yoga' as const, label: 'Mobilidade / Yoga', icon: '🧘' },
                   { id: 'esporte_coletivo' as const, label: 'Futebol / Esporte', icon: '⚽' },

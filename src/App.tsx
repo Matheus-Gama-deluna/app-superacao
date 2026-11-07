@@ -46,8 +46,10 @@ const ViewLoadingFallback: React.FC = () => (
     </span>
   </div>
 );
-import { WorkoutPlan, ExplainableProposal, OnboardingDraft, PreWorkoutMood, CustomAnamnesisTemplate } from './types';
+import { WorkoutPlan, ExplainableProposal, OnboardingDraft, PreWorkoutMood, CustomAnamnesisTemplate, ProposalDiff } from './types';
 import { premadeWorkouts } from './data/premadeWorkouts';
+import { buildCustomWorkoutForPurpose } from './lib/aiCatalogBridge';
+import { allExercises } from './data/catalog';
 import {
   getLocal,
   setLocal,
@@ -73,6 +75,12 @@ const MainAppContent: React.FC = () => {
     startWorkout,
     activeProgram,
     calendar,
+    savePlan,
+    swapExerciseInActiveSession,
+    softenActiveSessionTargets,
+    updateActiveExerciseTarget,
+    recordExternalPractice,
+    setCalendar,
   } = useWorkout();
 
   // Controle de estado de jornada e fluxo (Seção 4)
@@ -167,6 +175,90 @@ const MainAppContent: React.FC = () => {
     preMood?: PreWorkoutMood
   ) => {
     startWorkout(plan, scheduledDayId, originType, isExpress, wasPlannedHabit, scheduledActivityId, preMood);
+  };
+
+  /**
+   * Executor Central de Mutações do Sistema pela IA (SystemActionDispatcher)
+   * Permite que o Personal IA execute ações reais no treino, agenda, fichas e perfil.
+   */
+  const handleApplyAiProposalDiff = async (diff: ProposalDiff) => {
+    try {
+      // 1. Suavizar sessão ativa ou do dia
+      if (diff.actionType === 'soften_session') {
+        if (activeSession) {
+          softenActiveSessionTargets();
+        }
+        return;
+      }
+
+      // 2. Trocar exercício no treino ativo
+      if (diff.actionType === 'swap_exercise') {
+        if (activeSession && diff.replacementId) {
+          const replacementEx = allExercises.find((e) => e.id === diff.replacementId);
+          if (replacementEx) {
+            swapExerciseInActiveSession(activeSession.currentExerciseIndex, replacementEx);
+          }
+        }
+        return;
+      }
+
+      // 3. Ajustar repetições ou carga
+      if (diff.actionType === 'adjust_exercise_target') {
+        if (activeSession && typeof diff.payload?.targetReps === 'number') {
+          updateActiveExerciseTarget(activeSession.currentExerciseIndex, diff.payload.targetReps);
+        }
+        return;
+      }
+
+      // 4. Iniciar treino preparado sob medida pelo Personal IA
+      if (diff.actionType === 'generate_custom_workout') {
+        let planToStart = diff.workoutPlan;
+        if (!planToStart) {
+          const purpose = diff.payload?.purpose || 'mobilidade_alongamento';
+          const duration = diff.payload?.durationMinutes || 15;
+          planToStart = await buildCustomWorkoutForPurpose(profile, {
+            purpose,
+            durationMinutes: duration,
+          });
+        }
+        if (planToStart) {
+          await savePlan(planToStart);
+          setIsPersonalDrawerOpen(false);
+          startWorkout(planToStart, undefined, 'ad_hoc');
+        }
+        return;
+      }
+
+      // 5. Registrar prática externa ou arte marcial
+      if (diff.actionType === 'log_external_practice') {
+        const payload = diff.payload || {};
+        await recordExternalPractice(
+          payload.modality || 'artes_marciais',
+          payload.durationMinutes || 45,
+          payload.effortScore || 4,
+          payload.mood || 'renovado',
+          payload.notes || diff.descriptionPt
+        );
+        return;
+      }
+
+      // 6. Atualizar perfil
+      if (diff.actionType === 'update_profile') {
+        if (diff.payload) {
+          await updateUserProfile(diff.payload);
+        }
+        return;
+      }
+
+      // 7. Navegação
+      if (diff.actionType === 'navigate' && diff.payload?.tab) {
+        handleSelectTab(diff.payload.tab);
+        setIsPersonalDrawerOpen(false);
+        return;
+      }
+    } catch (err) {
+      console.error('[App] Erro ao aplicar proposta da IA:', err);
+    }
   };
 
   const handleStartPlanById = (planId: string, scheduledDayId?: string, scheduledActivityId?: string) => {
@@ -445,6 +537,7 @@ const MainAppContent: React.FC = () => {
           activeContext={activeScreenContext}
           userProfile={profile}
           isTeacherManagedPlan={Boolean(profile.linkedTeacherId || plans.find((p) => p.id === activeSession.planId)?.isProfessional)}
+          onApplyProposalDiff={handleApplyAiProposalDiff}
         />
       </React.Suspense>
     );
@@ -815,12 +908,7 @@ const MainAppContent: React.FC = () => {
         activeContext={activeScreenContext}
         userProfile={profile}
         isTeacherManagedPlan={Boolean(profile.linkedTeacherId || plans.find((p) => p.id === activeSession?.planId)?.isProfessional)}
-        onApplyProposalDiff={(diff) => {
-          if (diff.actionType === 'soften_session' && activeSession) {
-            // Suaviza a sessão ativa reduzindo séries
-            console.info('[PersonalAgent] Aplicando suavização no treino ativo.');
-          }
-        }}
+        onApplyProposalDiff={handleApplyAiProposalDiff}
       />
 
       {/* Banner de Atualização Segura do Service Worker */}

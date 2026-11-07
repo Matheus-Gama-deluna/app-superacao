@@ -160,7 +160,76 @@ function simulatePersonalAssistantReply(
     };
   }
 
-  // 5. Orientações de execução técnica
+  // 5. Artes Marciais e Práticas Externas
+  if (
+    lower.includes('jiu-jitsu') ||
+    lower.includes('jiujitsu') ||
+    lower.includes('muay thai') ||
+    lower.includes('luta') ||
+    lower.includes('marcial') ||
+    lower.includes('boxe') ||
+    lower.includes('judo') ||
+    lower.includes('karate') ||
+    lower.includes('arte marcial')
+  ) {
+    return {
+      replyPt: 'Sensacional! O treino de artes marciais exige muito das articulações, pegada e mobilidade de quadril. Posso registrar sua prática na meta da semana e preparar uma soltura regenerativa de 8 min para seus punhos, quadris e coluna. Deseja registrar agora?',
+      clinicalReasoningSummary: 'Registro de arte marcial e estímulo de regeneração articular parassimpática pós-combate.',
+      actionRequired: true,
+      requiresConfirmation: true,
+      proposedDiff: {
+        actionType: 'log_external_practice',
+        titlePt: 'Registrar Treino de Arte Marcial',
+        descriptionPt: 'Adicionar 45 min de prática de luta na sua consistência semanal.',
+        payload: {
+          modality: 'artes_marciais',
+          durationMinutes: 45,
+          effortScore: 4,
+          mood: 'renovado',
+          notes: userMessage,
+        },
+      },
+      activatedSkillIds: ['combat_sports_recovery', 'biopsychosocial_adherence'],
+    };
+  }
+
+  // 6. Solicitação de Treino Específico / Novo Treino / Mobilidade / Longo Prazo
+  if (
+    lower.includes('alongamento') ||
+    lower.includes('mobilidade') ||
+    lower.includes('soltura') ||
+    lower.includes('treino de 10 min') ||
+    lower.includes('treino de 15 min') ||
+    lower.includes('treino rapido') ||
+    lower.includes('novo treino') ||
+    lower.includes('prepara um treino') ||
+    lower.includes('monta um treino') ||
+    lower.includes('treino para hoje')
+  ) {
+    const isMobility = lower.includes('alongamento') || lower.includes('mobilidade') || lower.includes('soltura');
+    return {
+      replyPt: isMobility
+        ? 'Preparei uma sessão de Mobilidade & Recuperação Ativa sob medida para você (8 min), focando em descompressão da coluna e soltura de quadris sem impacto. Deseja iniciar agora?'
+        : 'Preparei uma sessão personalizada de 15 minutos cobrindo os padrões fundamentais com segurança para suas articulações. Deseja iniciar agora ou salvar na sua agenda?',
+      clinicalReasoningSummary: isMobility ? 'Prescrição regenerativa ativa para alívio articular.' : 'Prescrição sob demanda adaptada aos equipamentos e tempo disponíveis.',
+      actionRequired: true,
+      requiresConfirmation: true,
+      proposedDiff: {
+        actionType: 'generate_custom_workout',
+        titlePt: isMobility ? 'Recuperação Ativa & Mobilidade (8 min)' : 'Treino Adaptado pelo Personal IA (15 min)',
+        descriptionPt: isMobility
+          ? '4 exercícios de soltura: Gato e Vaca, Alongamento 90/90, Postura da Criança e Respiração.'
+          : 'Padrões de empurrar, agachar, quadril e core calibrados para o seu momento.',
+        payload: {
+          purpose: isMobility ? 'mobilidade_alongamento' : 'forca_hipertrofia',
+          durationMinutes: isMobility ? 8 : 15,
+        },
+      },
+      activatedSkillIds: ['periodization_and_progression', 'biomechanical_movement_analysis'],
+    };
+  }
+
+  // 7. Orientações de execução técnica
   if (lower.includes('como fazer') || lower.includes('execução') || lower.includes('respiração') || lower.includes('postura')) {
     return {
       replyPt: `Para uma execução perfeita: inspire na fase excêntrica (ao descer/controlar a carga) e solte o ar na fase concêntrica (ao fazer a força). Mantenha os ombros relaxados para longe das orelhas e o abdômen firme. Mova o peso com controle, sem trancos!`,

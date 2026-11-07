@@ -156,10 +156,12 @@ export const PersonalAgentDrawer: React.FC<PersonalAgentDrawerProps> = ({
   if (!isOpen) return null;
 
   const quickChips = [
+    { label: '🥋 Fiz Jiu-Jitsu/Luta', text: 'Hoje fiz um treino de artes marciais fora do app.' },
+    { label: '🌿 Alongamento (8 min)', text: 'Monta um alongamento suave de 8 minutos para soltar o corpo hoje?' },
     { label: 'Dor no joelho', text: 'Senti um leve desconforto no joelho ao agachar.' },
-    { label: 'Trocar exercício', text: 'Gostaria de trocar o exercício atual por uma alternativa.' },
     { label: 'Cansado hoje (-25%)', text: 'Estou muito cansado hoje, pode suavizar meu treino?' },
-    { label: 'Dúvida na respiração', text: 'Como devo respirar durante a execução deste movimento?' },
+    { label: 'Trocar exercício', text: 'Gostaria de trocar o exercício atual por uma alternativa.' },
+    { label: '⚡ Treino rápido (10 min)', text: 'Só tenho 10 minutos hoje, prepara um treino rápido?' },
   ];
 
   return (
@@ -256,17 +258,21 @@ export const PersonalAgentDrawer: React.FC<PersonalAgentDrawerProps> = ({
                         {confirmedDiffs[msg.id] ? (
                           <div className="flex items-center gap-1.5 text-[#2D6A4F] font-bold text-xs py-1">
                             <Check className="w-4 h-4" />
-                            <span>Adaptação aplicada no treino!</span>
+                            <span>Ação confirmada e aplicada com sucesso!</span>
                           </div>
                         ) : (
                           <div className="flex items-center gap-2">
                             <button
                               type="button"
                               onClick={() => handleConfirmDiff(msg.id, msg.proposal!.proposedDiff!)}
-                              className="px-3 py-1.5 bg-[#1B4332] hover:bg-[#12372A] text-white rounded-lg font-bold text-xs flex items-center gap-1 cursor-pointer transition-colors"
+                              className="px-3 py-1.5 bg-[#1B4332] hover:bg-[#12372A] text-white rounded-lg font-bold text-xs flex items-center gap-1 cursor-pointer transition-colors shadow-2xs"
                             >
-                              <Check className="w-3 h-3" />
-                              Confirmar & Aplicar
+                              <Check className="w-3.5 h-3.5" />
+                              {msg.proposal.proposedDiff.actionType === 'generate_custom_workout'
+                                ? '▶ Iniciar Este Treino Agora'
+                                : msg.proposal.proposedDiff.actionType === 'log_external_practice'
+                                ? '🥋 Confirmar Registro de Prática'
+                                : 'Confirmar & Aplicar'}
                             </button>
                             <span className="text-[10px] text-slate-400">Requer confirmação</span>
                           </div>

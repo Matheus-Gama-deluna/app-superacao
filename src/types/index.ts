@@ -1,6 +1,6 @@
-export type Modality = 'forca' | 'mobilidade' | 'alongamento' | 'cardio';
+export type Modality = 'forca' | 'mobilidade' | 'alongamento' | 'cardio' | 'artes_marciais';
 export type EquipmentType = 'nenhum' | 'peso_corporal' | 'cadeira' | 'parede' | 'mini_band' | 'faixa_longa' | 'tubos_elasticos' | 'halteres' | 'kettlebell' | 'colchonete';
-export type ActivityType = 'strength' | 'active_recovery' | 'rest' | 'walk' | 'unassigned' | 'mobility';
+export type ActivityType = 'strength' | 'active_recovery' | 'rest' | 'walk' | 'unassigned' | 'mobility' | 'artes_marciais' | 'pratica_externa';
 export type SessionStatus = 'in_progress' | 'completed' | 'abandoned' | 'parcial';
 export type TrackingMode = 'reps' | 'time';
 
@@ -748,13 +748,30 @@ export interface ActiveScreenContext {
 }
 
 export interface ProposalDiff {
-  actionType: 'swap_exercise' | 'soften_session' | 'reschedule_day' | 'update_routine' | 'navigate';
+  actionType:
+    | 'swap_exercise'
+    | 'soften_session'
+    | 'adjust_exercise_target'
+    | 'compress_remaining_workout'
+    | 'generate_custom_workout'
+    | 'create_program'
+    | 'advance_program_phase'
+    | 'evolve_program_variations'
+    | 'reschedule_day'
+    | 'update_schedule'
+    | 'update_routine'
+    | 'update_profile'
+    | 'log_external_practice'
+    | 'autofill_onboarding'
+    | 'navigate';
   titlePt: string;
   descriptionPt: string;
   originalId?: string;
   replacementId?: string;
   replacementNamePt?: string;
   targetDayOfWeek?: number;
+  workoutPlan?: WorkoutPlan;
+  workoutProgram?: WorkoutProgram;
   payload?: any;
 }
 

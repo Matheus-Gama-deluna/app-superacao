@@ -71,13 +71,30 @@ export interface ActiveScreenContext {
 }
 
 export interface ProposalDiff {
-  actionType: 'swap_exercise' | 'soften_session' | 'reschedule_day' | 'update_routine' | 'navigate';
+  actionType:
+    | 'swap_exercise'
+    | 'soften_session'
+    | 'adjust_exercise_target'
+    | 'compress_remaining_workout'
+    | 'generate_custom_workout'
+    | 'create_program'
+    | 'advance_program_phase'
+    | 'evolve_program_variations'
+    | 'reschedule_day'
+    | 'update_schedule'
+    | 'update_routine'
+    | 'update_profile'
+    | 'log_external_practice'
+    | 'autofill_onboarding'
+    | 'navigate';
   titlePt: string;
   descriptionPt: string;
   originalId?: string;
   replacementId?: string;
   replacementNamePt?: string;
   targetDayOfWeek?: number;
+  workoutPlan?: any;
+  workoutProgram?: any;
   payload?: any;
 }
 

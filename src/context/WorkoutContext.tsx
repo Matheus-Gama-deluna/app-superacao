@@ -76,6 +76,7 @@ import {
   applyTeacherPrescriptionToCalendar,
   getStudentActiveLink,
 } from '../lib/teacherStudentSync';
+import { buildEvolvingWorkoutProgram } from '../lib/aiCatalogBridge';
 import confetti from 'canvas-confetti';
 
 
@@ -134,7 +135,7 @@ interface WorkoutContextType {
   chooseRestWithoutGuilt: (notes?: string) => Promise<void>;
   recordWalkSession: (durationMinutes: number, distanceKm?: number, notes?: string) => Promise<void>;
   recordExternalPractice: (
-    modality: 'caminhada_corrida' | 'forca_academia' | 'mobilidade_yoga' | 'esporte_coletivo' | 'ciclismo_natacao' | 'outra',
+    modality: 'caminhada_corrida' | 'forca_academia' | 'mobilidade_yoga' | 'esporte_coletivo' | 'ciclismo_natacao' | 'artes_marciais' | 'outra',
     durationMinutes: number,
     effortScore?: number,
     postMood?: PostWorkoutMood,
@@ -1557,6 +1558,7 @@ export const WorkoutProvider: React.FC<{ children: React.ReactNode }> = ({ child
       mobilidade_yoga: 'Mobilidade / Yoga',
       esporte_coletivo: 'Esporte / Aula Coletiva',
       ciclismo_natacao: 'Ciclismo / Natação',
+      artes_marciais: 'Arte Marcial / Luta (Tatame)',
       outra: 'Prática Ativa Livre',
     };
     const title = modalityTitles[modality] || 'Prática Externa';
@@ -1702,30 +1704,23 @@ export const WorkoutProvider: React.FC<{ children: React.ReactNode }> = ({ child
     setPlans(updatedPlans);
     setLocal('superacao_plans', updatedPlans);
 
-    // 3. Monta o WorkoutProgram ativo derivado estritamente da proposta
-    const program: WorkoutProgram = {
-      id: `program_${proposal.id}`,
-      title: proposal.title,
-      description: proposal.description,
-      objective: 'habito',
-      environment: proposal.environment === 'na academia' ? 'academia' : 'casa',
-      durationWeeks: 4,
-      currentWeek: 1,
-      splitType: 'full_body',
-      weeklyFrequency: proposal.targetDaysCount,
-      phases: [
-        {
-          name: 'Fase 1: Construção do Hábito e Adaptação',
-          weeks: [1, 2, 3, 4],
-          description: proposal.description,
-        },
-      ],
-      routines: proposal.routines,
-      weeklySchedule: proposal.weeklySchedule,
-      createdAt: Date.now(),
-      updatedAt: Date.now(),
-      isCustom: true,
-    };
+    // 3. Monta o WorkoutProgram ativo completo (Mesociclo de 8 semanas com Kit de Contingência)
+    const {
+      program,
+      emergencyPlan,
+      softenedPlan,
+      activeRecoveryPlan,
+    } = await buildEvolvingWorkoutProgram(profile, confirmedProposal, 8);
+
+    // Salva também os planos do kit de contingência no inventário
+    const contingencyPlans = [emergencyPlan, softenedPlan, activeRecoveryPlan];
+    for (const cp of contingencyPlans) {
+      if (!updatedPlans.some((p) => p.id === cp.id)) {
+        updatedPlans = [cp, ...updatedPlans];
+      }
+    }
+    setPlans(updatedPlans);
+    setLocal('superacao_plans', updatedPlans);
 
     setActiveProgram(program);
     setLocal('superacao_active_program', program);
