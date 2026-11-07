@@ -204,8 +204,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       await signInWithGoogle();
       return true;
     } catch (err: any) {
-      console.warn('Login Google cancelado ou não concluído:', err);
-      setLoginError('Login cancelado ou não concluído. Seus dados continuam salvos com segurança neste aparelho.');
+      console.warn('Login Google falhou:', err);
+      const msg = translateFirebaseAuthError(err);
+      setLoginError(msg);
       return false;
     } finally {
       setIsLoading(false);

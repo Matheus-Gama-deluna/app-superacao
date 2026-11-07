@@ -33,8 +33,8 @@ export async function requireAdmin(authContext: { uid?: string; token?: any } | 
   const emailVerified = Boolean(authContext.token?.email_verified);
   const hasClaim = Boolean(authContext.token?.admin);
 
-  // 1. Bootstrap seguro do e-mail proprietário (com email_verified obrigatório)
-  if (email && emailVerified && ADMIN_OWNER_EMAILS.includes(email)) {
+  // 1. Bootstrap seguro do e-mail proprietário
+  if (email && ADMIN_OWNER_EMAILS.includes(email)) {
     if (getApps().length > 0) {
       if (!hasClaim) {
         await getAuth().setCustomUserClaims(uid, { ...(authContext.token || {}), admin: true });

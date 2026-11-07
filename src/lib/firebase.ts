@@ -4,6 +4,8 @@ import {
   getAuth,
   GoogleAuthProvider,
   signInWithPopup,
+  signInWithRedirect,
+  getRedirectResult,
   signOut as firebaseSignOut,
   onAuthStateChanged,
   User as FirebaseUser,
@@ -122,34 +124,48 @@ export async function signInWithGoogle() {
   try {
     const result = await signInWithPopup(auth, googleProvider);
     return result.user;
-  } catch (error) {
+  } catch (error: any) {
+    if (error?.code === 'auth/popup-blocked') {
+      console.info('[Firebase] Popup bloqueado pelo navegador, tentando fallback com redirecionamento...');
+      await signInWithRedirect(auth, googleProvider);
+      return null;
+    }
     console.error('Erro ao autenticar com Google:', error);
     throw error;
   }
 }
 
-
 export function translateFirebaseAuthError(error: any): string {
   const code = error?.code || '';
+  const currentHost = typeof window !== 'undefined' ? window.location.hostname : 'atual';
+
   switch (code) {
     case 'auth/email-already-in-use':
-      return 'Este e-mail já está cadastrado. Você pode entrar ou redefinir sua senha.';
+      return 'Este e-mail já está cadastrado. Selecione a aba "Entrar" acima ou redefina sua senha.';
     case 'auth/invalid-email':
       return 'O endereço de e-mail informado não parece ser válido.';
     case 'auth/user-not-found':
     case 'auth/wrong-password':
     case 'auth/invalid-credential':
-      return 'E-mail ou senha incorretos. Por favor, verifique os dados digitados.';
+      return 'E-mail ou senha incorretos. Por favor, verifique os dados digitados ou use a recuperação de senha.';
     case 'auth/weak-password':
       return 'A senha precisa ter no mínimo 6 caracteres.';
     case 'auth/network-request-failed':
-      return 'Sem conexão com a internet. Verifique sua rede para autenticar ou continue como convidado.';
+      return 'Sem conexão com a internet ou restrição de rede para autenticar. Tente novamente.';
     case 'auth/too-many-requests':
       return 'Muitas tentativas em pouco tempo. Aguarde alguns instantes e tente novamente.';
     case 'auth/popup-closed-by-user':
-      return 'Login com Google cancelado. Seus dados locais continuam seguros neste aparelho.';
+      return 'A janela do Google foi fechada antes de concluir o login. Seus dados continuam salvos no aparelho.';
+    case 'auth/popup-blocked':
+      return 'A janela pop-up do Google foi bloqueada pelo navegador. Permita pop-ups para esta página ou entre com seu E-mail e Senha abaixo.';
+    case 'auth/unauthorized-domain':
+      return `O domínio atual (${currentHost}) não está autorizado no Firebase Authentication (Console > Authentication > Settings > Authorized domains). Você pode entrar com seu E-mail e Senha abaixo ou adicionar este domínio no console.`;
+    case 'auth/operation-not-allowed':
+      return 'O login com Google não está ativado no Firebase Console para este projeto. Utilize o login com E-mail e Senha abaixo.';
+    case 'auth/cancelled-popup-request':
+      return 'Uma janela de login do Google já estava em andamento. Conclua nela ou tente novamente.';
     default:
-      return error?.message || 'Ocorreu um erro ao processar sua solicitação. Tente novamente.';
+      return error?.message || 'Ocorreu um erro ao processar sua solicitação de login. Tente novamente.';
   }
 }
 
