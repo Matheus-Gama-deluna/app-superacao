@@ -3,62 +3,106 @@ service cloud.firestore {
   match /databases/{database}/documents {
     function signedInAs(uid) { return request.auth != null && request.auth.uid == uid; }
     function owned(uid) { return request.resource.data.ownerUid == uid; }
+    function isAdmin() {
+      return request.auth != null && (
+        request.auth.token.admin == true ||
+        exists(/databases/$(database)/documents/system_admins/$(request.auth.uid))
+      );
+    }
 
     match /exercise_catalog/{exerciseId} {
       allow read: if true;
       allow write: if false;
     }
 
+    // Configurações do Sistema e Overrides do Catálogo
+    match /system_config/{configId} {
+      // Overrides de catálogo são lidos pelo app para segurança offline
+      allow read: if configId == 'catalog_overrides' || isAdmin();
+      allow write: if false; // Escrita administrativa exclusiva via Cloud Functions
+    }
+
+    // Coleções de Administração, Métricas e Auditoria
+    match /system_admins/{adminUid} {
+      allow read: if isAdmin();
+      allow write: if false;
+    }
+
+    match /system_metrics/{metricId} {
+      allow read: if isAdmin();
+      allow write: if false;
+    }
+
+    match /admin_audit_logs/{logId} {
+      allow read: if isAdmin();
+      allow write: if false;
+    }
+
     match /users/{uid} {
-      allow read: if signedInAs(uid);
-      allow create, update: if signedInAs(uid);
-      allow delete: if signedInAs(uid);
+      allow read: if signedInAs(uid) || isAdmin();
+      // Bloqueia escalação de privilégio em users/{uid}
+      allow create, update: if signedInAs(uid) && (
+        isAdmin() ||
+        (!('isAdmin' in request.resource.data) && !('aiBlocked' in request.resource.data))
+      );
+      allow delete: if signedInAs(uid) || isAdmin();
+
+      // Subcoleção de Memória de IA (M2 Core e M3/M4 Episódios)
+      match /aiMemory/{document=**} {
+        allow read, write: if signedInAs(uid);
+      }
+
+      // Subcoleção de Cotas Diárias de IA (escrita via Cloud Functions)
+      match /aiQuota/{document=**} {
+        allow read: if signedInAs(uid) || isAdmin();
+        allow write: if false;
+      }
 
       match /setEvents/{eventId} {
-        allow read: if signedInAs(uid);
+        allow read: if signedInAs(uid) || isAdmin();
         allow create, update: if signedInAs(uid) && owned(uid);
         allow delete: if false;
       }
 
       match /stats/{docId} {
-        allow read, write: if signedInAs(uid);
+        allow read, write: if signedInAs(uid) || isAdmin();
       }
 
       match /progressEvents/{eventId} {
-        allow read: if signedInAs(uid);
+        allow read: if signedInAs(uid) || isAdmin();
         allow create: if signedInAs(uid) && owned(uid);
         allow update: if false;
         allow delete: if false;
       }
 
       match /plans/{docId} {
-        allow read: if signedInAs(uid);
+        allow read: if signedInAs(uid) || isAdmin();
         allow create, update: if signedInAs(uid) && owned(uid);
-        allow delete: if signedInAs(uid);
+        allow delete: if signedInAs(uid) || isAdmin();
       }
 
       match /sessions/{docId} {
-        allow read: if signedInAs(uid);
+        allow read: if signedInAs(uid) || isAdmin();
         allow create, update: if signedInAs(uid) && owned(uid);
-        allow delete: if signedInAs(uid);
+        allow delete: if signedInAs(uid) || isAdmin();
       }
 
       match /activities/{docId} {
-        allow read: if signedInAs(uid);
+        allow read: if signedInAs(uid) || isAdmin();
         allow create, update: if signedInAs(uid) && owned(uid);
-        allow delete: if signedInAs(uid);
+        allow delete: if signedInAs(uid) || isAdmin();
       }
 
       match /calendar/{docId} {
-        allow read: if signedInAs(uid);
+        allow read: if signedInAs(uid) || isAdmin();
         allow create, update: if signedInAs(uid) && owned(uid);
-        allow delete: if signedInAs(uid);
+        allow delete: if signedInAs(uid) || isAdmin();
       }
 
       match /programs/{docId} {
-        allow read: if signedInAs(uid);
+        allow read: if signedInAs(uid) || isAdmin();
         allow create, update: if signedInAs(uid);
-        allow delete: if signedInAs(uid);
+        allow delete: if signedInAs(uid) || isAdmin();
       }
     }
 
@@ -66,34 +110,50 @@ service cloud.firestore {
     match /teacher_student_links/{linkId} {
       allow read: if request.auth != null && (
         resource.data.teacherUid == request.auth.uid ||
-        resource.data.studentUid == request.auth.uid
+        resource.data.studentUid == request.auth.uid ||
+        isAdmin()
       );
       allow create, update: if request.auth != null && (
         request.resource.data.teacherUid == request.auth.uid ||
-        request.resource.data.studentUid == request.auth.uid
+        request.resource.data.studentUid == request.auth.uid ||
+        isAdmin()
       );
-      allow delete: if request.auth != null && resource.data.teacherUid == request.auth.uid;
+      allow delete: if request.auth != null && (
+        resource.data.teacherUid == request.auth.uid ||
+        isAdmin()
+      );
     }
 
     // Modelos de Anamnese Customizada do Professor
     match /anamnesis_templates/{templateId} {
       allow read: if true; // Alunos precisam ler o template para responder
-      allow create, update: if request.auth != null && request.resource.data.teacherUid == request.auth.uid;
-      allow delete: if request.auth != null && resource.data.teacherUid == request.auth.uid;
+      allow create, update: if request.auth != null && (
+        request.resource.data.teacherUid == request.auth.uid ||
+        isAdmin()
+      );
+      allow delete: if request.auth != null && (
+        resource.data.teacherUid == request.auth.uid ||
+        isAdmin()
+      );
     }
 
     // Submissões de Anamnese (Respostas e Fotos)
     match /anamnesis_submissions/{submissionId} {
       allow read: if request.auth != null && (
         resource.data.studentUid == request.auth.uid ||
-        resource.data.teacherUid == request.auth.uid
+        resource.data.teacherUid == request.auth.uid ||
+        isAdmin()
       );
       allow create: if request.auth != null && request.resource.data.studentUid == request.auth.uid;
       allow update: if request.auth != null && (
         resource.data.teacherUid == request.auth.uid ||
-        resource.data.studentUid == request.auth.uid
+        resource.data.studentUid == request.auth.uid ||
+        isAdmin()
       );
-      allow delete: if request.auth != null && resource.data.teacherUid == request.auth.uid;
+      allow delete: if request.auth != null && (
+        resource.data.teacherUid == request.auth.uid ||
+        isAdmin()
+      );
     }
   }
 }

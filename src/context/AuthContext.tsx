@@ -27,6 +27,7 @@ interface AuthContextType {
   user: FirebaseUser | null;
   profile: UserProfile;
   isGuest: boolean;
+  isAdmin: boolean;
   isLoading: boolean;
   loginError: string | null;
   pendingConflict: ConflictState | null;
@@ -293,12 +294,18 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
 
+  const isAdmin = Boolean(
+    (user?.email && user.email.toLowerCase() === 'gamamatheus65@gmail.com') ||
+    profile.isAdmin === true
+  );
+
   return (
     <AuthContext.Provider
       value={{
         user,
         profile,
         isGuest,
+        isAdmin,
         isLoading,
         loginError,
         pendingConflict,

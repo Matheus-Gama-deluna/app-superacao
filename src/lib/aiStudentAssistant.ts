@@ -1,3 +1,5 @@
+import { ClinicalMemoryFact } from '../types';
+
 /**
  * Assistente de IA para Alunos e Praticantes.
  * Fornece dicas contextuais e protetoras durante os exercícios ("Para o meu corpo")
@@ -6,9 +8,34 @@
 
 export function getPersonalizedExerciseCue(
   exerciseName: string,
-  reportedLimitations: string[] = []
+  reportedLimitations: string[] = [],
+  clinicalMemoryFacts?: ClinicalMemoryFact[]
 ): string {
   const nameLower = (exerciseName || '').toLowerCase();
+  const now = Date.now();
+
+  // 1. Prioriza fatos clínicos ativos da Memória M2 se presentes
+  if (clinicalMemoryFacts && clinicalMemoryFacts.length > 0) {
+    const activeFacts = clinicalMemoryFacts.filter(
+      (f) => f.persistence === 'chronic' || !f.expiresAt || f.expiresAt > now
+    );
+    for (const fact of activeFacts) {
+      if (fact.protectiveCuePt) {
+        if (fact.id.includes('knee') && (nameLower.includes('agach') || nameLower.includes('afundo') || nameLower.includes('leg'))) {
+          return `Memória Ativa: ${fact.protectiveCuePt}`;
+        }
+        if (fact.id.includes('spine') || fact.id.includes('lumbar')) {
+          if (nameLower.includes('prancha') || nameLower.includes('agach') || nameLower.includes('ponte') || nameLower.includes('remada')) {
+            return `Memória Ativa: ${fact.protectiveCuePt}`;
+          }
+        }
+        if (fact.id.includes('shoulder') && (nameLower.includes('elev') || nameLower.includes('push') || nameLower.includes('remada'))) {
+          return `Memória Ativa: ${fact.protectiveCuePt}`;
+        }
+      }
+    }
+  }
+
   const hasKneeLimitation = reportedLimitations.some(
     (l) => l.includes('joelho') || l.includes('patel')
   );

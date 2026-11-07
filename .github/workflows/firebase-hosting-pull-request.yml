@@ -20,6 +20,12 @@ jobs:
           cache: 'npm'
       - name: Install dependencies
         run: npm install --legacy-peer-deps
+      - name: Install functions dependencies
+        run: npm --prefix functions install
+      - name: Run functions tests & typecheck
+        run: |
+          npm --prefix functions test
+          npm --prefix functions run build
       - name: Run unit & integration tests
         run: npm test
       - name: Install Playwright Browsers

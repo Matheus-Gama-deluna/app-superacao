@@ -1539,7 +1539,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
                         onClick={() => {
                           setShowCopingModal(false);
                           const softened = createSoftenedPlanSnapshot(todayPlan);
-                          onStartWorkout(softened, todaySchedule?.id, 'scheduled', false, false, undefined, preMood);
+                          onStartWorkout(softened, todaySchedule?.id, 'scheduled', false, false, undefined, preMood || undefined);
                         }}
                         className="w-full py-2 px-3 bg-[#1B4332] text-white rounded-xl text-xs font-bold hover:bg-[#12372A] flex items-center justify-center gap-1.5 cursor-pointer shadow-2xs"
                       >
