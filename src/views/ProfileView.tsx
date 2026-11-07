@@ -231,6 +231,11 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
     updateUserProfile({ hapticEnabled: !(profile.hapticEnabled !== false) });
   };
 
+  const handleLogout = async () => {
+    onClose();
+    await logout();
+  };
+
   return (
     <div className="space-y-5 pb-28">
       {/* Top Bar do Perfil */}
@@ -258,11 +263,19 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
               <User className="w-6 h-6" />
             )}
           </div>
-          <div>
-            <h3 className="text-base font-bold text-[#152A29]">
-              {user ? user.displayName || 'Usuário Conectado' : 'Modo Convidado Local'}
-            </h3>
-            <p className="text-xs text-[#5B7170]">
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center gap-2 flex-wrap">
+              <h3 className="text-base font-bold text-[#152A29] truncate">
+                {user ? user.displayName || 'Usuário Conectado' : 'Modo Convidado Local'}
+              </h3>
+              {isSuperAdmin && (
+                <span className="px-2 py-0.5 bg-[#1B4332] text-[#D8F3DC] rounded-full text-[10px] font-bold font-mono flex items-center gap-1 border border-[#2D6A4F] shrink-0">
+                  <Shield className="w-3 h-3 text-[#D8F3DC]" />
+                  Super Admin
+                </span>
+              )}
+            </div>
+            <p className="text-xs text-[#5B7170] truncate">
               {user ? user.email : 'Seus treinos e histórico estão salvos 100% no seu aparelho.'}
             </p>
           </div>
@@ -271,7 +284,7 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
         {/* Botão de Login ou Logout */}
         {user ? (
           <button
-            onClick={logout}
+            onClick={handleLogout}
             className="w-full py-2.5 rounded-xl border border-[#C9DBD3] text-[#B13D39] text-xs font-bold flex items-center justify-center gap-1.5 hover:bg-red-50 cursor-pointer"
           >
             <LogOut className="w-4 h-4" />
@@ -299,6 +312,34 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
           </div>
         )}
       </section>
+
+      {/* Acesso Administrativo IA & DeepInfra v2 - Em Destaque no Topo para Super Admin */}
+      {isSuperAdmin && (
+        <section className="bg-gradient-to-br from-[#1B4332] to-[#2D6A4F] text-white rounded-3xl p-5 shadow-md space-y-3 border border-[#2D6A4F] animate-in fade-in">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <Shield className="w-5 h-5 text-[#D8F3DC]" />
+              <h4 className="text-xs font-bold uppercase tracking-wider text-[#D8F3DC]">
+                Painel do Super Administrador
+              </h4>
+            </div>
+            <span className="px-2 py-0.5 bg-white/20 text-[#D8F3DC] rounded-full text-[10px] font-mono font-bold">
+              v9.0 Ativo
+            </span>
+          </div>
+          <p className="text-xs text-white/90 leading-relaxed">
+            Você possui privilégios de administrador geral. Acesse a central de controle para gerenciar agentes de IA, modelos DeepInfra, API key, custos e usuários.
+          </p>
+          <button
+            type="button"
+            onClick={onOpenAdmin}
+            className="w-full py-3 px-4 bg-white text-[#1B4332] hover:bg-[#D8F3DC] rounded-xl font-bold text-xs flex items-center justify-center gap-2 transition-all cursor-pointer shadow-sm active:scale-[0.99]"
+          >
+            <Shield className="w-4 h-4 text-[#1B4332]" />
+            <span>Abrir Painel do Administrador (DeepInfra v2)</span>
+          </button>
+        </section>
+      )}
 
       {/* Identidade e Âncora de Hábito */}
       <section className="bg-white rounded-3xl p-5 border border-[#C9DBD3] shadow-xs space-y-3.5">
@@ -721,29 +762,6 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
           </span>
         </button>
       </section>
-
-      {/* Acesso Administrativo IA & DeepInfra v2 (Apenas gamamatheus65@gmail.com ou isAdmin) */}
-      {isSuperAdmin && (
-        <section className="bg-gradient-to-br from-[#1B4332] to-[#2D6A4F] text-white rounded-3xl p-5 shadow-md space-y-3">
-          <div className="flex items-center gap-2">
-            <Shield className="w-5 h-5 text-[#D8F3DC]" />
-            <h4 className="text-xs font-bold uppercase tracking-wider text-[#D8F3DC]">
-              Acesso Administrativo (DeepInfra v2)
-            </h4>
-          </div>
-          <p className="text-xs text-white/90 leading-relaxed">
-            Você possui privilégios de administrador. Acesse o centro de controle para gerenciar agentes de IA, modelos, custos, guardrails e usuários.
-          </p>
-          <button
-            type="button"
-            onClick={onOpenAdmin}
-            className="w-full py-3 px-4 bg-white text-[#1B4332] hover:bg-[#D8F3DC] rounded-xl font-bold text-xs flex items-center justify-center gap-2 transition-colors cursor-pointer shadow-xs"
-          >
-            <Shield className="w-4 h-4" />
-            <span>Abrir Painel do Administrador</span>
-          </button>
-        </section>
-      )}
 
       {/* Backup, Restauração e Privacidade (A19, A20) */}
       <section className="bg-white rounded-3xl p-5 border border-[#C9DBD3] shadow-xs space-y-3">

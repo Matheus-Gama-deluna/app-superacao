@@ -101,9 +101,9 @@ export const WelcomeView: React.FC<WelcomeViewProps> = ({ onSelectAccess }) => {
             <ArrowRight className="w-5 h-5 text-white/70 group-hover:translate-x-0.5 transition-transform" />
           </button>
 
-          {/* 2. Conectar com Google */}
+          {/* 2. Conectar com Google (Entrar ou Criar) */}
           <button
-            onClick={() => handleGoogleLogin(true)}
+            onClick={() => handleGoogleLogin(false)}
             disabled={isSubmitting}
             className="w-full min-h-[52px] p-3.5 bg-white border border-[#C9DBD3] text-[#152A29] rounded-2xl flex items-center justify-between font-bold text-xs sm:text-sm hover:bg-slate-50 active:scale-[0.99] transition-all cursor-pointer shadow-xs"
           >
@@ -112,7 +112,7 @@ export const WelcomeView: React.FC<WelcomeViewProps> = ({ onSelectAccess }) => {
                 <Sparkles className="w-4 h-4" />
               </div>
               <div>
-                <div>Criar conta com Google</div>
+                <div>Entrar ou Criar conta com Google</div>
                 <div className="text-[11px] font-normal text-[#5B7170]">
                   Sincronização instantânea em nuvem
                 </div>
@@ -121,7 +121,27 @@ export const WelcomeView: React.FC<WelcomeViewProps> = ({ onSelectAccess }) => {
             <ArrowRight className="w-4 h-4 text-[#5B7170]" />
           </button>
 
-          {/* 3. Conectar com E-mail e Senha */}
+          {/* 3. Já tenho uma conta (Entrar com E-mail) - Alto Destaque */}
+          <button
+            onClick={() => handleOpenEmailAuth('login')}
+            disabled={isSubmitting}
+            className="w-full min-h-[52px] p-3.5 bg-[#EAF3EF] border-2 border-[#125F55] text-[#125F55] rounded-2xl flex items-center justify-between font-bold text-xs sm:text-sm hover:bg-[#D5E8DF] active:scale-[0.99] transition-all cursor-pointer shadow-xs"
+          >
+            <div className="flex items-center gap-3 text-left">
+              <div className="w-9 h-9 rounded-xl bg-[#125F55] text-white flex items-center justify-center shrink-0">
+                <LogIn className="w-4 h-4" />
+              </div>
+              <div>
+                <div>Já tenho uma conta · Entrar</div>
+                <div className="text-[11px] font-normal text-[#125F55]/80">
+                  Acesse com seu e-mail e senha cadastrados
+                </div>
+              </div>
+            </div>
+            <ArrowRight className="w-4 h-4 text-[#125F55]" />
+          </button>
+
+          {/* 4. Conectar com E-mail e Senha (Criar Conta) */}
           <button
             onClick={() => handleOpenEmailAuth('register')}
             disabled={isSubmitting}
@@ -139,16 +159,6 @@ export const WelcomeView: React.FC<WelcomeViewProps> = ({ onSelectAccess }) => {
               </div>
             </div>
             <ArrowRight className="w-4 h-4 text-[#5B7170]" />
-          </button>
-
-          {/* 4. Já tenho uma conta (Entrar) */}
-          <button
-            onClick={() => handleOpenEmailAuth('login')}
-            disabled={isSubmitting}
-            className="w-full min-h-[48px] p-3 border border-transparent text-[#5B7170] rounded-2xl flex items-center justify-center gap-2 font-semibold text-xs hover:text-[#152A29] hover:bg-black/5 transition-all cursor-pointer"
-          >
-            <LogIn className="w-4 h-4" />
-            <span>Já tenho uma conta · Entrar</span>
           </button>
         </div>
 

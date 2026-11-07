@@ -25,6 +25,13 @@ export const QuickIdentificationView: React.FC<QuickIdentificationViewProps> = (
   const [studentChoice, setStudentChoice] = useState<StudentFirstStepChoice>('explore');
   const [error, setError] = useState<string | null>(null);
 
+  React.useEffect(() => {
+    if (initialName && initialName.trim() !== '' && initialName !== 'Praticante') {
+      setName(initialName.trim());
+      setIsEditingName(false);
+    }
+  }, [initialName]);
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     const cleanName = name.trim();

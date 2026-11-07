@@ -250,6 +250,22 @@ const MainAppContent: React.FC = () => {
     }
   }, [Boolean(activeSession && isFocusMode)]);
 
+  // Sincroniza estado de logout: quando o usuário sai, fecha todas as visualizações ativas e limpa o fluxo para retornar à Tela Inicial
+  useEffect(() => {
+    if (!user && isGuest) {
+      const stored = getLocal(STORAGE_KEYS.ACCESS_CHOICE, null);
+      if (!stored && accessChoice !== null) {
+        setAccessChoice(null);
+        setIsProfileOpen(false);
+        setIsBuilderOpen(false);
+        setIsListeningOpen(false);
+        setIsAdminDashboardOpen(false);
+        setCurrentProposal(null);
+        setCurrentTab('home');
+      }
+    }
+  }, [user, isGuest, accessChoice]);
+
   // Suporte nativo ao botão físico / gesto "Voltar" do celular (History API)
   useEffect(() => {
     const handlePopState = (e: PopStateEvent) => {
@@ -432,6 +448,11 @@ const MainAppContent: React.FC = () => {
         />
       </React.Suspense>
     );
+  }
+
+  // Hidratação segura: Enquanto autentica e busca o perfil no Firestore, evita renderização prematura de telas intermediárias
+  if (authLoading) {
+    return <ViewLoadingFallback />;
   }
 
   // 1. TELA DE BOAS-VINDAS (Seção 4, Critérios C01, C02)

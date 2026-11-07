@@ -282,11 +282,15 @@ test.describe('Rodada 2: Auditoria Visual Completa, Multi-Perfis & Integração 
 
     // Passo 3: Sua Disponibilidade Real
     await expect(page.getByRole('heading', { name: 'Sua Disponibilidade Real' }).first()).toBeVisible();
+    // Em ListeningJourneyView, os botões seguem MONDAY_FIRST_DAYS = [1, 2, 3, 4, 5, 6, 0]
+    const MONDAY_FIRST_DAYS = [1, 2, 3, 4, 5, 6, 0];
     const todayDow = new Date().getDay();
+    const todayButtonIndex = MONDAY_FIRST_DAYS.indexOf(todayDow);
+    // Seleciona dias ativos diferentes de hoje para que hoje seja deterministicamente Dia de Descanso
+    const restDayCandidateIndices = [0, 1, 2, 3, 4, 5, 6].filter((idx) => idx !== todayButtonIndex);
     const dayButtons = page.locator('.grid.grid-cols-7 button');
-    const targetDays = [1, 3, 5].filter((d) => d !== todayDow);
-    for (const d of targetDays) {
-      await dayButtons.nth(d).click();
+    for (const idx of [restDayCandidateIndices[0], restDayCandidateIndices[1]]) {
+      await dayButtons.nth(idx).click();
     }
     await page.screenshot({ path: path.join(SCREENSHOT_DIR, '20_autonomous_listening_step3.png') });
     await page.getByRole('button', { name: 'Avançar' }).click();
