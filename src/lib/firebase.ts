@@ -135,6 +135,16 @@ export async function signInWithGoogle() {
   }
 }
 
+export async function checkRedirectAuth(): Promise<FirebaseUser | null> {
+  try {
+    const result = await getRedirectResult(auth);
+    return result ? result.user : null;
+  } catch (error) {
+    console.warn('[Firebase] Erro ao recuperar resultado de redirecionamento:', error);
+    throw error;
+  }
+}
+
 export function translateFirebaseAuthError(error: any): string {
   const code = error?.code || '';
   const currentHost = typeof window !== 'undefined' ? window.location.hostname : 'atual';

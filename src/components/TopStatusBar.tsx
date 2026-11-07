@@ -1,16 +1,23 @@
 import React from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useWorkout } from '../context/WorkoutContext';
-import { Cloud, CloudOff, RefreshCw, Trophy, User, Sparkles } from 'lucide-react';
+import { Cloud, CloudOff, RefreshCw, Trophy, User, Sparkles, Shield } from 'lucide-react';
 import { PWAInstallButton } from './PWAInstallButton';
 
 interface TopStatusBarProps {
   onOpenProfile: () => void;
+  onOpenAdmin?: () => void;
 }
 
-export const TopStatusBar: React.FC<TopStatusBarProps> = ({ onOpenProfile }) => {
+export const TopStatusBar: React.FC<TopStatusBarProps> = ({ onOpenProfile, onOpenAdmin }) => {
   const { user, profile, isGuest } = useAuth();
   const { syncStatus, latestPRAnnouncement, clearPRAnnouncement } = useWorkout();
+
+  const isSuperAdmin = Boolean(
+    (user?.email && user.email.toLowerCase().trim() === 'gamamatheus65@gmail.com') ||
+    (profile?.email && profile.email.toLowerCase().trim() === 'gamamatheus65@gmail.com') ||
+    profile?.isAdmin === true
+  );
 
   return (
     <header className="sticky top-0 z-30 bg-[#FAF8F5]/90 backdrop-blur-md border-b border-[#E4DDD3] px-2.5 sm:px-4 py-1.5 sm:py-2.5 pt-safe">
@@ -61,6 +68,20 @@ export const TopStatusBar: React.FC<TopStatusBarProps> = ({ onOpenProfile }) => 
 
           {/* Botão de Instalação PWA */}
           <PWAInstallButton variant="compact" />
+
+          {/* Atalho Direto para Painel do Super Admin */}
+          {isSuperAdmin && onOpenAdmin && (
+            <button
+              type="button"
+              onClick={onOpenAdmin}
+              className="px-2.5 py-1.5 bg-[#1B4332] hover:bg-[#12372A] text-white rounded-full text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer shadow-xs border border-[#2D6A4F]"
+              title="Abrir Painel do Administrador (DeepInfra v2)"
+              aria-label="Painel do Administrador"
+            >
+              <Shield className="w-3.5 h-3.5 text-[#D8F3DC]" />
+              <span className="font-mono text-[11px]">Admin</span>
+            </button>
+          )}
 
           {/* Avatar / Perfil */}
           <button

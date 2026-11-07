@@ -79,6 +79,16 @@ describe('Sprint 3: Autenticação e Migração Zero-Perda', () => {
       expect(msg).toContain('Sem conexão com a internet');
     });
 
+    it('traduz auth/popup-blocked orientando sobre pop-ups', () => {
+      const msg = translateFirebaseAuthError({ code: 'auth/popup-blocked' });
+      expect(msg).toContain('pop-up do Google foi bloqueada');
+    });
+
+    it('traduz auth/unauthorized-domain orientando sobre domínios autorizados', () => {
+      const msg = translateFirebaseAuthError({ code: 'auth/unauthorized-domain' });
+      expect(msg).toContain('não está autorizado no Firebase Authentication');
+    });
+
     it('retorna mensagem de fallback em erros não previstos', () => {
       const msg = translateFirebaseAuthError({ message: 'Falha genérica' });
       expect(msg).toBe('Falha genérica');

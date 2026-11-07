@@ -2,6 +2,7 @@ import React, { createContext, useContext, useEffect, useState } from 'react';
 import {
   auth,
   signInWithGoogle,
+  checkRedirectAuth,
   createUserWithEmail,
   signInWithEmail,
   sendPasswordReset,
@@ -56,8 +57,16 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [loginError, setLoginError] = useState<string | null>(null);
   const [pendingConflict, setPendingConflict] = useState<ConflictState | null>(null);
 
-  // Escuta mudanças de autenticação do Firebase
+  // Escuta mudanças de autenticação do Firebase e retorno de redirecionamento
   useEffect(() => {
+    // Processa eventual retorno de redirecionamento do Google (caso pop-up tenha sido bloqueado)
+    checkRedirectAuth().catch((err: any) => {
+      if (err) {
+        console.warn('Erro ao processar redirect de autenticação:', err);
+        setLoginError(translateFirebaseAuthError(err));
+      }
+    });
+
     let stopProfileListener: (() => void) | null = null;
 
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
@@ -65,6 +74,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         setUser(firebaseUser);
         setIsGuest(false);
         setLocal('superacao_is_guest', false);
+
+        const isSuperAdminEmail = Boolean(
+          (firebaseUser.email || '').toLowerCase().trim() === 'gamamatheus65@gmail.com'
+        );
 
         const userRef = doc(db, 'users', firebaseUser.uid);
         try {
@@ -74,15 +87,32 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
           if (userSnap.exists()) {
             const remoteData = userSnap.data() as UserProfile;
+            const effectiveDisplayName = (remoteData.displayName && remoteData.displayName !== 'Praticante')
+              ? remoteData.displayName
+              : (firebaseUser.displayName || remoteData.displayName || 'Praticante');
+
+            const merged: UserProfile = {
+              ...remoteData,
+              uid: firebaseUser.uid,
+              displayName: effectiveDisplayName,
+              email: firebaseUser.email || remoteData.email || '',
+              photoURL: firebaseUser.photoURL || remoteData.photoURL,
+              isAdmin: isSuperAdminEmail || Boolean(remoteData.isAdmin),
+              userRole: remoteData.userRole || 'student',
+              onboardingCompleted: remoteData.onboardingCompleted ?? (effectiveDisplayName !== 'Praticante'),
+              updatedAt: Date.now(),
+            };
+
             // Se o usuário local tinha sessões reais concluídas como convidado, detecta necessidade de resolução explícita (C34)
             if (localSessions.length > 0 && !profile.uid.startsWith('firebase_')) {
               setPendingConflict({
-                remoteProfile: remoteData,
+                remoteProfile: merged,
                 localProfile: profile,
               });
             } else {
-              setProfile(remoteData);
-              setLocal('superacao_user_profile', remoteData);
+              setProfile(merged);
+              setLocal('superacao_user_profile', merged);
+              setDoc(userRef, merged, { merge: true }).catch(() => {});
             }
           } else {
             // Conta nova: migra dados locais do convidado sem perda de histórico (C31)
@@ -92,19 +122,33 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
               console.warn('Superação: Aviso durante migração de convidado:', migErr);
             }
 
+            const effectiveDisplayName = firebaseUser.displayName || (profile.displayName !== 'Praticante' ? profile.displayName : '') || 'Praticante';
+
             const newProfile: UserProfile = {
               ...profile,
               uid: firebaseUser.uid,
-              displayName: firebaseUser.displayName || profile.displayName || 'Praticante',
+              displayName: effectiveDisplayName,
               email: firebaseUser.email || '',
+              photoURL: firebaseUser.photoURL || undefined,
+              isAdmin: isSuperAdminEmail || Boolean(profile.isAdmin),
+              userRole: profile.userRole || 'student',
+              onboardingCompleted: Boolean(effectiveDisplayName && effectiveDisplayName !== 'Praticante'),
               updatedAt: Date.now(),
             };
-            await setDoc(userRef, newProfile);
+            await setDoc(userRef, newProfile, { merge: true });
             setProfile(newProfile);
             setLocal('superacao_user_profile', newProfile);
           }
         } catch (err) {
           console.warn('Usando perfil local em cache (offline ou erro de conexão):', err);
+          setProfile((prev) => ({
+            ...prev,
+            uid: firebaseUser.uid,
+            displayName: (prev.displayName && prev.displayName !== 'Praticante') ? prev.displayName : (firebaseUser.displayName || prev.displayName || 'Praticante'),
+            email: firebaseUser.email || prev.email,
+            photoURL: firebaseUser.photoURL || prev.photoURL,
+            isAdmin: isSuperAdminEmail || Boolean(prev.isAdmin),
+          }));
         }
 
         // Listener reativo do perfil
@@ -114,8 +158,16 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         stopProfileListener = onSnapshot(userRef, { includeMetadataChanges: true }, (snap) => {
           if (snap.exists() && !pendingConflict) {
             const data = snap.data() as UserProfile;
-            setProfile(data);
-            setLocal('superacao_user_profile', data);
+            const enriched: UserProfile = {
+              ...data,
+              isAdmin: isSuperAdminEmail || Boolean(data.isAdmin),
+              photoURL: firebaseUser.photoURL || data.photoURL,
+              displayName: (data.displayName && data.displayName !== 'Praticante')
+                ? data.displayName
+                : (firebaseUser.displayName || data.displayName || 'Praticante'),
+            };
+            setProfile(enriched);
+            setLocal('superacao_user_profile', enriched);
           }
         });
 
@@ -296,7 +348,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
 
   const isAdmin = Boolean(
-    (user?.email && user.email.toLowerCase() === 'gamamatheus65@gmail.com') ||
+    (user?.email && user.email.toLowerCase().trim() === 'gamamatheus65@gmail.com') ||
+    (profile?.email && profile.email.toLowerCase().trim() === 'gamamatheus65@gmail.com') ||
     profile.isAdmin === true
   );
 

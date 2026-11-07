@@ -357,6 +357,7 @@ export interface UserProfile {
   uid: string;
   displayName: string;
   email: string;
+  photoURL?: string;
   isTrustedDevice: boolean;
   primaryGoal: string;
   secondaryGoals: string[];

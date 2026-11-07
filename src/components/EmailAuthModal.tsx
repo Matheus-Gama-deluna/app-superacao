@@ -15,7 +15,7 @@ export const EmailAuthModal: React.FC<EmailAuthModalProps> = ({
   initialMode = 'login',
   onSuccess,
 }) => {
-  const { loginEmail, registerEmail, resetPassword, loginGoogle, loginError, clearLoginError } = useAuth();
+  const { loginEmail, registerEmail, resetPassword, loginGoogle, loginError, clearLoginError, profile, user } = useAuth();
   const [mode, setMode] = useState<'login' | 'register' | 'reset'>(initialMode);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -30,9 +30,23 @@ export const EmailAuthModal: React.FC<EmailAuthModalProps> = ({
       setMode(initialMode);
       clearLoginError();
       setLocalFeedback(null);
+
+      // Preenche previamente com dados já disponíveis no dispositivo para agilizar o fluxo
+      const availableName = (profile.displayName && profile.displayName !== 'Praticante')
+        ? profile.displayName
+        : (user?.displayName || '');
+      if (availableName && !displayName) {
+        setDisplayName(availableName);
+      }
+
+      const availableEmail = user?.email || (profile.email && !profile.email.includes('@local.guest') ? profile.email : '');
+      if (availableEmail && !email) {
+        setEmail(availableEmail);
+      }
+
       setTimeout(() => emailInputRef.current?.focus(), 100);
     }
-  }, [isOpen, initialMode]);
+  }, [isOpen, initialMode, profile.displayName, profile.email, user?.displayName, user?.email]);
 
   // Tecla Escape fecha o modal
   useEffect(() => {
@@ -198,9 +212,16 @@ export const EmailAuthModal: React.FC<EmailAuthModalProps> = ({
             ) : (
               <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
             )}
-            <p className="font-semibold leading-relaxed">
-              {localFeedback?.message || loginError}
-            </p>
+            <div className="flex-1">
+              <p className="font-semibold leading-relaxed">
+                {localFeedback?.message || loginError}
+              </p>
+              {loginError && !localFeedback && (
+                <p className="mt-1 text-[11px] opacity-90 leading-tight">
+                  💡 Você pode preencher os campos abaixo para entrar ou cadastrar sua conta diretamente.
+                </p>
+              )}
+            </div>
           </div>
         )}
 

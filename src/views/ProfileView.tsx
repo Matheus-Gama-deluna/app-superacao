@@ -43,13 +43,32 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
   const { user, profile, isGuest, isAdmin, loginGoogle, logout, updateUserProfile, pendingConflict, resolveConflict } = useAuth();
   const { exportBackup, syncStatus, calendar, plans, setCalendar } = useWorkout();
 
+  const isSuperAdmin = Boolean(
+    isAdmin ||
+    (user?.email && user.email.toLowerCase().trim() === 'gamamatheus65@gmail.com') ||
+    (profile?.email && profile.email.toLowerCase().trim() === 'gamamatheus65@gmail.com') ||
+    profile?.isAdmin === true
+  );
+
   const hasConfiguredRoutine = Boolean(
     profile.routineConfirmed ||
     profile.linkedTeacherId ||
     (calendar.some((c) => c.activityType !== 'unassigned') && profile.onboardingCompleted)
   );
 
-  const [displayName, setDisplayName] = useState<string>(profile.displayName || '');
+  const [displayName, setDisplayName] = useState<string>(
+    (profile.displayName && profile.displayName !== 'Praticante')
+      ? profile.displayName
+      : (user?.displayName || profile.displayName || '')
+  );
+
+  React.useEffect(() => {
+    if (profile.displayName && profile.displayName !== 'Praticante') {
+      setDisplayName(profile.displayName);
+    } else if (user?.displayName) {
+      setDisplayName(user.displayName);
+    }
+  }, [profile.displayName, user?.displayName]);
   const [habitAnchor, setHabitAnchor] = useState<string>(profile.habitAnchor || '');
   const [exerciseReason, setExerciseReason] = useState<string>(profile.exerciseReason || '');
   const [healthNotes, setHealthNotes] = useState<string>(profile.healthNotes || '');
@@ -704,7 +723,7 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
       </section>
 
       {/* Acesso Administrativo IA & DeepInfra v2 (Apenas gamamatheus65@gmail.com ou isAdmin) */}
-      {isAdmin && (
+      {isSuperAdmin && (
         <section className="bg-gradient-to-br from-[#1B4332] to-[#2D6A4F] text-white rounded-3xl p-5 shadow-md space-y-3">
           <div className="flex items-center gap-2">
             <Shield className="w-5 h-5 text-[#D8F3DC]" />

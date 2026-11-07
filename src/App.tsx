@@ -450,7 +450,7 @@ const MainAppContent: React.FC = () => {
   if (flowState === 'quick_id') {
     return (
       <QuickIdentificationView
-        initialName={profile.displayName && profile.displayName !== 'Praticante' ? profile.displayName : ''}
+        initialName={profile.displayName && profile.displayName !== 'Praticante' ? profile.displayName : (user?.displayName || '')}
         onComplete={async (data) => {
           await updateUserProfile({
             displayName: data.displayName,
@@ -483,7 +483,10 @@ const MainAppContent: React.FC = () => {
   if (isBuilderOpen) {
     return (
       <div className="min-h-screen bg-[#FAF8F5] text-[#19231E] flex flex-col justify-between font-sans">
-        <TopStatusBar onOpenProfile={handleOpenProfile} />
+        <TopStatusBar
+          onOpenProfile={handleOpenProfile}
+          onOpenAdmin={() => setIsAdminDashboardOpen(true)}
+        />
         <main className="flex-1 max-w-xl mx-auto w-full px-4 pt-4 pb-24">
           <React.Suspense fallback={<ViewLoadingFallback />}>
             <BuilderView
@@ -528,7 +531,10 @@ const MainAppContent: React.FC = () => {
   if (isProfileOpen) {
     return (
       <div className="min-h-screen bg-[#FAF8F5] text-[#19231E] flex flex-col justify-between font-sans">
-        <TopStatusBar onOpenProfile={handleOpenProfile} />
+        <TopStatusBar
+          onOpenProfile={handleOpenProfile}
+          onOpenAdmin={() => setIsAdminDashboardOpen(true)}
+        />
         <main className="flex-1 max-w-xl mx-auto w-full px-4 pt-4 pb-24">
           <React.Suspense fallback={<ViewLoadingFallback />}>
             <ProfileView
@@ -681,7 +687,10 @@ const MainAppContent: React.FC = () => {
       )}
 
       {/* Barra de Status e Cabeçalho Superior */}
-      <TopStatusBar onOpenProfile={handleOpenProfile} />
+      <TopStatusBar
+        onOpenProfile={handleOpenProfile}
+        onOpenAdmin={() => setIsAdminDashboardOpen(true)}
+      />
 
       {/* Conteúdo Principal com Container Responsivo Mobile-First */}
       <main className="flex-1 max-w-xl mx-auto w-full px-4 pt-4">
