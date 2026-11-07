@@ -265,7 +265,7 @@ export interface WorkoutSession {
   isExpress?: boolean;
   wasPlannedHabit?: boolean;
   wasSoftened?: boolean;
-  externalModality?: 'caminhada_corrida' | 'forca_academia' | 'mobilidade_yoga' | 'esporte_coletivo' | 'ciclismo_natacao' | 'outra';
+  externalModality?: 'caminhada_corrida' | 'forca_academia' | 'mobilidade_yoga' | 'esporte_coletivo' | 'ciclismo_natacao' | 'artes_marciais' | 'outra';
   externalDistanceKm?: number;
   preMood?: PreWorkoutMood;
   postMood?: PostWorkoutMood;

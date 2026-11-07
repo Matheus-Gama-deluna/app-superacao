@@ -180,6 +180,26 @@ export const ProposalView: React.FC<ProposalViewProps> = ({
     setSwappingExerciseIndex(null);
   };
 
+  const handleQuickCalibrateDuration = (targetMinutes: number) => {
+    const updatedRoutines = currentProposal.routines.map((r) => {
+      const calibrated = fitRoutineToTargetDuration(r.exercises, targetMinutes);
+      const mins = calculateRoutineDurationMinutes(calibrated);
+      const nextTitle = (r.title || '').replace(/\(\d+\s*min\)/, `(${mins} min)`);
+      return {
+        ...r,
+        title: nextTitle,
+        exercises: calibrated,
+        estimatedDurationMinutes: mins,
+      };
+    });
+    setCurrentProposal({
+      ...currentProposal,
+      sessionDurationMinutes: targetMinutes,
+      routines: updatedRoutines,
+      timeBreakdownText: `Sessões recalibradas pelo Personal IA para ~${targetMinutes} min (com Kit de Contingência incluso no Programa de 8 Semanas).`,
+    });
+  };
+
   return (
     <div className="min-h-screen bg-[#FAF8F5] text-[#19231E] flex flex-col justify-between font-sans">
       {/* Top Header */}
@@ -245,6 +265,40 @@ export const ProposalView: React.FC<ProposalViewProps> = ({
             </div>
           </section>
         )}
+
+        {/* Co-Arquiteto Rápido do Personal IA (Ajuste de Tempo e Programa Evolutivo de 8 Semanas) */}
+        <section className="bg-[#EEF6F2] rounded-2xl p-4 border border-[#C5DDD1] space-y-2.5">
+          <div className="flex items-center justify-between gap-2">
+            <div className="flex items-center gap-2">
+              <Sparkles className="w-4 h-4 text-[#1B4332] shrink-0" />
+              <span className="text-xs font-bold text-[#19231E]">
+                Programa Evolutivo de 8 Semanas (4 Fases + Kit Imprevistos)
+              </span>
+            </div>
+            <span className="text-[10px] font-semibold text-[#1B4332] bg-white px-2 py-0.5 rounded-full border border-[#C5DDD1]">
+              ~{currentProposal.sessionDurationMinutes} min/dia
+            </span>
+          </div>
+          <p className="text-[11px] text-[#465950] leading-relaxed">
+            Ao confirmar, seu Personal IA gera automaticamente as 4 fases de evolução e deixa prontos planos de 10 min para dias caóticos e sessões de recuperação ativa nos dias de descanso. Calibre o tempo ideal abaixo se desejar:
+          </p>
+          <div className="flex flex-wrap gap-2 pt-0.5">
+            {[12, 20, 30].map((mins) => (
+              <button
+                key={mins}
+                type="button"
+                onClick={() => handleQuickCalibrateDuration(mins)}
+                className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-colors cursor-pointer ${
+                  Math.abs(currentProposal.sessionDurationMinutes - mins) <= 3
+                    ? 'bg-[#1B4332] text-white'
+                    : 'bg-white text-[#19231E] border border-[#C5DDD1] hover:bg-[#FAF8F5]'
+                }`}
+              >
+                {mins === 12 ? '⚡ Express (~12 min)' : mins === 20 ? '🎯 Equilibrado (~20 min)' : '💪 Completo (~30 min)'}
+              </button>
+            ))}
+          </div>
+        </section>
 
         {/* Banner de Apresentação Explicável com 3 Pílulas Sintéticas */}
         <section className="bg-white rounded-3xl p-6 border border-[#E4DDD3] shadow-sm space-y-4">

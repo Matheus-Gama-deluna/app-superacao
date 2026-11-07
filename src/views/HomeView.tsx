@@ -437,7 +437,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
 
           <div>
             <h3 className="font-serif text-xl font-bold text-[#19231E]">
-              O descanso é onde seu corpo reconstrói a força
+              O descanso é onde o corpo se regenera
             </h3>
             <p className="text-xs text-[#5D6E65] mt-1 leading-relaxed">
               Hoje não há meta obrigatória de força. Descansar faz parte do progresso! Escolha uma proposta suave de alívio ou registre sua prática se tiver se movimentado:

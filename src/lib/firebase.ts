@@ -54,7 +54,7 @@ googleProvider.setCustomParameters({ prompt: 'select_account' });
 
 let functionsInstance: Functions;
 try {
-  functionsInstance = getFunctions(app, 'southamerica-east1');
+  functionsInstance = getFunctions(app, 'us-central1');
 } catch {
   functionsInstance = getFunctions(app);
 }

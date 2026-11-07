@@ -87,7 +87,7 @@ export const AICoachCard: React.FC<AICoachCardProps> = ({ context }) => {
             </span>
             {insightData?.isAiGenerated ? (
               <span className="font-semibold text-emerald-800 bg-emerald-100/50 px-1.5 py-0.5 rounded">
-                Gemini 2.5 Flash Lite
+                Habit Companion IA
               </span>
             ) : (
               <span className="text-slate-400">Sabedoria Superação</span>

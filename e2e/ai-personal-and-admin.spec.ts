@@ -79,7 +79,7 @@ test.describe('E2E: Personal Agent IA (DeepInfra v2) & Painel do Administrador',
 
     // Valida Header do Painel de Controle
     await expect(page.locator('h1:has-text("Painel do Administrador")')).toBeVisible();
-    await expect(page.locator('text=DeepInfra v2')).toBeVisible();
+    await expect(page.getByText('DeepInfra v2', { exact: true })).toBeVisible();
 
     // 1. Aba Visão Geral (Overview)
     await expect(page.locator('text=Custo Estimado Hoje')).toBeVisible();
@@ -89,7 +89,7 @@ test.describe('E2E: Personal Agent IA (DeepInfra v2) & Painel do Administrador',
     // 2. Aba Modelos & Playground
     await page.getByRole('button', { name: /Modelos & Playground/i }).click();
     await expect(page.getByRole('heading', { name: /Master Personal \(Prescrição & Adaptação\)/i })).toBeVisible();
-    await expect(page.locator('input[value="zai-org/GLM-5.3"]')).toBeVisible();
+    await expect(page.locator('input[value="zai-org/GLM-5.3-Flash"]').first()).toBeVisible();
     await expect(page.locator('text=Playground & Teste de Conexão R$ 0,00')).toBeVisible();
 
     // Dispara teste de conexão no playground
@@ -118,8 +118,9 @@ test.describe('E2E: Personal Agent IA (DeepInfra v2) & Painel do Administrador',
 
     // 4. Aba Skills Studio
     await page.getByRole('button', { name: /Skills Studio/i }).click();
-    await expect(page.locator('text=ACSM 2026 Volume & Frequência')).toBeVisible();
-    await expect(page.locator('text=Proteção Femoropatelar & Joelho')).toBeVisible();
+    await expect(page.locator('text=02 • ACSM 2026 & Volume Semanal Fracionado')).toBeVisible();
+    await expect(page.locator('text=06 • Joelho, Patela & Quadril (JOSPT)')).toBeVisible();
+    await expect(page.locator('text=14 • Artes Marciais, Combate & Carga Externa')).toBeVisible();
 
     // 5. Aba Usuários & Cotas
     await page.getByRole('button', { name: /Usuários & Cotas/i }).click();

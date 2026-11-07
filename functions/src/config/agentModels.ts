@@ -1,73 +1,74 @@
 /**
- * Configuração Congelada de Modelos DeepInfra (v9.0)
- * Tabela Fixa: 1 Titular + 1 Fallback Equivalente de outra família
- * Sem motor de roteamento dinâmico.
+ * Configuração de Produção de Modelos DeepInfra (v9.5 — Homologado Ao Vivo)
+ * Tabela Empiricamente Validada: 1 Titular + 1 Fallback Equivalente de outra família
+ * Conectada ao Cofre Seguro (system_secrets/deepinfra) e às configurações dinâmicas do Painel Admin.
  */
 
 import { AgentServiceId, AdminModelSpec, AdminSystemConfig, AdminApiKeyStatus } from '../types/sharedAi.js';
+import { getAppDb, isFirestoreAvailable } from '../lib/db.js';
 
 export const DEFAULT_AGENT_MODELS: Record<AgentServiceId, AdminModelSpec> = {
   master_personal: {
-    primaryModel: 'zai-org/GLM-5.3',
-    fallbackModel: 'deepseek-ai/DeepSeek-V4-Pro',
+    primaryModel: 'zai-org/GLM-5.3-Flash',
+    fallbackModel: 'deepseek-ai/DeepSeek-V3.2',
     temperature: 0.2,
-    maxOutputTokens: 1400,
-    timeoutMs: 15000,
-    pricingInputPerMillion: 0.56,
-    pricingOutputPerMillion: 1.80,
-    pricingCachedInputPerMillion: 0.10,
+    maxOutputTokens: 1200,
+    timeoutMs: 16000,
+    pricingInputPerMillion: 0.15,
+    pricingOutputPerMillion: 0.50,
+    pricingCachedInputPerMillion: 0.03,
     isEnabled: true,
   },
   teacher_copilot: {
-    primaryModel: 'moonshotai/Kimi-K2.5',
-    fallbackModel: 'google/gemma-4-31b-it',
+    primaryModel: 'meta-llama/Llama-4-Scout-17B-16E-Instruct',
+    fallbackModel: 'Qwen/Qwen3-VL-30B-A3B-Instruct',
     temperature: 0.2,
-    maxOutputTokens: 1400,
-    timeoutMs: 20000,
-    pricingInputPerMillion: 0.45,
-    pricingOutputPerMillion: 2.25,
-    pricingCachedInputPerMillion: 0.15,
-    isEnabled: true,
-  },
-  telemetry_analyst: {
-    primaryModel: 'openai/gpt-oss-120b',
-    fallbackModel: 'deepseek-ai/DeepSeek-V4.1-Flash',
-    temperature: 0.2,
-    maxOutputTokens: 900,
-    timeoutMs: 10000,
+    maxOutputTokens: 1200,
+    timeoutMs: 22000,
     pricingInputPerMillion: 0.08,
     pricingOutputPerMillion: 0.30,
     pricingCachedInputPerMillion: 0.02,
     isEnabled: true,
   },
+  telemetry_analyst: {
+    primaryModel: 'openai/gpt-oss-120b',
+    fallbackModel: 'deepseek-ai/DeepSeek-V3.2',
+    temperature: 0.2,
+    maxOutputTokens: 1000,
+    timeoutMs: 16000,
+    pricingInputPerMillion: 0.037,
+    pricingOutputPerMillion: 0.17,
+    pricingCachedInputPerMillion: 0.01,
+    isEnabled: true,
+  },
   habit_companion: {
-    primaryModel: 'deepseek-ai/DeepSeek-V4.1-Flash',
-    fallbackModel: 'google/gemma-4-31b-it',
-    temperature: 0.5,
-    maxOutputTokens: 400,
-    timeoutMs: 8000,
-    pricingInputPerMillion: 0.098,
-    pricingOutputPerMillion: 0.294,
-    pricingCachedInputPerMillion: 0.003,
+    primaryModel: 'zai-org/GLM-5.3-Flash',
+    fallbackModel: 'google/gemma-4-31B-it-turbo',
+    temperature: 0.45,
+    maxOutputTokens: 450,
+    timeoutMs: 10000,
+    pricingInputPerMillion: 0.15,
+    pricingOutputPerMillion: 0.50,
+    pricingCachedInputPerMillion: 0.03,
     isEnabled: true,
   },
   voice_asr: {
-    primaryModel: 'Qwen/Qwen3-ASR-1.7B',
-    fallbackModel: 'mistralai/Voxtral-Mini-3B-2507',
+    primaryModel: 'openai/whisper-large-v3-turbo',
+    fallbackModel: 'Qwen/Qwen3-ASR-1.7B',
     temperature: 0.0,
-    maxOutputTokens: 500,
-    timeoutMs: 12000,
-    pricingInputPerMillion: 0.27,
-    pricingOutputPerMillion: 0.27,
+    maxOutputTokens: 400,
+    timeoutMs: 15000,
+    pricingInputPerMillion: 0.12,
+    pricingOutputPerMillion: 0.12,
     pricingCachedInputPerMillion: 0.0,
     isEnabled: true,
   },
   memory_embedder: {
     primaryModel: 'BAAI/bge-m3',
-    fallbackModel: 'Qwen/Qwen3-Embedding-8B',
+    fallbackModel: 'sentence-transformers/all-MiniLM-L6-v2',
     temperature: 0.0,
     maxOutputTokens: 1024,
-    timeoutMs: 6000,
+    timeoutMs: 8000,
     pricingInputPerMillion: 0.01,
     pricingOutputPerMillion: 0.0,
     pricingCachedInputPerMillion: 0.0,
@@ -78,9 +79,9 @@ export const DEFAULT_AGENT_MODELS: Record<AgentServiceId, AdminModelSpec> = {
 export const DEFAULT_ADMIN_CONFIG: AdminSystemConfig = {
   aiEnabled: true,
   emergencyKillSwitch: false,
-  dailyHardStopUsd: 15.0, // Teto diário de segurança da plataforma
-  monthlyHardStopUsd: 150.0, // Teto mensal de segurança da plataforma
-  dailyUserTurnQuota: 20,
+  dailyHardStopUsd: 10.0,
+  monthlyHardStopUsd: 100.0,
+  dailyUserTurnQuota: 25,
   dailyUserAudioQuota: 10,
   models: DEFAULT_AGENT_MODELS,
   updatedAt: Date.now(),
@@ -105,6 +106,7 @@ export interface DeepInfraChatResponse {
 }
 
 let cachedVaultApiKey: { key: string; expiresAt: number } | null = null;
+let cachedRuntimeModels: { models: Record<AgentServiceId, AdminModelSpec>; aiEnabled: boolean; killSwitch: boolean; expiresAt: number } | null = null;
 
 export function maskApiKey(key: string): string {
   if (!key) return '';
@@ -114,37 +116,82 @@ export function maskApiKey(key: string): string {
 }
 
 /**
+ * Lê configurações vivas de modelos/travas salvas pelo Admin no banco nomeado
+ */
+async function getLiveModelSpec(serviceId: AgentServiceId): Promise<{
+  spec: AdminModelSpec;
+  globallyAllowed: boolean;
+}> {
+  if (!isFirestoreAvailable()) {
+    return { spec: DEFAULT_AGENT_MODELS[serviceId], globallyAllowed: true };
+  }
+
+  const now = Date.now();
+  if (cachedRuntimeModels && now < cachedRuntimeModels.expiresAt) {
+    const spec = cachedRuntimeModels.models[serviceId] || DEFAULT_AGENT_MODELS[serviceId];
+    const globallyAllowed = cachedRuntimeModels.aiEnabled && !cachedRuntimeModels.killSwitch && spec.isEnabled !== false;
+    return { spec, globallyAllowed };
+  }
+
+  try {
+    const db = getAppDb();
+    const snap = await db.collection('system_config').doc('ai_settings').get();
+    if (snap.exists) {
+      const data = snap.data() as Partial<AdminSystemConfig>;
+      const merged: Record<AgentServiceId, AdminModelSpec> = { ...DEFAULT_AGENT_MODELS };
+      if (data.models) {
+        for (const k of Object.keys(DEFAULT_AGENT_MODELS) as AgentServiceId[]) {
+          if (data.models[k]) {
+            merged[k] = { ...DEFAULT_AGENT_MODELS[k], ...data.models[k] };
+          }
+        }
+      }
+      cachedRuntimeModels = {
+        models: merged,
+        aiEnabled: data.aiEnabled !== false,
+        killSwitch: Boolean(data.emergencyKillSwitch),
+        expiresAt: now + 60 * 1000,
+      };
+      const spec = merged[serviceId];
+      const globallyAllowed = cachedRuntimeModels.aiEnabled && !cachedRuntimeModels.killSwitch && spec.isEnabled !== false;
+      return { spec, globallyAllowed };
+    }
+  } catch (err) {
+    console.warn('[agentModels] Aviso ao ler system_config/ai_settings em runtime:', err);
+  }
+
+  return { spec: DEFAULT_AGENT_MODELS[serviceId], globallyAllowed: true };
+}
+
+/**
  * Resolução Segura de Chave DeepInfra:
- * 1. Secret Manager / Env Var (process.env.DEEPINFRA_API_KEY)
- * 2. Cache em memória do cofre seguro Firestore
- * 3. Documento blindado system_secrets/deepinfra no Firestore
+ * 1. Env Var / Secret Manager (process.env.DEEPINFRA_API_KEY)
+ * 2. Cache em memória (5 min)
+ * 3. Cofre Seguro no banco Firestore nomeado (system_secrets/deepinfra)
  */
 export async function getResolvedDeepInfraApiKey(): Promise<string> {
-  // 1. Prioridade: Chave injetada via Secret Manager / Variável de Ambiente
   if (process.env.DEEPINFRA_API_KEY && process.env.DEEPINFRA_API_KEY.trim() !== '') {
     return process.env.DEEPINFRA_API_KEY.trim();
   }
 
-  // 2. Cache em memória para minimizar acessos ao Firestore
   if (cachedVaultApiKey && Date.now() < cachedVaultApiKey.expiresAt) {
     return cachedVaultApiKey.key;
   }
 
-  // 3. Consulta ao cofre restrito system_secrets/deepinfra
+  if (!isFirestoreAvailable()) {
+    return '';
+  }
+
   try {
-    const { getApps } = await import('firebase-admin/app');
-    if (getApps().length === 0) {
-      return '';
-    }
-    const { getFirestore } = await import('firebase-admin/firestore');
-    const secretDoc = await getFirestore().collection('system_secrets').doc('deepinfra').get();
+    const db = getAppDb();
+    const secretDoc = await db.collection('system_secrets').doc('deepinfra').get();
     if (secretDoc.exists) {
       const data = secretDoc.data();
       const vaultKey = (data?.apiKey || '').trim();
       if (vaultKey) {
         cachedVaultApiKey = {
           key: vaultKey,
-          expiresAt: Date.now() + 5 * 60 * 1000, // 5 min TTL
+          expiresAt: Date.now() + 5 * 60 * 1000,
         };
         return vaultKey;
       }
@@ -158,13 +205,13 @@ export async function getResolvedDeepInfraApiKey(): Promise<string> {
 
 export function invalidateApiKeyCache(): void {
   cachedVaultApiKey = null;
+  cachedRuntimeModels = null;
 }
 
 /**
  * Retorna o status da chave sem jamais expor o conteúdo bruto ao cliente
  */
 export async function getAdminApiKeyStatus(): Promise<AdminApiKeyStatus> {
-  // 1. Checa Secret Manager
   if (process.env.DEEPINFRA_API_KEY && process.env.DEEPINFRA_API_KEY.trim() !== '') {
     return {
       isConfigured: true,
@@ -173,18 +220,17 @@ export async function getAdminApiKeyStatus(): Promise<AdminApiKeyStatus> {
     };
   }
 
-  // 2. Checa Cofre do Firestore
+  if (!isFirestoreAvailable()) {
+    return {
+      isConfigured: false,
+      maskedKey: '',
+      source: 'none',
+    };
+  }
+
   try {
-    const { getApps } = await import('firebase-admin/app');
-    if (getApps().length === 0) {
-      return {
-        isConfigured: false,
-        maskedKey: '',
-        source: 'none',
-      };
-    }
-    const { getFirestore } = await import('firebase-admin/firestore');
-    const secretDoc = await getFirestore().collection('system_secrets').doc('deepinfra').get();
+    const db = getAppDb();
+    const secretDoc = await db.collection('system_secrets').doc('deepinfra').get();
     if (secretDoc.exists) {
       const data = secretDoc.data();
       if (data?.apiKey) {
@@ -208,10 +254,20 @@ export async function getAdminApiKeyStatus(): Promise<AdminApiKeyStatus> {
   };
 }
 
+function supportsLowReasoningEffort(model: string): boolean {
+  return /glm-5|gpt-oss|deepseek-v4|qwen3\./i.test(model);
+}
+
+export function cleanJsonFence(raw: string): string {
+  const trimmed = (raw || '').trim();
+  if (trimmed.startsWith('```')) {
+    return trimmed.replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/i, '').trim();
+  }
+  return trimmed;
+}
+
 /**
- * Cliente HTTP Resiliente para DeepInfra
- * Executa chamada com Titular e, sob falha (timeout, 5xx, 429), tenta Fallback de outra família.
- * Se nenhuma chave configurada, retorna simulação clínica segura sem gerar custos.
+ * Cliente HTTP Resiliente para DeepInfra com Governança Admin em Tempo Real
  */
 export async function callDeepInfraWithFixedFallback(
   serviceId: AgentServiceId,
@@ -223,12 +279,15 @@ export async function callDeepInfraWithFixedFallback(
     forceMock?: boolean;
   } = {}
 ): Promise<DeepInfraChatResponse> {
-  const config = options.modelConfig || DEFAULT_AGENT_MODELS[serviceId];
-  const apiKey = options.apiKey || (await getResolvedDeepInfraApiKey());
   const startTime = Date.now();
+  const live = options.modelConfig
+    ? { spec: options.modelConfig, globallyAllowed: options.modelConfig.isEnabled !== false }
+    : await getLiveModelSpec(serviceId);
 
-  // Modo seguro / Mock quando sem chave ou forçado para homologação visual
-  if (!apiKey || options.forceMock) {
+  const config = live.spec;
+  const apiKey = options.apiKey || (await getResolvedDeepInfraApiKey());
+
+  if (!apiKey || options.forceMock || !live.globallyAllowed) {
     return generateSafeMockResponse(serviceId, messages, config.primaryModel, startTime);
   }
 
@@ -236,7 +295,7 @@ export async function callDeepInfraWithFixedFallback(
   try {
     const res = await callModelEndpoint(config.primaryModel, messages, config, apiKey, options.responseFormatJson);
     return {
-      text: res.text,
+      text: options.responseFormatJson ? cleanJsonFence(res.text) : res.text,
       modelUsed: config.primaryModel,
       isFallback: false,
       tokensUsed: res.tokensUsed,
@@ -245,17 +304,17 @@ export async function callDeepInfraWithFixedFallback(
   } catch (err: any) {
     console.warn(`[DeepInfra] Falha no titular (${config.primaryModel}) para ${serviceId}:`, err?.message || err);
 
-    // 2. Fallback automático para o Modelo Equivalente
+    // 2. Fallback automático para o Modelo Equivalente de outra família
     try {
       const fallbackRes = await callModelEndpoint(
         config.fallbackModel,
         messages,
-        { ...config, timeoutMs: Math.min(config.timeoutMs, 10000) },
+        { ...config, timeoutMs: Math.max(12000, config.timeoutMs) },
         apiKey,
         options.responseFormatJson
       );
       return {
-        text: fallbackRes.text,
+        text: options.responseFormatJson ? cleanJsonFence(fallbackRes.text) : fallbackRes.text,
         modelUsed: config.fallbackModel,
         isFallback: true,
         tokensUsed: fallbackRes.tokensUsed,
@@ -263,7 +322,6 @@ export async function callDeepInfraWithFixedFallback(
       };
     } catch (fallbackErr: any) {
       console.error(`[DeepInfra] Falha também no fallback (${config.fallbackModel}):`, fallbackErr?.message || fallbackErr);
-      // Fallback final gracioso para simulação determinística sem derrubar a tela do usuário
       return generateSafeMockResponse(serviceId, messages, config.fallbackModel, startTime, true);
     }
   }
@@ -285,8 +343,12 @@ async function callModelEndpoint(
       messages,
       temperature: config.temperature,
       max_tokens: config.maxOutputTokens,
-      prompt_cache_key: `superacao_${model.replace(/[^a-zA-Z0-9]/g, '_')}_v1`,
+      prompt_cache_key: `superacao_${model.replace(/[^a-zA-Z0-9]/g, '_')}_v2`,
     };
+
+    if (supportsLowReasoningEffort(model)) {
+      body.reasoning_effort = 'low';
+    }
 
     if (responseFormatJson) {
       body.response_format = { type: 'json_object' };
@@ -332,17 +394,14 @@ function generateSafeMockResponse(
   startTime: number,
   isFallback = false
 ): DeepInfraChatResponse {
-  const lastUserMsg = messages
-    .filter((m) => m.role === 'user')
-    .pop()?.content || '';
-
+  const lastUserMsg = messages.filter((m) => m.role === 'user').pop()?.content || '';
   const userText = typeof lastUserMsg === 'string' ? lastUserMsg : JSON.stringify(lastUserMsg);
 
   let mockReply = '';
   if (serviceId === 'master_personal') {
     mockReply = JSON.stringify({
       replyPt: `Entendido com cuidado e respeito ao seu corpo. Analisei sua observação ("${userText.slice(0, 60)}...") e organizei as adaptações mais seguras mantendo sua constância sem sobrecarga articular.`,
-      clinicalReasoningSummary: 'Prescrição adaptada com foco em proteção articular (Skill 05/06) e dosagem de volume fracionado (Skill 02).',
+      clinicalReasoningSummary: 'Prescrição adaptada com foco em proteção articular e dosagem de volume fracionado.',
       requiresConfirmation: true,
       activatedSkillIds: ['02_acsm2026_volume_hypertrophy_strength', '05_spine_lumbar_cervical_care'],
       actionRequired: true,

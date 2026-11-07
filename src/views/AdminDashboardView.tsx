@@ -61,7 +61,7 @@ export const AdminDashboardView: React.FC<AdminDashboardViewProps> = ({
     { key: 'overview', label: 'Visão Geral & Custos', icon: Activity },
     { key: 'models', label: 'Modelos & Playground', icon: Cpu },
     { key: 'guardrails', label: 'Guardrails & Travas', icon: ShieldAlert },
-    { key: 'skills', label: 'Skills Studio (13)', icon: BookOpen },
+    { key: 'skills', label: 'Skills Studio (15)', icon: BookOpen },
     { key: 'users', label: 'Usuários & Cotas', icon: Users },
     { key: 'catalog', label: 'Catálogo & Auditoria', icon: FileText },
   ];

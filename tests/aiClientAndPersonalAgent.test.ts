@@ -37,7 +37,7 @@ describe('Suíte de Integração Frontend: AI Client, Personal Agent & Admin (v9
 
     expect(proposal.replyPt).toContain('Atenção médica prioritária');
     expect(proposal.actionRequired).toBe(true);
-    expect(proposal.activatedSkillIds).toContain('clinical_exercise_pathology');
+    expect(proposal.activatedSkillIds).toContain('01_red_flags_confef_ethics');
   });
 
   it('2. Personal IA detecta desconforto no joelho e propõe substituição segura com dupla confirmação', async () => {
@@ -52,7 +52,7 @@ describe('Suíte de Integração Frontend: AI Client, Personal Agent & Admin (v9
     expect(proposal.proposedDiff).toBeDefined();
     expect(proposal.proposedDiff?.actionType).toBe('swap_exercise');
     expect(proposal.proposedDiff?.replacementNamePt).toContain('Elevação Pélvica');
-    expect(proposal.activatedSkillIds).toContain('knee_patellofemoral_rehab');
+    expect(proposal.activatedSkillIds).toContain('06_lower_limb_knee_hip_tendon');
   });
 
   it('3. Personal IA detecta cansaço e propõe suavização de sessão (-25%)', async () => {
@@ -121,7 +121,7 @@ describe('Suíte de Integração Frontend: AI Client, Personal Agent & Admin (v9
   it('6. Admin Dashboard snapshot retorna configuração válida e métricas de telemetria', async () => {
     const snapshot = await getAdminDashboardSnapshot();
     expect(snapshot.config).toBeDefined();
-    expect(snapshot.config.models.master_personal.primaryModel).toBe('zai-org/GLM-5.3');
+    expect(snapshot.config.models.master_personal.primaryModel).toBe('zai-org/GLM-5.3-Flash');
     expect(snapshot.config.dailyHardStopUsd).toBe(5.0);
     expect(snapshot.metrics).toBeDefined();
     expect(snapshot.metrics.estimatedCostUsd).toBeGreaterThanOrEqual(0);

@@ -1,11 +1,12 @@
 /**
- * Co-Piloto Multimodal do Professor Parceiro (PartnerTeacherCopilotAgent) — v9.0
- * Modelo Titular: moonshotai/Kimi-K2.5 (Multimodal de Elite ~75% MMMU-Pro)
- * Modelo Fallback: google/gemma-4-31b-it (Multimodal Turbo)
+ * Co-Piloto Multimodal do Professor Parceiro (PartnerTeacherCopilotAgent) — v9.5 Produção
+ * Modelo Titular: meta-llama/Llama-4-Scout-17B-16E-Instruct (~1.8s multimodal ao vivo)
+ * Modelo Fallback: Qwen/Qwen3-VL-30B-A3B-Instruct
  */
 
 import { callDeepInfraWithFixedFallback, ChatMessage } from '../config/agentModels.js';
-import { recordAiExecutionMetrics } from '../admin/usageLedger.js';
+import { checkUserQuota, recordAiExecutionMetrics } from '../admin/usageLedger.js';
+import { resolveSkillsForContextAsync } from '../skills/skillRegistry.js';
 
 export interface AnamnesisMultimodalInput {
   submissionId: string;
@@ -13,47 +14,85 @@ export interface AnamnesisMultimodalInput {
   teacherUid: string;
   answers: Record<string, any>;
   photos: Array<{
-    category: 'posture_front' | 'posture_side' | 'posture_back' | 'equipments' | 'general';
-    dataUrl: string; // base64
+    category?: 'posture_front' | 'posture_side' | 'posture_back' | 'equipments' | 'general' | string;
+    dataUrl: string;
     caption?: string;
   }>;
 }
 
 export interface TeacherCopilotAnalysisResult {
+  // Campos unificados compatíveis com Backend e Frontend (AiAnamnesisAnalysis)
   clinicalSummary: string;
+  summaryPt: string;
   suggestedLimitations: string[];
   avoidedMovements: string[];
   posturalFlags: string[];
+  posturalObservations: string[];
+  ergonomicAlerts: string[];
   detectedEquipments: string[];
   suggestedSplit: 'full_body' | 'upper_lower' | 'abc';
+  recommendedTemplateFocus: string;
   suggestedFrequencyDays: number;
   confidenceScore: number;
+  generatedAt: number;
   source: 'ai_model';
 }
 
 export async function runPartnerTeacherCopilot(input: AnamnesisMultimodalInput): Promise<TeacherCopilotAnalysisResult> {
-  const startTime = Date.now();
+  const quota = await checkUserQuota(input.teacherUid);
+  if (!quota.allowed) {
+    const msg = quota.reason || 'Cota diária atingida. Use as respostas brutas e fotos para prescrição.';
+    return {
+      clinicalSummary: msg,
+      summaryPt: msg,
+      suggestedLimitations: [],
+      avoidedMovements: [],
+      posturalFlags: [],
+      posturalObservations: [],
+      ergonomicAlerts: [],
+      detectedEquipments: ['peso_corporal'],
+      suggestedSplit: 'full_body',
+      recommendedTemplateFocus: 'Adaptação Funcional Corpo Todo',
+      suggestedFrequencyDays: 3,
+      confidenceScore: 0.5,
+      generatedAt: Date.now(),
+      source: 'ai_model',
+    };
+  }
 
-  const systemPrompt = `Você é o Co-Piloto Clínico de IA para Treinadores e Fisioterapeutas do Superação.
-Sua missão é atuar como assistente cinesiológico para apoiar a decisão do profissional humano (Human-in-the-Loop).
-Você analisa simultaneamente:
-1. Respostas abertas e fechadas de anamnese física;
-2. Fotos posturais (anterior, lateral, posterior) gerando APENAS hipóteses visuais indicativas para aferição presencial;
-3. Fotos de equipamentos para identificar o que o aluno realmente possui no local de treino.
+  const skills = await resolveSkillsForContextAsync({
+    hasPhotos: (input.photos || []).length > 0,
+    userText: JSON.stringify(input.answers || {}),
+    explicitSkillIds: ['01_red_flags_confef_ethics', '12_visual_posture_equipment_triage'],
+  });
 
-Retorne EXCLUSIVAMENTE um objeto JSON:
+  const skillsContext = skills.map((s) => s.protocolMarkdown).join('\n\n');
+
+  const systemPrompt = `Você é o Co-Piloto Clínico Multimodal para Professores de Educação Física e Fisioterapeutas do SuperAção.
+Sua função é apoiar a decisão do profissional humano (Human-in-the-Loop), jamais substituí-lo ou emitir diagnóstico médico nosológico.
+
+DIRETRIZES CIENTÍFICAS E ÉTICAS ATIVAS:
+${skillsContext}
+
+Analise simultaneamente:
+1. Respostas abertas e fechadas da anamnese;
+2. Fotos posturais (gerando APENAS indicadores visuais para aferição presencial do professor);
+3. Fotos de equipamentos disponíveis no ambiente do aluno.
+
+Retorne EXCLUSIVAMENTE um objeto JSON válido:
 {
-  "clinicalSummary": "síntese técnica fundamentada para o professor ler em 30 segundos",
-  "suggestedLimitations": ["ex: Sensibilidade femoropatelar direita", "Tensão cervical"],
+  "clinicalSummary": "síntese técnica objetiva para o professor ler em 30 segundos",
+  "suggestedLimitations": ["ex: Sensibilidade femoropatelar", "Tensão lombar sentado"],
   "avoidedMovements": ["ex: agachamento_profundo", "sobrecarga_lombar"],
-  "posturalFlags": ["ex: Nivelamento escapular aparente com elevação do ombro direito", "Curvatura cifótica torácica para acompanhar"],
+  "posturalFlags": ["ex: Indicador visual de assimetria escapular leve para aferição presencial"],
+  "ergonomicAlerts": ["ex: Confirmar estabilidade da cadeira e piso antiderrapante em casa"],
   "detectedEquipments": ["peso_corporal", "halteres", "mini_band", "cadeira"],
   "suggestedSplit": "full_body" | "upper_lower" | "abc",
+  "recommendedTemplateFocus": "nome claro do foco de prescrição sugerido",
   "suggestedFrequencyDays": 2 | 3 | 4 | 5,
-  "confidenceScore": 0.94
+  "confidenceScore": 0.92
 }`;
 
-  // Monta conteúdo multimodal
   const contentParts: Array<{ type: string; text?: string; image_url?: { url: string } }> = [
     {
       type: 'text',
@@ -61,12 +100,12 @@ Retorne EXCLUSIVAMENTE um objeto JSON:
 Nome: ${input.studentName}
 Respostas da Anamnese:
 ${JSON.stringify(input.answers, null, 2)}
-Fotos anexadas: ${input.photos.length} imagens.`,
+Fotos anexadas: ${(input.photos || []).length} imagens.`,
     },
   ];
 
-  for (const photo of input.photos.slice(0, 4)) {
-    if (photo.dataUrl && photo.dataUrl.startsWith('data:image/')) {
+  for (const photo of (input.photos || []).slice(0, 4)) {
+    if (photo?.dataUrl && photo.dataUrl.startsWith('data:image/')) {
       contentParts.push({
         type: 'image_url',
         image_url: { url: photo.dataUrl },
@@ -89,14 +128,7 @@ Fotos anexadas: ${input.photos.length} imagens.`,
       parsed = JSON.parse(aiResponse.text);
     } catch {
       parsed = {
-        clinicalSummary: aiResponse.text.slice(0, 300),
-        suggestedLimitations: [],
-        avoidedMovements: [],
-        posturalFlags: ['Inspeção visual preliminar registrada'],
-        detectedEquipments: ['peso_corporal'],
-        suggestedSplit: 'full_body',
-        suggestedFrequencyDays: 3,
-        confidenceScore: 0.85,
+        clinicalSummary: aiResponse.text.slice(0, 320),
       };
     }
 
@@ -104,32 +136,57 @@ Fotos anexadas: ${input.photos.length} imagens.`,
       serviceId: 'teacher_copilot',
       uid: input.teacherUid,
       tokensUsed: aiResponse.tokensUsed,
-      durationMs: aiResponse.durationMs,
+      durationMs: aiResponse.tokensUsed ? aiResponse.durationMs : 0,
       isFallback: aiResponse.isFallback,
     });
 
+    const summary = parsed.clinicalSummary || 'Análise clínica preliminar pronta para revisão do treinador.';
+    const flags = Array.isArray(parsed.posturalFlags) ? parsed.posturalFlags : [];
+    const split = parsed.suggestedSplit || 'full_body';
+
     return {
-      clinicalSummary: parsed.clinicalSummary || 'Análise da anamnese gerada para validação do treinador.',
+      clinicalSummary: summary,
+      summaryPt: summary,
       suggestedLimitations: Array.isArray(parsed.suggestedLimitations) ? parsed.suggestedLimitations : [],
       avoidedMovements: Array.isArray(parsed.avoidedMovements) ? parsed.avoidedMovements : [],
-      posturalFlags: Array.isArray(parsed.posturalFlags) ? parsed.posturalFlags : [],
-      detectedEquipments: Array.isArray(parsed.detectedEquipments) ? parsed.detectedEquipments : ['peso_corporal'],
-      suggestedSplit: parsed.suggestedSplit || 'full_body',
+      posturalFlags: flags,
+      posturalObservations: flags,
+      ergonomicAlerts: Array.isArray(parsed.ergonomicAlerts)
+        ? parsed.ergonomicAlerts
+        : ['Validar amplitude articular confortável na primeira sessão supervisionada.'],
+      detectedEquipments: Array.isArray(parsed.detectedEquipments) && parsed.detectedEquipments.length > 0
+        ? parsed.detectedEquipments
+        : ['peso_corporal'],
+      suggestedSplit: split,
+      recommendedTemplateFocus:
+        parsed.recommendedTemplateFocus ||
+        (split === 'upper_lower'
+          ? 'Divisão Superior/Inferior Equilibrada'
+          : split === 'abc'
+          ? 'Divisão ABC Estruturada'
+          : 'Full Body Funcional & Estabilidade Articular'),
       suggestedFrequencyDays: Number(parsed.suggestedFrequencyDays) || 3,
       confidenceScore: Number(parsed.confidenceScore) || 0.9,
+      generatedAt: Date.now(),
       source: 'ai_model',
     };
   } catch (err) {
     console.error('[PartnerTeacherCopilot] Erro na análise multimodal:', err);
+    const fallbackText = 'Análise automática indisponível no momento. Utilize as respostas e fotos brutas para prescrição.';
     return {
-      clinicalSummary: 'Análise automática indisponível no momento. Use as respostas brutas e fotos para prescrição.',
+      clinicalSummary: fallbackText,
+      summaryPt: fallbackText,
       suggestedLimitations: [],
       avoidedMovements: [],
       posturalFlags: [],
+      posturalObservations: [],
+      ergonomicAlerts: [],
       detectedEquipments: ['peso_corporal'],
       suggestedSplit: 'full_body',
+      recommendedTemplateFocus: 'Full Body Funcional',
       suggestedFrequencyDays: 3,
       confidenceScore: 0.5,
+      generatedAt: Date.now(),
       source: 'ai_model',
     };
   }

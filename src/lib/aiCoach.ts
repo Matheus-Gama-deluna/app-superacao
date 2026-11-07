@@ -148,15 +148,9 @@ export async function generateDailyInsight(
     }
   }
 
-  // 2. Verifica disponibilidade da API Key do Google Gemini
-  // Suporta VITE_GEMINI_API_KEY ou VITE_GOOGLE_GENAI_API_KEY
-  const apiKey =
-    (typeof import.meta !== 'undefined' && import.meta.env
-      ? import.meta.env.VITE_GEMINI_API_KEY || import.meta.env.VITE_GOOGLE_GENAI_API_KEY
-      : undefined) || '';
-
-  // Se não houver chave ou estiver explicitamente offline, usa o motor heurístico
-  if (!apiKey || (typeof navigator !== 'undefined' && !navigator.onLine)) {
+  // 2. Em ambiente de testes unitários (Vitest) ou offline, usa motor heurístico imediato
+  const isVitest = typeof process !== 'undefined' && Boolean((process as any).env?.VITEST);
+  if (isVitest || (typeof navigator !== 'undefined' && !navigator.onLine)) {
     const heuristicResult: CoachInsightResult = {
       insight: getHeuristicInsight(ctx, previousInsight),
       isAiGenerated: false,
@@ -166,52 +160,35 @@ export async function generateDailyInsight(
     return heuristicResult;
   }
 
-  // 3. Chamada inteligente ao Gemini 2.5 Flash Lite via lazy import
+  // 3. Tenta o Agente HabitCompanion (Cloud Function v2 + DeepInfra) com cache diário
   try {
-    const { GoogleGenAI } = await import('@google/genai');
-    const ai = new GoogleGenAI({ apiKey });
-
-    const prompt = `Você é o Coach de Constância e Hábitos do aplicativo Superação.
-Seu tom é acolhedor, empático, gentil, centrado na saúde e sem jargões agressivos de academia.
-Dados do Praticante:
-- Nome: ${ctx.displayName || 'Praticante'}
-- Motivo pessoal para treinar: ${ctx.exerciseReason || 'Qualidade de vida'}
-- Âncora de rotina: ${ctx.habitAnchor || 'Rotina diária'}
-- Treinos concluídos nesta semana: ${ctx.weeklyCompleted ?? 0}
-- Sensação recente pós-treino: ${ctx.lastMood || 'Equilibrada'}
-- Treino sugerido hoje: ${ctx.todayPlanTitle || 'Movimento do dia'}
-
-Escreva uma reflexão inspiradora de no MÁXIMO 2 frases curtas (máximo 35 palavras). Seja conciso, humano e acolhedor. Não use clichês militares nem agressividade.`;
-
-    const response = await ai.models.generateContent({
-      model: 'gemini-2.5-flash-lite',
-      contents: prompt,
-      config: {
-        temperature: 0.7,
-        maxOutputTokens: 90,
-      },
+    const { askHabitCompanionInsight } = await import('./aiClient');
+    const cloudInsight = await askHabitCompanionInsight({
+      displayName: ctx.displayName,
+      exerciseReason: ctx.exerciseReason,
+      habitAnchor: ctx.habitAnchor,
+      weeklyCompleted: ctx.weeklyCompleted,
+      lastMood: ctx.lastMood,
+      todayPlanTitle: ctx.todayPlanTitle,
     });
-
-    const text = response.text ? response.text.trim().replace(/^["']|["']$/g, '') : '';
-    if (text && text.length > 10) {
+    if (cloudInsight && cloudInsight.text) {
       const result: CoachInsightResult = {
-        insight: text,
+        insight: cloudInsight.text,
         isAiGenerated: true,
         timestamp: Date.now(),
       };
       saveCachedInsight(cacheKey, result);
       return result;
     }
-
-    throw new Error('Resposta vazia da IA');
-  } catch (error) {
-    // Fallback gracioso para a heurística
-    const fallbackResult: CoachInsightResult = {
-      insight: getHeuristicInsight(ctx),
-      isAiGenerated: false,
-      timestamp: Date.now(),
-    };
-    saveCachedInsight(cacheKey, fallbackResult);
-    return fallbackResult;
+  } catch {
+    // Continua para fallback heurístico seguro
   }
+
+  const fallbackResult: CoachInsightResult = {
+    insight: getHeuristicInsight(ctx, previousInsight),
+    isAiGenerated: false,
+    timestamp: Date.now(),
+  };
+  saveCachedInsight(cacheKey, fallbackResult);
+  return fallbackResult;
 }

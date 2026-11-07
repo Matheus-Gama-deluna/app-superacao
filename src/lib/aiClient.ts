@@ -1,8 +1,8 @@
 /**
- * AI Client Frontend Bridge (v9.0)
- * Conecta a interface do PWA às Cloud Functions v2 do SuperAção.
- * Quando offline, em modo de teste ou sem chave de API ativa no backend,
- * opera através do simulador clínico determinístico seguro com custo R$ 0,00.
+ * AI Client Frontend Bridge (v9.5 Produção)
+ * Conecta o PWA às Cloud Functions v2 do SuperAção (us-central1 + Firestore Nomeado).
+ * Quando offline, em ambiente de teste sem emulador ou sem deploy ativo,
+ * degrada com elegância para o simulador clínico determinístico (R$ 0,00).
  */
 
 import { httpsCallable } from 'firebase/functions';
@@ -23,6 +23,132 @@ import {
   WorkoutSession,
 } from '../types';
 import { runClinicalHeuristicAnalysis } from './aiTeacherCopilot';
+import { allExercises } from '../data/catalog';
+import { findSafeEquivalentExercises } from './workoutEngine';
+import { searchCatalogForAgent } from './aiCatalogBridge';
+
+// ============================================================================
+// UTILITÁRIO DE TIMEOUT INTELIGENTE (18s EM PRODUÇÃO / RÁPIDO EM TESTES OFFLINE)
+// ============================================================================
+
+let cloudFunctionsCooldownUntil = 0;
+
+/**
+ * Todas as Cloud Functions do SuperAção exigem usuário autenticado (request.auth.uid).
+ * No modo Convidado ("Continuar sem conta", auth.currentUser === null) ou offline,
+ * evitamos disparar preflights inúteis de rede/CORS e operamos direto no motor local (0ms).
+ */
+function canCallCloudFunctions(): boolean {
+  if (typeof navigator !== 'undefined' && !navigator.onLine) return false;
+  if (!auth?.currentUser) return false;
+  if (Date.now() < cloudFunctionsCooldownUntil) return false;
+  return true;
+}
+
+function noteCloudFunctionError(err: unknown): void {
+  const msg = String((err as any)?.code || (err as any)?.message || '').toLowerCase();
+  if (
+    msg.includes('not-found') ||
+    msg.includes('failed to fetch') ||
+    msg.includes('network') ||
+    msg.includes('internal')
+  ) {
+    cloudFunctionsCooldownUntil = Date.now() + 5 * 60 * 1000;
+  }
+}
+
+function getSmartCallableTimeoutMs(defaultOnlineMs = 18000): number {
+  if (typeof navigator !== 'undefined') {
+    if (!navigator.onLine) return 200;
+    // Em suítes Playwright automatizadas sem backend local de Functions, evita atrasar asserções de UI
+    if ((navigator as any).webdriver && typeof window !== 'undefined' && window.location.hostname === 'localhost') {
+      return 1200;
+    }
+  }
+  return defaultOnlineMs;
+}
+
+function withTimeout<T>(promise: Promise<T>, timeoutMs: number): Promise<T> {
+  return new Promise<T>((resolve, reject) => {
+    const id = setTimeout(() => reject(new Error('timeout')), timeoutMs);
+    promise
+      .then((val) => {
+        clearTimeout(id);
+        resolve(val);
+      })
+      .catch((err) => {
+        clearTimeout(id);
+        reject(err);
+      });
+  });
+}
+
+// ============================================================================
+// PRÉ-SELEÇÃO INTELIGENTE DE CANDIDATOS REAIS DO CATÁLOGO (ANTI-ALUCINAÇÃO)
+// ============================================================================
+
+async function buildCatalogCandidatesForPrompt(
+  userMessage: string,
+  activeContext: ActiveScreenContext,
+  profile?: UserProfile | null
+): Promise<Array<{ id: string; name_pt: string; pattern?: string; equipment?: string[] }>> {
+  const candidatesMap = new Map<string, { id: string; name_pt: string; pattern?: string; equipment?: string[] }>();
+
+  try {
+    // 1. Se houver exercício ativo em tela (ex: Modo Foco), busca equivalentes biomecânicos seguros
+    if (activeContext.currentExerciseId && profile) {
+      const safeSwaps = findSafeEquivalentExercises(activeContext.currentExerciseId, profile, allExercises);
+      for (const ex of safeSwaps.slice(0, 5)) {
+        candidatesMap.set(ex.id, {
+          id: ex.id,
+          name_pt: ex.name_pt,
+          pattern: ex.functionalPattern,
+          equipment: ex.equipment,
+        });
+      }
+    }
+
+    // 2. Extrai palavra-chave útil da fala do usuário ou busca candidatos seguros gerais no catálogo 900+
+    const keywordMatch = userMessage
+      .toLowerCase()
+      .match(/\b(quadril|joelho|ombro|lombar|coluna|peito|costas|perna|gl[uú]teo|core|abd[oô]men|punho|mobilidade|alongamento|ponte|prancha|remada|agachamento)\b/i);
+
+    let searched = await searchCatalogForAgent({
+      query: keywordMatch ? keywordMatch[1] : undefined,
+      equipmentAllowed: profile?.equipments,
+      avoidedMovements: profile?.avoidedMovements,
+      reportedLimitations: profile?.reportedLimitations,
+      limit: 8,
+    });
+
+    if ((!Array.isArray(searched) || searched.length === 0) && keywordMatch) {
+      searched = await searchCatalogForAgent({
+        equipmentAllowed: profile?.equipments,
+        avoidedMovements: profile?.avoidedMovements,
+        reportedLimitations: profile?.reportedLimitations,
+        limit: 6,
+      });
+    }
+
+    if (Array.isArray(searched)) {
+      for (const ex of searched) {
+        if (candidatesMap.size >= 8) break;
+        if (ex.id !== activeContext.currentExerciseId) {
+          candidatesMap.set(ex.id, {
+            id: ex.id,
+            name_pt: ex.name_pt,
+            pattern: ex.functionalPattern,
+            equipment: ex.equipment,
+          });
+        }
+      }
+    }
+  } catch {
+    // Em caso de falha na pré-seleção local, retorna o que já foi coletado sem bloquear o turno
+  }
+
+  return Array.from(candidatesMap.values());
+}
 
 // ============================================================================
 // SIMULADOR CLÍNICO LOCAL DETERMINÍSTICO (CUSTO ZERO & RESILIÊNCIA OFFLINE)
@@ -50,10 +176,10 @@ function checkLocalRedFlags(text: string): { hasRedFlags: boolean; advice?: stri
   return { hasRedFlags: false };
 }
 
-function simulatePersonalAssistantReply(
+export function simulatePersonalAssistantReply(
   userMessage: string,
   context: ActiveScreenContext,
-  _profile?: UserProfile | null
+  profile?: UserProfile | null
 ): AssistantActionProposal {
   const lower = userMessage.toLowerCase();
 
@@ -62,14 +188,62 @@ function simulatePersonalAssistantReply(
   if (redFlag.hasRedFlags) {
     return {
       replyPt: redFlag.advice!,
-      clinicalReasoningSummary: 'Bandeira vermelha detectada deterministamente.',
+      clinicalReasoningSummary: 'Bandeira vermelha detectada deterministamente (Skill 01).',
       actionRequired: true,
       requiresConfirmation: false,
-      activatedSkillIds: ['clinical_exercise_pathology', 'cardiopulmonary_metabolic_exercise'],
+      activatedSkillIds: ['01_red_flags_confef_ethics'],
     };
   }
 
-  // 2. Dor / desconforto articular no exercício ativo
+  // 2. Co-criação de Escuta Inicial (autofill_onboarding)
+  if (context.activeView === 'listening') {
+    const inferredEquipments = ['peso_corporal'];
+    if (lower.includes('halter') || lower.includes('peso')) inferredEquipments.push('halteres');
+    if (lower.includes('mini band') || lower.includes('elastico')) inferredEquipments.push('mini_band');
+    if (lower.includes('faixa')) inferredEquipments.push('faixa_longa');
+    if (lower.includes('cadeira')) inferredEquipments.push('cadeira');
+    if (lower.includes('colchonete') || lower.includes('tapete')) inferredEquipments.push('colchonete');
+
+    const inferredLimitations: string[] = [];
+    if (lower.includes('joelho') || lower.includes('patela')) inferredLimitations.push('joelhos');
+    if (lower.includes('lombar') || lower.includes('coluna') || lower.includes('costas')) inferredLimitations.push('lombar');
+    if (lower.includes('ombro')) inferredLimitations.push('ombros');
+    if (lower.includes('punho') || lower.includes('pulso')) inferredLimitations.push('punhos');
+
+    const minMatch = lower.match(/(\d{2})\s*min/);
+    const duration = minMatch ? Math.min(45, Math.max(10, Number(minMatch[1]))) : 20;
+    const freqMatch = lower.match(/([2-6])\s*(x|vezes|dias)/);
+    const freq = freqMatch ? Number(freqMatch[1]) : 3;
+    const defaultDaysByFreq: Record<number, number[]> = {
+      2: [2, 4],
+      3: [1, 3, 5],
+      4: [1, 2, 4, 5],
+      5: [1, 2, 3, 4, 5],
+      6: [1, 2, 3, 4, 5, 6],
+    };
+
+    return {
+      replyPt: `Perfeito! Já organizei suas preferências: ${freq}x por semana (~${duration} min), equipamentos (${inferredEquipments.join(', ')}) e cuidados articulares (${inferredLimitations.length > 0 ? inferredLimitations.join(', ') : 'nenhuma restrição'}). Quer preencher os campos automaticamente agora?`,
+      clinicalReasoningSummary: 'Extração estruturada para Escuta Inicial sem fricção.',
+      actionRequired: true,
+      requiresConfirmation: true,
+      proposedDiff: {
+        actionType: 'autofill_onboarding',
+        titlePt: 'Preencher Escuta Inicial com estes dados',
+        descriptionPt: `${freq} dias/sem • ${duration} min • ${inferredEquipments.length} equip.`,
+        payload: {
+          sessionDurationMinutes: duration,
+          availableDays: defaultDaysByFreq[freq] || [1, 3, 5],
+          equipments: inferredEquipments,
+          reportedLimitations: inferredLimitations.length > 0 ? inferredLimitations : ['nenhuma'],
+          userContextNotes: userMessage,
+        },
+      },
+      activatedSkillIds: ['11_motivational_interviewing_adherence'],
+    };
+  }
+
+  // 3. Dor / desconforto articular no exercício ativo (com ID real do catálogo)
   if (
     lower.includes('joelho') &&
     (lower.includes('dor') ||
@@ -79,25 +253,41 @@ function simulatePersonalAssistantReply(
       lower.includes('estalo') ||
       lower.includes('estalando') ||
       lower.includes('incomod') ||
-      lower.includes('pontada'))
+      lower.includes('pontada') ||
+      lower.includes('fisgada'))
   ) {
-    const isExerciseActive = Boolean(context.currentExerciseId || context.currentExerciseName);
     const exerciseName = context.currentExerciseName || 'o exercício atual';
+    const kneeSafeProfile: UserProfile = {
+      ...(profile as UserProfile),
+      reportedLimitations: Array.from(new Set([...(profile?.reportedLimitations || []), 'dor_joelho', 'joelhos'])),
+      avoidedMovements: Array.from(new Set([...(profile?.avoidedMovements || []), 'agachamento_profundo', 'impacto_saltos'])),
+    };
+    const safeCandidates = context.currentExerciseId
+      ? findSafeEquivalentExercises(context.currentExerciseId, kneeSafeProfile, allExercises)
+      : [];
+    const gluteBridgeCandidate =
+      safeCandidates.find((e) => e.name_pt.toLowerCase().includes('elevação pélvica') || e.name_pt.toLowerCase().includes('ponte')) ||
+      allExercises.find((e) => e.name_pt.toLowerCase().includes('elevação pélvica')) ||
+      allExercises.find((e) => e.id === 'glute_bridge') ||
+      safeCandidates[0];
+
+    const repId = gluteBridgeCandidate?.id || 'glute_bridge';
+    const repName = gluteBridgeCandidate?.name_pt || 'Elevação Pélvica no Solo';
 
     return {
-      replyPt: `Entendido! Não force nenhuma dor aguda em ${exerciseName}. Recomendo fazermos uma substituição imediata para proteger o seu joelho por um movimento com vetor de força mais amigável para a articulação femoropatelar (por exemplo, Ponte de Glúteos ou Elevação Pélvica). Deseja aplicar essa troca agora?`,
-      clinicalReasoningSummary: 'Detecção de desconforto femoropatelar. Sugestão de exercício cadeia cinética fechada com vetor de cisalhamento reduzido.',
+      replyPt: `Entendido! Não force nenhuma dor aguda em ${exerciseName}. Recomendo fazermos uma substituição imediata para proteger o seu joelho por "${repName}", que preserva o estímulo muscular sem compressão patelar. Deseja aplicar essa troca agora?`,
+      clinicalReasoningSummary: 'Proteção femoropatelar (Skill 06) com substituto real do catálogo.',
       actionRequired: true,
       requiresConfirmation: true,
       proposedDiff: {
         actionType: 'swap_exercise',
         titlePt: 'Substituir exercício para proteger o joelho',
-        descriptionPt: `Trocar "${exerciseName}" por "Elevação Pélvica no Solo" (menor compressão patelofemoral).`,
+        descriptionPt: `Trocar "${exerciseName}" por "${repName}".`,
         originalId: context.currentExerciseId,
-        replacementId: 'elevacao_pelvica_solo',
-        replacementNamePt: 'Elevação Pélvica no Solo',
+        replacementId: repId,
+        replacementNamePt: repName,
       },
-      activatedSkillIds: ['knee_patellofemoral_rehab', 'biomechanical_movement_analysis'],
+      activatedSkillIds: ['06_lower_limb_knee_hip_tendon'],
     };
   }
 
@@ -109,28 +299,29 @@ function simulatePersonalAssistantReply(
       lower.includes('sensibilidade') ||
       lower.includes('travou') ||
       lower.includes('incomod') ||
-      lower.includes('pontada'))
+      lower.includes('pontada') ||
+      lower.includes('fisgada'))
   ) {
     const exerciseName = context.currentExerciseName || 'este movimento';
     return {
-      replyPt: `Aviso de proteção lombar: vamos interromper a sobrecarga axial em ${exerciseName}. Mantenha a respiração fluida e o core ativado sem prender o ar. Proponho suavizar a série ou substituir por uma variação com apoio estável.`,
-      clinicalReasoningSummary: 'Preservação de coluna lombar e alinhamento neutro.',
+      replyPt: `Aviso de proteção lombar: vamos aliviar imediatamente a sobrecarga axial em ${exerciseName}. Mantenha a respiração fluida e o abdômen firme. Proponho suavizar a sessão de hoje para proteger sua coluna.`,
+      clinicalReasoningSummary: 'Preservação de coluna lombar e alinhamento neutro (Skill 05).',
       actionRequired: true,
       requiresConfirmation: true,
       proposedDiff: {
         actionType: 'soften_session',
         titlePt: 'Alívio lombar imediato',
-        descriptionPt: 'Reduzir carga em 30% e focar na ativação segura do abdômen.',
+        descriptionPt: 'Reduzir volume em 25% e priorizar estabilidade sem carga axial.',
       },
-      activatedSkillIds: ['spine_lumbar_health', 'biomechanical_movement_analysis'],
+      activatedSkillIds: ['05_spine_lumbar_cervical_care'],
     };
   }
 
-  // 3. Fadiga / Cansaço / Falta de tempo
-  if (lower.includes('muito cansado') || lower.includes('sem energia') || lower.includes('pouco tempo') || lower.includes('cansada')) {
+  // 4. Fadiga / Cansaço / Falta de tempo
+  if (lower.includes('muito cansado') || lower.includes('sem energia') || lower.includes('pouco tempo') || lower.includes('cansada') || lower.includes('corrido')) {
     return {
-      replyPt: 'Tudo bem! O mais valioso hoje é manter o hábito sem sobrecarregar seu organismo. Posso reduzir o volume do treino em 25% (menos séries, mantendo a qualidade de cada movimento). O que acha?',
-      clinicalReasoningSummary: 'Manejo de dose-resposta e aderência biopsicossocial para fadiga aguda.',
+      replyPt: 'Tudo bem! O mais valioso hoje é manter o hábito sem sobrecarregar seu organismo. Posso acionar a versão suave da sessão (-25% séries, mantendo a qualidade técnica). O que acha?',
+      clinicalReasoningSummary: 'Autorregulação de fadiga e proteção de constância (Skill 03 / Skill 15).',
       actionRequired: true,
       requiresConfirmation: true,
       proposedDiff: {
@@ -138,31 +329,38 @@ function simulatePersonalAssistantReply(
         titlePt: 'Suavizar treino de hoje (-25%)',
         descriptionPt: 'Redução estratégica de séries mantendo os mesmos padrões motores com menor fadiga.',
       },
-      activatedSkillIds: ['periodization_and_progression', 'biopsychosocial_adherence'],
+      activatedSkillIds: ['03_autoregulation_rir_fatigue_deload', '15_long_term_periodization_and_contingency'],
     };
   }
 
-  // 4. Solicitação de troca direta de exercício
+  // 5. Solicitação de troca direta de exercício
   if (lower.includes('trocar exercicio') || lower.includes('mudar exercicio') || lower.includes('trocar esse')) {
     const exerciseName = context.currentExerciseName || 'o exercício atual';
+    const safeCandidates = context.currentExerciseId && profile
+      ? findSafeEquivalentExercises(context.currentExerciseId, profile, allExercises)
+      : [];
+    const bestAlt = safeCandidates[0];
     return {
-      replyPt: `Sem problemas! Analisei o movimento de ${exerciseName} e selecionei uma alternativa equivalente no mesmo padrão de movimento para você treinar com conforto.`,
-      clinicalReasoningSummary: 'Equivalência de padrão motor funcional sem perda de estímulo.',
+      replyPt: `Sem problemas! Analisei ${exerciseName} e selecionei ${bestAlt ? `"${bestAlt.name_pt}"` : 'uma alternativa equivalente'} no mesmo padrão biomecânico para você treinar com conforto.`,
+      clinicalReasoningSummary: 'Equivalência de padrão motor funcional no catálogo.',
       actionRequired: true,
       requiresConfirmation: true,
       proposedDiff: {
         actionType: 'swap_exercise',
         titlePt: `Trocar "${exerciseName}"`,
-        descriptionPt: `Substituição por variação alternativa no mesmo padrão biomecânico.`,
+        descriptionPt: bestAlt ? `Substituir por "${bestAlt.name_pt}".` : 'Substituição por variação segura equivalente.',
         originalId: context.currentExerciseId,
+        replacementId: bestAlt?.id,
+        replacementNamePt: bestAlt?.name_pt,
       },
-      activatedSkillIds: ['biomechanical_movement_analysis'],
+      activatedSkillIds: ['04_home_biomechanics_resistance_curves'],
     };
   }
 
-  // 5. Artes Marciais e Práticas Externas
+  // 6. Artes Marciais: diferenciar pedido de soltura pós-luta vs registro de luta
   if (
     lower.includes('jiu-jitsu') ||
+    lower.includes('jiu jitsu') ||
     lower.includes('jiujitsu') ||
     lower.includes('muay thai') ||
     lower.includes('luta') ||
@@ -172,32 +370,57 @@ function simulatePersonalAssistantReply(
     lower.includes('karate') ||
     lower.includes('arte marcial')
   ) {
+    const wantsRecoverySession =
+      lower.includes('soltura') || lower.includes('alongamento') || lower.includes('mobilidade') || lower.includes('prepara') || lower.includes('monta');
+
+    if (wantsRecoverySession) {
+      return {
+        replyPt: 'Oss! Pós-luta pede cuidado especial com punhos, pegada, quadril e lombar. Preparei uma sessão regenerativa de 10 minutos pós-tatame sem apoiar mãos espalmadas no chão. Vamos iniciar?',
+        clinicalReasoningSummary: 'Recuperação articular pós-esporte de combate (Skill 14).',
+        actionRequired: true,
+        requiresConfirmation: true,
+        proposedDiff: {
+          actionType: 'generate_custom_workout',
+          titlePt: 'Soltura Pós-Arte Marcial (10 min)',
+          descriptionPt: 'Mobilidade de punhos, rotação torácica, quadril 90/90 e respiração diafragmática.',
+          payload: {
+            purpose: 'pos_luta_artes_marciais',
+            durationMinutes: 10,
+          },
+        },
+        activatedSkillIds: ['14_martial_arts_combat_and_external_load'],
+      };
+    }
+
     return {
-      replyPt: 'Sensacional! O treino de artes marciais exige muito das articulações, pegada e mobilidade de quadril. Posso registrar sua prática na meta da semana e preparar uma soltura regenerativa de 8 min para seus punhos, quadris e coluna. Deseja registrar agora?',
-      clinicalReasoningSummary: 'Registro de arte marcial e estímulo de regeneração articular parassimpática pós-combate.',
+      replyPt: 'Sensacional! O treino de artes marciais conta diretamente na sua vitória semanal e exige boa recuperação de pegada, ombros e quadril. Deseja registrar essa prática na sua semana agora?',
+      clinicalReasoningSummary: 'Registro de arte marcial e gestão de interferência concorrente (Skill 14).',
       actionRequired: true,
       requiresConfirmation: true,
       proposedDiff: {
         actionType: 'log_external_practice',
         titlePt: 'Registrar Treino de Arte Marcial',
-        descriptionPt: 'Adicionar 45 min de prática de luta na sua consistência semanal.',
+        descriptionPt: 'Adicionar prática de luta na sua consistência semanal.',
         payload: {
           modality: 'artes_marciais',
-          durationMinutes: 45,
+          durationMinutes: 60,
           effortScore: 4,
           mood: 'renovado',
           notes: userMessage,
         },
       },
-      activatedSkillIds: ['combat_sports_recovery', 'biopsychosocial_adherence'],
+      activatedSkillIds: ['14_martial_arts_combat_and_external_load', '11_motivational_interviewing_adherence'],
     };
   }
 
-  // 6. Solicitação de Treino Específico / Novo Treino / Mobilidade / Longo Prazo
+  // 7. Solicitação de Treino Específico / Mobilidade / Escritório / Viagem
   if (
     lower.includes('alongamento') ||
     lower.includes('mobilidade') ||
     lower.includes('soltura') ||
+    lower.includes('escritorio') ||
+    lower.includes('hotel') ||
+    lower.includes('viagem') ||
     lower.includes('treino de 10 min') ||
     lower.includes('treino de 15 min') ||
     lower.includes('treino rapido') ||
@@ -206,52 +429,61 @@ function simulatePersonalAssistantReply(
     lower.includes('monta um treino') ||
     lower.includes('treino para hoje')
   ) {
+    const isOffice = lower.includes('escritorio') || lower.includes('trabalho');
+    const isHotel = lower.includes('hotel') || lower.includes('viagem');
     const isMobility = lower.includes('alongamento') || lower.includes('mobilidade') || lower.includes('soltura');
+
+    const purpose = isOffice
+      ? 'pausa_escritorio_sem_chao'
+      : isHotel
+      ? 'viagem_hotel'
+      : isMobility
+      ? 'mobilidade_alongamento'
+      : 'forca_hipertrofia';
+    const duration = isOffice || isMobility ? 8 : 15;
+
     return {
-      replyPt: isMobility
-        ? 'Preparei uma sessão de Mobilidade & Recuperação Ativa sob medida para você (8 min), focando em descompressão da coluna e soltura de quadris sem impacto. Deseja iniciar agora?'
-        : 'Preparei uma sessão personalizada de 15 minutos cobrindo os padrões fundamentais com segurança para suas articulações. Deseja iniciar agora ou salvar na sua agenda?',
-      clinicalReasoningSummary: isMobility ? 'Prescrição regenerativa ativa para alívio articular.' : 'Prescrição sob demanda adaptada aos equipamentos e tempo disponíveis.',
+      replyPt: isMobility || isOffice
+        ? `Preparei uma sessão de ${isOffice ? 'Pausa Ativa em Pé (sem suar e sem chão)' : 'Mobilidade & Recuperação Ativa'} sob medida (${duration} min) para aliviar coluna, ombros e quadris. Deseja iniciar agora?`
+        : `Preparei um treino sob medida de ${duration} minutos adaptado aos seus equipamentos e articulações. Deseja iniciar agora?`,
+      clinicalReasoningSummary: 'Prescrição sob demanda integrada ao Catálogo Inteligente (900+ exercícios).',
       actionRequired: true,
       requiresConfirmation: true,
       proposedDiff: {
         actionType: 'generate_custom_workout',
-        titlePt: isMobility ? 'Recuperação Ativa & Mobilidade (8 min)' : 'Treino Adaptado pelo Personal IA (15 min)',
-        descriptionPt: isMobility
-          ? '4 exercícios de soltura: Gato e Vaca, Alongamento 90/90, Postura da Criança e Respiração.'
-          : 'Padrões de empurrar, agachar, quadril e core calibrados para o seu momento.',
+        titlePt: isMobility ? 'Recuperação Ativa & Mobilidade (8 min)' : `Treino Personalizado (${duration} min)`,
+        descriptionPt: 'Sessão montada dinamicamente respeitando seus equipamentos e articulações.',
         payload: {
-          purpose: isMobility ? 'mobilidade_alongamento' : 'forca_hipertrofia',
-          durationMinutes: isMobility ? 8 : 15,
+          purpose,
+          durationMinutes: duration,
         },
       },
-      activatedSkillIds: ['periodization_and_progression', 'biomechanical_movement_analysis'],
+      activatedSkillIds: ['13_cardio_mobility_active_recovery', '15_long_term_periodization_and_contingency'],
     };
   }
 
-  // 7. Orientações de execução técnica
+  // 8. Orientações técnicas
   if (lower.includes('como fazer') || lower.includes('execução') || lower.includes('respiração') || lower.includes('postura')) {
     return {
-      replyPt: `Para uma execução perfeita: inspire na fase excêntrica (ao descer/controlar a carga) e solte o ar na fase concêntrica (ao fazer a força). Mantenha os ombros relaxados para longe das orelhas e o abdômen firme. Mova o peso com controle, sem trancos!`,
-      clinicalReasoningSummary: 'Dicas biomecânicas de ritmo respiratório e postura escapular.',
+      replyPt: 'Para uma execução segura: inspire ao descer controlando o movimento e solte o ar ao fazer a força. Mantenha os ombros longe das orelhas, coluna neutra e amplitude confortável!',
+      clinicalReasoningSummary: 'Orientação biomecânica e controle respiratório.',
       actionRequired: false,
       requiresConfirmation: false,
-      activatedSkillIds: ['biomechanical_movement_analysis'],
+      activatedSkillIds: ['04_home_biomechanics_resistance_curves'],
     };
   }
 
-  // 6. Resposta padrão empática e encorajadora
   return {
-    replyPt: `Estou aqui com você! Como seu Personal de IA, posso adaptar suas séries, sugerir trocas seguras se sentir qualquer desconforto ou ajustar a intensidade do seu dia. Como posso te apoiar agora?`,
-    clinicalReasoningSummary: 'Acolhimento geral e escuta ativa orientada a metas.',
+    replyPt: 'Estou aqui com você! Posso adaptar exercícios em tempo real, montar alongamentos para dias de descanso, ajustar o treino se o dia estiver corrido ou registrar treinos feitos fora do app (como lutas ou esportes). Como posso ajudar hoje?',
+    clinicalReasoningSummary: 'Escuta ativa e suporte integral à rotina.',
     actionRequired: false,
     requiresConfirmation: false,
-    activatedSkillIds: ['biopsychosocial_adherence'],
+    activatedSkillIds: ['11_motivational_interviewing_adherence'],
   };
 }
 
 // ============================================================================
-// SERVIÇOS EXPORTADOS DO AI CLIENT
+// SERVIÇOS EXPORTADOS DO AI CLIENT (ALINHADOS 1:1 COM CLOUD FUNCTIONS v9.5)
 // ============================================================================
 
 export interface SendAiMessageParams {
@@ -259,72 +491,98 @@ export interface SendAiMessageParams {
   activeContext: ActiveScreenContext;
   userProfile?: UserProfile | null;
   conversationHistory?: Array<{ role: 'user' | 'assistant'; text: string }>;
+  isTeacherManaged?: boolean;
+  sessionExercises?: Array<{ id: string; name_pt: string; sets?: number; reps?: number }>;
+  programSummary?: {
+    title?: string;
+    currentWeek?: number;
+    totalWeeks?: number;
+    currentPhaseLabel?: string;
+    scheduledDaysCount?: number;
+  };
 }
 
 export async function sendMessageToPersonalAssistant(
   params: SendAiMessageParams
 ): Promise<AssistantActionProposal> {
-  // Tentar chamar Cloud Function v2 com timeout resiliente de 1.2s para fallback rápido
-  try {
-    const fn = httpsCallable<any, AssistantActionProposal>(functions, 'masterPersonalAssistant');
-    const callPromise = fn({
-      message: params.message,
-      activeContext: params.activeContext,
-      conversationHistory: params.conversationHistory || [],
-    });
-    const timeoutPromise = new Promise<never>((_, reject) =>
-      setTimeout(() => reject(new Error('timeout')), 1200)
-    );
-    const result = await Promise.race([callPromise, timeoutPromise]);
+  const catalogCandidates = await buildCatalogCandidatesForPrompt(
+    params.message,
+    params.activeContext,
+    params.userProfile
+  );
 
-    if (result.data && result.data.replyPt) {
-      return result.data;
+  if (canCallCloudFunctions()) {
+    try {
+      const fn = httpsCallable<any, AssistantActionProposal>(functions, 'masterPersonalAssistant');
+      const callPromise = fn({
+        userMessage: params.message,
+        historyTurns: params.conversationHistory || [],
+        activeScreenContext: params.activeContext,
+        reportedLimitations: params.userProfile?.reportedLimitations || [],
+        equipments: params.userProfile?.equipments || ['peso_corporal'],
+        primaryGoal: params.userProfile?.primaryGoal,
+        preferredDurationMinutes: params.userProfile?.sessionDurationMinutes,
+        healthNotes: params.userProfile?.healthNotes,
+        userContextNotes: params.userProfile?.userContextNotes,
+        isTeacherManaged: Boolean(params.isTeacherManaged ?? params.userProfile?.linkedTeacherId),
+        sessionExercises: params.sessionExercises || [],
+        catalogCandidates,
+        programSummary: params.programSummary,
+      });
+
+      const result = await withTimeout(callPromise, getSmartCallableTimeoutMs(18000));
+      if (result.data && result.data.replyPt) {
+        return result.data;
+      }
+    } catch (err) {
+      noteCloudFunctionError(err);
+      console.info('[aiClient] Operando via simulador clínico determinístico local:', (err as Error)?.message);
     }
-  } catch (err) {
-    // Falha de conexão, sem deploy ou offline -> fallback local elegante sem quebrar UX
-    console.info('[aiClient] Operando via simulador clínico determinístico local:', (err as Error)?.message);
   }
 
-  // Fallback simulador clínico deterministicamente seguro
   return simulatePersonalAssistantReply(params.message, params.activeContext, params.userProfile);
 }
 
 export async function transcribeVoiceAudio(
   audioBlob: Blob
 ): Promise<{ text: string; confidence: number; durationSeconds: number }> {
-  try {
-    // Converter blob em base64
-    const reader = new FileReader();
-    const base64Promise = new Promise<string>((resolve, reject) => {
-      reader.onloadend = () => {
-        const res = reader.result as string;
-        const base64 = res.split(',')[1] || '';
-        resolve(base64);
-      };
-      reader.onerror = reject;
-    });
-    reader.readAsDataURL(audioBlob);
-    const audioBase64 = await base64Promise;
+  if (canCallCloudFunctions()) {
+    try {
+      const reader = new FileReader();
+      const base64Promise = new Promise<string>((resolve, reject) => {
+        reader.onloadend = () => {
+          const res = reader.result as string;
+          const base64 = res.split(',')[1] || '';
+          resolve(base64);
+        };
+        reader.onerror = reject;
+      });
+      reader.readAsDataURL(audioBlob);
+      const audioBase64 = await base64Promise;
 
-    const fn = httpsCallable<any, any>(functions, 'voiceTranscription');
-    const result = await fn({
-      audioBase64,
-      mimeType: audioBlob.type || 'audio/webm',
-      durationSeconds: Math.round(audioBlob.size / 16000) || 5,
-    });
+      const fn = httpsCallable<any, any>(functions, 'voiceTranscription');
+      const result = await withTimeout(
+        fn({
+          audioBase64,
+          mimeType: audioBlob.type || 'audio/webm',
+          durationSeconds: Math.round(audioBlob.size / 16000) || 5,
+        }),
+        getSmartCallableTimeoutMs(18000)
+      );
 
-    if (result.data && result.data.transcriptionPt) {
-      return {
-        text: result.data.transcriptionPt,
-        confidence: result.data.confidence || 0.95,
-        durationSeconds: result.data.durationSeconds || 5,
-      };
+      if (result.data && result.data.transcriptionPt) {
+        return {
+          text: result.data.transcriptionPt,
+          confidence: result.data.confidence || 0.95,
+          durationSeconds: result.data.durationSeconds || 5,
+        };
+      }
+    } catch (err) {
+      noteCloudFunctionError(err);
+      console.info('[aiClient] voiceTranscription offline/fallback:', (err as Error)?.message);
     }
-  } catch (err) {
-    console.info('[aiClient] voiceTranscription offline/fallback:', (err as Error)?.message);
   }
 
-  // Fallback simulado para desenvolvimento
   return {
     text: 'Senti um leve desconforto no joelho ao agachar.',
     confidence: 0.9,
@@ -335,17 +593,38 @@ export async function transcribeVoiceAudio(
 export async function analyzeAnamnesisWithCopilot(
   submission: AnamnesisSubmission
 ): Promise<AiAnamnesisAnalysis> {
-  try {
-    const fn = httpsCallable<any, any>(functions, 'partnerTeacherCopilot');
-    const result = await fn({
-      action: 'analyze_anamnesis',
-      submission,
-    });
-    if (result.data && result.data.analysis) {
-      return result.data.analysis;
+  if (canCallCloudFunctions()) {
+    try {
+      const fn = httpsCallable<any, any>(functions, 'partnerTeacherCopilot');
+      const result = await withTimeout(
+        fn({
+          submissionId: submission.id,
+          studentName: submission.studentName,
+          answers: submission.answers,
+          photos: submission.photos || [],
+          submission,
+        }),
+        getSmartCallableTimeoutMs(24000)
+      );
+      const d = result.data?.analysis || result.data;
+      if (d && (d.clinicalSummary || d.summaryPt)) {
+        return {
+          suggestedLimitations: d.suggestedLimitations || [],
+          avoidedMovements: d.avoidedMovements || [],
+          posturalFlags: d.posturalFlags || d.posturalObservations || [],
+          detectedEquipments: d.detectedEquipments || ['peso_corporal'],
+          clinicalSummary: d.clinicalSummary || d.summaryPt,
+          suggestedSplit: d.suggestedSplit || 'full_body',
+          suggestedFrequencyDays: d.suggestedFrequencyDays || 3,
+          confidenceScore: typeof d.confidenceScore === 'number' ? d.confidenceScore : 0.9,
+          analyzedAt: d.analyzedAt || d.generatedAt || Date.now(),
+          source: 'ai_model',
+        };
+      }
+    } catch (err) {
+      noteCloudFunctionError(err);
+      console.info('[aiClient] Copilot backend offline, usando análise heurística local:', (err as Error)?.message);
     }
-  } catch (err) {
-    console.info('[aiClient] Copilot backend offline, usando análise heurística local:', (err as Error)?.message);
   }
 
   return runClinicalHeuristicAnalysis(submission);
@@ -355,21 +634,43 @@ export async function fetchTelemetryWeeklyPills(
   userProfile: UserProfile,
   sessions: WorkoutSession[]
 ): Promise<string[]> {
-  try {
-    const fn = httpsCallable<any, any>(functions, 'telemetryAnalyst');
-    const result = await fn({
-      action: 'generate_weekly_pills',
-      sessionsCount: sessions.length,
-      adherenceRate: sessions.length > 0 ? 0.85 : 0.5,
-    });
-    if (result.data && Array.isArray(result.data.weeklyMotivationalPills)) {
-      return result.data.weeklyMotivationalPills;
+  if (canCallCloudFunctions()) {
+    try {
+      const completed = sessions.filter((s) => s.status === 'completed' && !s.isExpress).length;
+      const partial = sessions.filter((s) => s.status === 'completed' && s.isExpress).length;
+      const rpeValues = sessions
+        .map((s) => s.feedbackEffort ?? s.rpeEffort)
+        .filter((v): v is number => typeof v === 'number');
+      const avgRpe =
+        rpeValues.length > 0
+          ? Number((rpeValues.reduce((a, b) => a + b, 0) / rpeValues.length).toFixed(1))
+          : 3.0;
+
+      const fn = httpsCallable<any, any>(functions, 'telemetryAnalyst');
+      const result = await withTimeout(
+        fn({
+          displayName: userProfile.displayName,
+          completedWorkoutsCount: completed,
+          partialWorkoutsCount: partial,
+          externalPracticesCount: 0,
+          targetWeeklyGoal: userProfile.availableDays?.length || 3,
+          averageRpe: avgRpe,
+          mesocycleWeek: 1,
+        }),
+        getSmartCallableTimeoutMs(18000)
+      );
+
+      const pills = result.data?.weeklyMotivationalPills || result.data?.motivationalPills;
+      if (Array.isArray(pills) && pills.length > 0) {
+        return pills;
+      }
+    } catch (err) {
+      noteCloudFunctionError(err);
+      console.info('[aiClient] Telemetry backend offline, gerando pílulas heurísticas:', (err as Error)?.message);
     }
-  } catch (err) {
-    console.info('[aiClient] Telemetry backend offline, gerando pílulas heurísticas:', (err as Error)?.message);
   }
 
-  const name = userProfile.displayName ? userProfile.displayName.split(' ')[0] : 'Campeão(ã)';
+  const name = userProfile.displayName ? userProfile.displayName.split(' ')[0] : 'Praticante';
   return [
     `Parabéns pelo ritmo, ${name}! Cada sessão completada fortalece suas articulações e sua saúde.`,
     'Consistência supera intensidade extrema: continue dando um passo de cada vez.',
@@ -379,8 +680,44 @@ export async function fetchTelemetryWeeklyPills(
   ];
 }
 
+export async function askHabitCompanionInsight(params: {
+  displayName?: string;
+  exerciseReason?: string;
+  habitAnchor?: string;
+  weeklyCompleted?: number;
+  lastMood?: string;
+  todayPlanTitle?: string;
+}): Promise<{ text: string; isAiGenerated: boolean } | null> {
+  if (!canCallCloudFunctions()) return null;
+
+  try {
+    const fn = httpsCallable<any, AssistantActionProposal>(functions, 'habitCompanion');
+    const result = await withTimeout(
+      fn({
+        userMessage: 'Gere a pílula diária acolhedora de constância.',
+        displayName: params.displayName,
+        exerciseReason: params.exerciseReason,
+        habitAnchor: params.habitAnchor,
+        completedThisWeek: params.weeklyCompleted ?? 0,
+        lastMood: params.lastMood,
+        todayPlanTitle: params.todayPlanTitle,
+      }),
+      getSmartCallableTimeoutMs(12000)
+    );
+    if (result.data?.replyPt && result.data.replyPt.length > 10) {
+      return {
+        text: result.data.replyPt.trim().replace(/^["']|["']$/g, ''),
+        isAiGenerated: true,
+      };
+    }
+  } catch (err) {
+    noteCloudFunctionError(err);
+  }
+  return null;
+}
+
 // ============================================================================
-// ADMIN DASHBOARD CLIENT CALLABLES
+// ADMIN DASHBOARD CLIENT CALLABLES (HOMOLOGADOS v9.5)
 // ============================================================================
 
 let mockVaultApiKeyStatus: AdminApiKeyStatus = {
@@ -395,21 +732,23 @@ export async function getAdminDashboardSnapshot(): Promise<{
   recentAudits: any[];
   apiKeyStatus?: AdminApiKeyStatus;
 }> {
-  try {
-    const fn = httpsCallable<any, any>(functions, 'adminDashboardSnapshot');
-    const callPromise = fn({});
-    const timeoutPromise = new Promise<never>((_, reject) =>
-      setTimeout(() => reject(new Error('timeout')), 1200)
-    );
-    const res = await Promise.race([callPromise, timeoutPromise]);
-    return {
-      ...res.data,
-      apiKeyStatus: res.data?.apiKeyStatus || mockVaultApiKeyStatus,
-    };
-  } catch {
-    // Mock local do admin para testes visuais sem quebras
-    const todayStr = new Date().toISOString().split('T')[0];
-    return {
+  if (canCallCloudFunctions()) {
+    try {
+      const fn = httpsCallable<any, any>(functions, 'adminDashboardSnapshot');
+      const res = await withTimeout(fn({}), getSmartCallableTimeoutMs(15000));
+      return {
+        ...res.data,
+        metrics: res.data?.metrics || res.data?.dailyMetrics?.[0],
+        recentAudits: res.data?.recentAudits || res.data?.recentLogs || [],
+        apiKeyStatus: res.data?.apiKeyStatus || mockVaultApiKeyStatus,
+      };
+    } catch (err) {
+      noteCloudFunctionError(err);
+    }
+  }
+
+  const todayStr = new Date().toISOString().split('T')[0];
+  return {
       apiKeyStatus: mockVaultApiKeyStatus,
       metrics: {
         dateStr: todayStr,
@@ -420,7 +759,7 @@ export async function getAdminDashboardSnapshot(): Promise<{
         totalOutputTokens: 3820,
         totalCachedTokens: 8100,
         totalAudioSeconds: 85,
-        estimatedCostUsd: 0.0034,
+        estimatedCostUsd: 0.0027,
         callsByAgent: {
           master_personal: 28,
           teacher_copilot: 6,
@@ -437,72 +776,72 @@ export async function getAdminDashboardSnapshot(): Promise<{
         dailyHardStopUsd: 5.0,
         monthlyHardStopUsd: 50.0,
         dailyUserTurnQuota: 25,
-        dailyUserAudioQuota: 5,
+        dailyUserAudioQuota: 10,
         models: {
           master_personal: {
-            primaryModel: 'zai-org/GLM-5.3',
-            fallbackModel: 'deepseek-ai/DeepSeek-V4-Pro',
+            primaryModel: 'zai-org/GLM-5.3-Flash',
+            fallbackModel: 'deepseek-ai/DeepSeek-V3.2',
             temperature: 0.2,
-            maxOutputTokens: 600,
-            timeoutMs: 12000,
-            pricingInputPerMillion: 0.4,
-            pricingOutputPerMillion: 1.2,
-            pricingCachedInputPerMillion: 0.1,
+            maxOutputTokens: 1200,
+            timeoutMs: 16000,
+            pricingInputPerMillion: 0.15,
+            pricingOutputPerMillion: 0.50,
+            pricingCachedInputPerMillion: 0.03,
             isEnabled: true,
           },
           teacher_copilot: {
-            primaryModel: 'moonshotai/Kimi-K2.5',
-            fallbackModel: 'google/gemma-4-31b-it',
-            temperature: 0.3,
-            maxOutputTokens: 1000,
-            timeoutMs: 15000,
-            pricingInputPerMillion: 0.5,
-            pricingOutputPerMillion: 1.8,
-            pricingCachedInputPerMillion: 0.15,
+            primaryModel: 'meta-llama/Llama-4-Scout-17B-16E-Instruct',
+            fallbackModel: 'Qwen/Qwen3-VL-30B-A3B-Instruct',
+            temperature: 0.2,
+            maxOutputTokens: 1200,
+            timeoutMs: 22000,
+            pricingInputPerMillion: 0.08,
+            pricingOutputPerMillion: 0.30,
+            pricingCachedInputPerMillion: 0.02,
             isEnabled: true,
           },
           telemetry_analyst: {
             primaryModel: 'openai/gpt-oss-120b',
-            fallbackModel: 'deepseek-ai/DeepSeek-V4.1-Flash',
+            fallbackModel: 'deepseek-ai/DeepSeek-V3.2',
             temperature: 0.2,
-            maxOutputTokens: 700,
-            timeoutMs: 12000,
-            pricingInputPerMillion: 0.3,
-            pricingOutputPerMillion: 0.9,
-            pricingCachedInputPerMillion: 0.08,
+            maxOutputTokens: 1000,
+            timeoutMs: 16000,
+            pricingInputPerMillion: 0.037,
+            pricingOutputPerMillion: 0.17,
+            pricingCachedInputPerMillion: 0.01,
             isEnabled: true,
           },
           habit_companion: {
-            primaryModel: 'deepseek-ai/DeepSeek-V4.1-Flash',
-            fallbackModel: 'google/gemma-4-31b-it',
-            temperature: 0.5,
-            maxOutputTokens: 300,
-            timeoutMs: 8000,
+            primaryModel: 'zai-org/GLM-5.3-Flash',
+            fallbackModel: 'google/gemma-4-31B-it-turbo',
+            temperature: 0.45,
+            maxOutputTokens: 450,
+            timeoutMs: 10000,
             pricingInputPerMillion: 0.15,
-            pricingOutputPerMillion: 0.4,
-            pricingCachedInputPerMillion: 0.04,
+            pricingOutputPerMillion: 0.50,
+            pricingCachedInputPerMillion: 0.03,
             isEnabled: true,
           },
           voice_asr: {
-            primaryModel: 'Qwen/Qwen3-ASR-1.7B',
-            fallbackModel: 'mistralai/Voxtral-Mini-3B-2507',
+            primaryModel: 'openai/whisper-large-v3-turbo',
+            fallbackModel: 'Qwen/Qwen3-ASR-1.7B',
             temperature: 0.0,
-            maxOutputTokens: 250,
-            timeoutMs: 8000,
-            pricingInputPerMillion: 0.2,
-            pricingOutputPerMillion: 0.2,
-            pricingCachedInputPerMillion: 0.05,
+            maxOutputTokens: 400,
+            timeoutMs: 15000,
+            pricingInputPerMillion: 0.12,
+            pricingOutputPerMillion: 0.12,
+            pricingCachedInputPerMillion: 0.0,
             isEnabled: true,
           },
           memory_embedder: {
             primaryModel: 'BAAI/bge-m3',
             fallbackModel: 'sentence-transformers/all-MiniLM-L6-v2',
             temperature: 0.0,
-            maxOutputTokens: 128,
-            timeoutMs: 4000,
-            pricingInputPerMillion: 0.05,
-            pricingOutputPerMillion: 0.05,
-            pricingCachedInputPerMillion: 0.01,
+            maxOutputTokens: 1024,
+            timeoutMs: 8000,
+            pricingInputPerMillion: 0.01,
+            pricingOutputPerMillion: 0.0,
+            pricingCachedInputPerMillion: 0.0,
             isEnabled: true,
           },
         },
@@ -511,14 +850,15 @@ export async function getAdminDashboardSnapshot(): Promise<{
       },
       recentAudits: [],
     };
-  }
 }
 
 export async function saveAdminSystemConfig(newConfig: Partial<AdminSystemConfig>): Promise<void> {
+  if (!canCallCloudFunctions()) return;
   try {
     const fn = httpsCallable<any, any>(functions, 'adminSaveAiSettings');
-    await fn({ newConfig });
+    await withTimeout(fn({ updates: newConfig, newConfig }), getSmartCallableTimeoutMs(12000));
   } catch (err) {
+    noteCloudFunctionError(err);
     console.info('[aiClient] adminSaveAiSettings offline/mock:', (err as Error)?.message);
   }
 }
@@ -527,21 +867,24 @@ export async function testAdminModelConnection(
   serviceId: AgentServiceId,
   modelName?: string
 ): Promise<{ success: boolean; latencyMs: number; responsePreview: string }> {
-  try {
-    const fn = httpsCallable<any, any>(functions, 'adminTestModelConnection');
-    const callPromise = fn({ serviceId, modelName });
-    const timeoutPromise = new Promise<never>((_, reject) =>
-      setTimeout(() => reject(new Error('timeout')), 1200)
-    );
-    const res = await Promise.race([callPromise, timeoutPromise]);
-    return res.data;
-  } catch {
-    return {
-      success: true,
-      latencyMs: 340,
-      responsePreview: `[Simulação Segura R$ 0,00] Conexão bem-sucedida para ${serviceId} (${modelName || 'default'}).`,
-    };
+  if (canCallCloudFunctions()) {
+    try {
+      const fn = httpsCallable<any, any>(functions, 'adminTestModelConnection');
+      const res = await withTimeout(fn({ serviceId, modelName }), getSmartCallableTimeoutMs(18000));
+      return {
+        success: Boolean(res.data?.success),
+        latencyMs: res.data?.latencyMs ?? res.data?.durationMs ?? 0,
+        responsePreview: res.data?.responsePreview || res.data?.replyText || '',
+      };
+    } catch (err) {
+      noteCloudFunctionError(err);
+    }
   }
+  return {
+    success: true,
+    latencyMs: 340,
+    responsePreview: `[Simulação Segura R$ 0,00] Conexão validada para ${serviceId} (${modelName || 'default'}).`,
+  };
 }
 
 export async function saveAdminSkillOverride(
@@ -549,10 +892,15 @@ export async function saveAdminSkillOverride(
   isEnabled: boolean,
   customProtocol?: string
 ): Promise<void> {
+  if (!canCallCloudFunctions()) return;
   try {
     const fn = httpsCallable<any, any>(functions, 'adminSaveSkillOverride');
-    await fn({ skillId, isEnabled, customProtocol });
+    await withTimeout(
+      fn({ skillId, isEnabled, customProtocolMarkdown: customProtocol, customProtocol }),
+      getSmartCallableTimeoutMs(12000)
+    );
   } catch (err) {
+    noteCloudFunctionError(err);
     console.info('[aiClient] adminSaveSkillOverride offline/mock:', (err as Error)?.message);
   }
 }
@@ -561,10 +909,12 @@ export async function manageAdminUserQuota(
   targetUid: string,
   action: 'reset' | 'block' | 'unblock'
 ): Promise<void> {
+  if (!canCallCloudFunctions()) return;
   try {
     const fn = httpsCallable<any, any>(functions, 'adminManageUserQuota');
-    await fn({ targetUid, action });
+    await withTimeout(fn({ targetUid, action }), getSmartCallableTimeoutMs(12000));
   } catch (err) {
+    noteCloudFunctionError(err);
     console.info('[aiClient] adminManageUserQuota offline/mock:', (err as Error)?.message);
   }
 }
@@ -577,23 +927,25 @@ export async function saveAdminApiKey(
     throw new Error('Chave de API inválida. O formato deve conter ao menos 8 caracteres.');
   }
 
-  try {
-    const fn = httpsCallable<any, any>(functions, 'adminUpdateApiKey');
-    const res = await fn({ apiKey: trimmed });
-    if (res.data && res.data.maskedKey) {
-      mockVaultApiKeyStatus = {
-        isConfigured: true,
-        maskedKey: res.data.maskedKey,
-        source: 'admin_vault',
-        updatedAt: res.data.updatedAt || Date.now(),
-      };
-      return res.data;
+  if (canCallCloudFunctions()) {
+    try {
+      const fn = httpsCallable<any, any>(functions, 'adminUpdateApiKey');
+      const res = await withTimeout(fn({ apiKey: trimmed }), getSmartCallableTimeoutMs(12000));
+      if (res.data && res.data.maskedKey) {
+        mockVaultApiKeyStatus = {
+          isConfigured: true,
+          maskedKey: res.data.maskedKey,
+          source: 'admin_vault',
+          updatedAt: res.data.updatedAt || Date.now(),
+        };
+        return res.data;
+      }
+    } catch (err) {
+      noteCloudFunctionError(err);
+      console.info('[aiClient] adminUpdateApiKey offline/mock:', (err as Error)?.message);
     }
-  } catch (err) {
-    console.info('[aiClient] adminUpdateApiKey offline/mock:', (err as Error)?.message);
   }
 
-  // Simulação mock segura no frontend quando offline / desenvolvimento
   const maskedKey = `${trimmed.slice(0, 6)}...${trimmed.slice(-4)}`;
   const now = Date.now();
   mockVaultApiKeyStatus = {
@@ -630,7 +982,6 @@ export async function fetchStudentCoreMemory(
     console.info('[aiClient] fetchStudentCoreMemory offline/cache:', (err as Error)?.message);
   }
 
-  // Se não existir, retorna memória padrão limpa
   return {
     schemaVersion: 1,
     updatedAt: Date.now(),
@@ -672,7 +1023,7 @@ export async function dismissTemporaryClinicalFact(
   const now = Date.now();
   const updatedFacts = currentMem.clinicalFacts.map((fact: ClinicalMemoryFact) => {
     if (fact.id === factId) {
-      return { ...fact, expiresAt: now - 1000 }; // expira imediatamente
+      return { ...fact, expiresAt: now - 1000 };
     }
     return fact;
   });

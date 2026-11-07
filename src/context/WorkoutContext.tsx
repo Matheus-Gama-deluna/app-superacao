@@ -1544,7 +1544,7 @@ export const WorkoutProvider: React.FC<{ children: React.ReactNode }> = ({ child
   };
 
   const recordExternalPractice = async (
-    modality: 'caminhada_corrida' | 'forca_academia' | 'mobilidade_yoga' | 'esporte_coletivo' | 'ciclismo_natacao' | 'outra',
+    modality: 'caminhada_corrida' | 'forca_academia' | 'mobilidade_yoga' | 'esporte_coletivo' | 'ciclismo_natacao' | 'artes_marciais' | 'outra',
     durationMinutes: number,
     effortScore: number = 3,
     postMood: PostWorkoutMood = 'leve',

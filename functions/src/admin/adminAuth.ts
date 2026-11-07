@@ -1,16 +1,17 @@
 /**
- * Autenticação e Auditoria Administrativa (v9.0)
+ * Autenticação e Auditoria Administrativa (v9.5 Produção)
  * Blindagem estrita contra escalação de privilégios.
- * Autoridade reside em Custom Claims (token.admin == true) + system_admins/{uid}.
+ * Autoridade reside em Custom Claims (token.admin == true) + system_admins/{uid} no banco nomeado.
  */
 
-import { getApps } from 'firebase-admin/app';
 import { getAuth } from 'firebase-admin/auth';
-import { getFirestore, FieldValue } from 'firebase-admin/firestore';
+import { getAppDb, isFirestoreAvailable } from '../lib/db.js';
 
 export const ADMIN_OWNER_EMAILS = [
   'gamamatheus65@gmail.com',
-  ...(process.env.ADMIN_OWNER_EMAILS ? process.env.ADMIN_OWNER_EMAILS.split(',').map((e) => e.trim().toLowerCase()) : []),
+  ...(process.env.ADMIN_OWNER_EMAILS
+    ? process.env.ADMIN_OWNER_EMAILS.split(',').map((e) => e.trim().toLowerCase())
+    : []),
 ];
 
 export interface AdminUserContext {
@@ -20,26 +21,31 @@ export interface AdminUserContext {
 }
 
 /**
- * Valida se o usuário logado possui privilégio administrativo
- * Se for o e-mail proprietário com e-mail verificado, realiza o bootstrap automático seguro.
+ * Valida se o usuário logado possui privilégio administrativo.
+ * Se for o e-mail proprietário autenticado, realiza bootstrap automático seguro.
  */
-export async function requireAdmin(authContext: { uid?: string; token?: any } | undefined): Promise<AdminUserContext> {
+export async function requireAdmin(
+  authContext: { uid?: string; token?: any } | undefined
+): Promise<AdminUserContext> {
   if (!authContext || !authContext.uid) {
     throw new Error('UNAUTHENTICATED: Acesso administrativo exige autenticação.');
   }
 
   const uid = authContext.uid;
   const email = (authContext.token?.email || '').toLowerCase().trim();
-  const emailVerified = Boolean(authContext.token?.email_verified);
   const hasClaim = Boolean(authContext.token?.admin);
 
   // 1. Bootstrap seguro do e-mail proprietário
   if (email && ADMIN_OWNER_EMAILS.includes(email)) {
-    if (getApps().length > 0) {
-      if (!hasClaim) {
-        await getAuth().setCustomUserClaims(uid, { ...(authContext.token || {}), admin: true });
+    if (isFirestoreAvailable()) {
+      try {
+        if (!hasClaim) {
+          await getAuth().setCustomUserClaims(uid, { ...(authContext.token || {}), admin: true });
+        }
+        await ensureAdminDocument(uid, email, true);
+      } catch (err) {
+        console.warn('[AdminAuth] Aviso no bootstrap de claims/doc do proprietário:', err);
       }
-      await ensureAdminDocument(uid, email, true);
     }
     return { uid, email, isSuperAdmin: true };
   }
@@ -49,9 +55,9 @@ export async function requireAdmin(authContext: { uid?: string; token?: any } | 
     return { uid, email, isSuperAdmin: ADMIN_OWNER_EMAILS.includes(email) };
   }
 
-  // 3. Verificação em system_admins/{uid}
-  if (getApps().length > 0) {
-    const db = getFirestore();
+  // 3. Verificação em system_admins/{uid} no banco nomeado
+  if (isFirestoreAvailable()) {
+    const db = getAppDb();
     const adminSnap = await db.collection('system_admins').doc(uid).get();
     if (adminSnap.exists) {
       const data = adminSnap.data();
@@ -65,7 +71,8 @@ export async function requireAdmin(authContext: { uid?: string; token?: any } | 
 }
 
 async function ensureAdminDocument(uid: string, email: string, isSuperAdmin: boolean): Promise<void> {
-  const db = getFirestore();
+  if (!isFirestoreAvailable()) return;
+  const db = getAppDb();
   const docRef = db.collection('system_admins').doc(uid);
   const snap = await docRef.get();
   if (!snap.exists) {
@@ -86,12 +93,13 @@ async function ensureAdminDocument(uid: string, email: string, isSuperAdmin: boo
 export async function writeAdminAuditLog(params: {
   adminUid: string;
   adminEmail: string;
-  action: string; // ex: 'update_ai_settings' | 'reset_user_quota' | 'update_skill_override'
+  action: string;
   targetId?: string;
   details?: Record<string, any>;
 }): Promise<void> {
+  if (!isFirestoreAvailable()) return;
   try {
-    const db = getFirestore();
+    const db = getAppDb();
     const logId = `audit_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
     await db.collection('admin_audit_logs').doc(logId).set({
       id: logId,

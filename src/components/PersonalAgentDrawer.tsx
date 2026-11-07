@@ -34,6 +34,14 @@ interface PersonalAgentDrawerProps {
   userProfile?: UserProfile | null;
   onApplyProposalDiff?: (diff: ProposalDiff) => void;
   isTeacherManagedPlan?: boolean;
+  sessionExercises?: Array<{ id: string; name_pt: string; sets?: number; reps?: number }>;
+  programSummary?: {
+    title?: string;
+    currentWeek?: number;
+    totalWeeks?: number;
+    currentPhaseLabel?: string;
+    scheduledDaysCount?: number;
+  };
 }
 
 interface ChatMessage {
@@ -51,6 +59,8 @@ export const PersonalAgentDrawer: React.FC<PersonalAgentDrawerProps> = ({
   userProfile,
   onApplyProposalDiff,
   isTeacherManagedPlan = false,
+  sessionExercises,
+  programSummary,
 }) => {
   const [activeTab, setActiveTab] = useState<'chat' | 'memory'>('chat');
   const [messages, setMessages] = useState<ChatMessage[]>([]);
@@ -112,6 +122,9 @@ export const PersonalAgentDrawer: React.FC<PersonalAgentDrawerProps> = ({
         activeContext,
         userProfile,
         conversationHistory: history,
+        isTeacherManaged: isTeacherManagedPlan,
+        sessionExercises,
+        programSummary,
       });
 
       const assistantMsg: ChatMessage = {

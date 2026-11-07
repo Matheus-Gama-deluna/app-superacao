@@ -191,10 +191,21 @@ const MainAppContent: React.FC = () => {
         return;
       }
 
-      // 2. Trocar exercício no treino ativo
+      // 2. Trocar exercício no treino ativo (com fallback biomecânico seguro caso ID não seja exato)
       if (diff.actionType === 'swap_exercise') {
-        if (activeSession && diff.replacementId) {
-          const replacementEx = allExercises.find((e) => e.id === diff.replacementId);
+        if (activeSession) {
+          let replacementEx = diff.replacementId
+            ? allExercises.find((e) => e.id === diff.replacementId)
+            : undefined;
+          if (!replacementEx) {
+            const currentExId =
+              activeSession.exercisesSnapshot?.[activeSession.currentExerciseIndex]?.exerciseId;
+            if (currentExId) {
+              const { findSafeEquivalentExercises } = await import('./lib/workoutEngine');
+              const safeAlts = findSafeEquivalentExercises(currentExId, profile, allExercises);
+              replacementEx = safeAlts[0];
+            }
+          }
           if (replacementEx) {
             swapExerciseInActiveSession(activeSession.currentExerciseIndex, replacementEx);
           }
@@ -537,6 +548,24 @@ const MainAppContent: React.FC = () => {
           activeContext={activeScreenContext}
           userProfile={profile}
           isTeacherManagedPlan={Boolean(profile.linkedTeacherId || plans.find((p) => p.id === activeSession.planId)?.isProfessional)}
+          sessionExercises={activeSession.exercisesSnapshot.map((ex) => ({
+            id: ex.exerciseId,
+            name_pt: ex.exerciseName,
+            sets: ex.targetSets,
+            reps: ex.targetReps,
+          }))}
+          programSummary={
+            activeProgram
+              ? {
+                  title: activeProgram.title,
+                  currentWeek: activeProgram.currentWeek,
+                  totalWeeks: activeProgram.durationWeeks,
+                  currentPhaseLabel:
+                    activeProgram.phases?.find((ph) => ph.weeks.includes(activeProgram.currentWeek))?.name ||
+                    activeProgram.phases?.[0]?.name,
+                }
+              : undefined
+          }
           onApplyProposalDiff={handleApplyAiProposalDiff}
         />
       </React.Suspense>
@@ -908,6 +937,24 @@ const MainAppContent: React.FC = () => {
         activeContext={activeScreenContext}
         userProfile={profile}
         isTeacherManagedPlan={Boolean(profile.linkedTeacherId || plans.find((p) => p.id === activeSession?.planId)?.isProfessional)}
+        sessionExercises={activeSession?.exercisesSnapshot?.map((ex) => ({
+          id: ex.exerciseId,
+          name_pt: ex.exerciseName,
+          sets: ex.targetSets,
+          reps: ex.targetReps,
+        }))}
+        programSummary={
+          activeProgram
+            ? {
+                title: activeProgram.title,
+                currentWeek: activeProgram.currentWeek,
+                totalWeeks: activeProgram.durationWeeks,
+                currentPhaseLabel:
+                  activeProgram.phases?.find((ph) => ph.weeks.includes(activeProgram.currentWeek))?.name ||
+                  activeProgram.phases?.[0]?.name,
+              }
+            : undefined
+        }
         onApplyProposalDiff={handleApplyAiProposalDiff}
       />
 

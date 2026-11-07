@@ -22,6 +22,7 @@ import {
 import { UserProfile, OnboardingDraft } from '../types';
 import { getLocal, setLocal, STORAGE_KEYS, EQUIPMENT_LABELS, AVOIDANCE_LABELS } from '../lib/storage';
 import { MONDAY_FIRST_DAYS, DOW_LABELS_MAP } from '../lib/dateUtils';
+import { sendMessageToPersonalAssistant } from '../lib/aiClient';
 
 interface ListeningJourneyViewProps {
   onCompleteListening: (draft: OnboardingDraft, nextAction: 'proposal' | 'builder_manual' | 'builder_pro') => void;
@@ -161,6 +162,48 @@ export const ListeningJourneyView: React.FC<ListeningJourneyViewProps> = ({
   const [planSourcePreference, setPlanSourcePreference] = useState<'criar' | 'modelo_revisado' | 'profissional'>(
     savedDraft?.planSourcePreference || profile.planSourcePreference || 'modelo_revisado'
   );
+
+  // Co-criação assistida pelo Personal IA na Escuta Inicial
+  const [showAiExpressBar, setShowAiExpressBar] = useState<boolean>(false);
+  const [aiInputText, setAiInputText] = useState<string>('');
+  const [isAiFilling, setIsAiFilling] = useState<boolean>(false);
+  const [aiReplyPreview, setAiReplyPreview] = useState<string | null>(null);
+
+  const handleAiOnboardingAssist = async () => {
+    const trimmed = aiInputText.trim();
+    if (!trimmed) return;
+    setIsAiFilling(true);
+    try {
+      const res = await sendMessageToPersonalAssistant({
+        message: trimmed,
+        activeContext: { currentTab: 'home', activeView: 'listening' },
+        userProfile: profile,
+      });
+      setAiReplyPreview(res.replyPt);
+      const p = res.proposedDiff?.payload || {};
+      if (Array.isArray(p.equipments) && p.equipments.length > 0) setEquipments(p.equipments);
+      if (Array.isArray(p.reportedLimitations) && p.reportedLimitations.length > 0) {
+        setReportedLimitations(p.reportedLimitations);
+      }
+      if (Array.isArray(p.availableDays) && p.availableDays.length > 0) {
+        setAvailableDays(p.availableDays);
+      } else if (availableDays.length === 0) {
+        setAvailableDays([1, 3, 5]);
+      }
+      if (typeof p.sessionDurationMinutes === 'number') {
+        setSessionDurationMinutes(p.sessionDurationMinutes);
+      }
+      if (orderedGoals.length === 0) {
+        setOrderedGoals([DEFAULT_GOALS[0], DEFAULT_GOALS[2]]);
+      }
+      setUserContextNotes(trimmed);
+      setStep(7); // Leva direto à revisão final para o aluno validar em 1 clique!
+    } catch {
+      // Mantém preenchimento manual caso haja falha
+    } finally {
+      setIsAiFilling(false);
+    }
+  };
 
   // Auto-save do rascunho a cada mudança (Critério C04)
   useEffect(() => {
@@ -409,6 +452,52 @@ export const ListeningJourneyView: React.FC<ListeningJourneyViewProps> = ({
 
       {/* Conteúdo Principal do Passo */}
       <main className="flex-1 max-w-xl mx-auto w-full px-4 py-6 space-y-6">
+        {/* Co-Criação Opcional com o Personal IA (Atalho Conversacional) */}
+        {step < 7 && (
+          <div className="bg-linear-to-r from-[#EAF4F0] to-[#F4F9F6] rounded-2xl p-3.5 border border-[#B7D7C8] space-y-2.5">
+            <div className="flex items-center justify-between gap-2">
+              <div className="flex items-center gap-2">
+                <Sparkles className="w-4 h-4 text-[#125F55] shrink-0" />
+                <span className="text-xs font-bold text-[#152A29]">
+                  Prefere contar sua rotina em 1 frase para o Personal IA preencher?
+                </span>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowAiExpressBar((v) => !v)}
+                className="text-[11px] font-bold text-[#125F55] bg-white px-2.5 py-1 rounded-lg border border-[#C9DBD3] hover:bg-[#FAF8F5] cursor-pointer shrink-0"
+              >
+                {showAiExpressBar ? 'Fechar' : 'Preencher com IA'}
+              </button>
+            </div>
+            {showAiExpressBar && (
+              <div className="space-y-2 pt-1">
+                <textarea
+                  rows={2}
+                  value={aiInputText}
+                  onChange={(e) => setAiInputText(e.target.value)}
+                  placeholder="Ex: Tenho halteres e mini band em casa, sinto leve incômodo no joelho e quero treinar 3x por semana uns 20 min."
+                  className="w-full text-xs p-2.5 rounded-xl bg-white border border-[#C9DBD3] text-[#152A29] focus:outline-hidden focus:border-[#125F55]"
+                />
+                <button
+                  type="button"
+                  disabled={isAiFilling || !aiInputText.trim()}
+                  onClick={handleAiOnboardingAssist}
+                  className="w-full py-2 rounded-xl bg-[#125F55] text-white text-xs font-bold hover:bg-[#0D4A42] disabled:opacity-50 cursor-pointer"
+                >
+                  {isAiFilling ? 'Organizando sua rotina...' : '✨ Preencher Escuta e Revisar Resumo'}
+                </button>
+              </div>
+            )}
+          </div>
+        )}
+        {aiReplyPreview && step === 7 && (
+          <div className="bg-[#EAF4F0] border border-[#B7D7C8] rounded-2xl p-3.5 text-xs text-[#152A29] flex items-start gap-2">
+            <Sparkles className="w-4 h-4 text-[#125F55] shrink-0 mt-0.5" />
+            <span>{aiReplyPreview}</span>
+          </div>
+        )}
+
         {/* PASSO 1: SEU MOMENTO */}
         {step === 1 && (
           <section className="bg-white rounded-3xl p-6 border border-[#C9DBD3] shadow-xs space-y-5 animate-in fade-in">

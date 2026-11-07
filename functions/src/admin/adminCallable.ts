@@ -1,48 +1,93 @@
 /**
- * Endpoints Administrativos Callable (v9.0)
- * Gestão de Modelos, Custos, Skills, Usuários e Auditoria
+ * Endpoints Administrativos Callable (v9.5 Produção)
+ * Gestão de Modelos, Custos, Skills (15), Usuários e Auditoria no Banco Nomeado
  */
 
-import { getFirestore } from 'firebase-admin/firestore';
 import { requireAdmin, writeAdminAuditLog } from './adminAuth.js';
 import { getActiveSystemConfig, invalidateConfigCache } from './usageLedger.js';
-import { callDeepInfraWithFixedFallback, getAdminApiKeyStatus, invalidateApiKeyCache, maskApiKey } from '../config/agentModels.js';
-import { ALL_SCIENTIFIC_SKILLS } from '../skills/skillRegistry.js';
-import { AdminSystemConfig, AgentServiceId } from '../types/sharedAi.js';
+import {
+  callDeepInfraWithFixedFallback,
+  getAdminApiKeyStatus,
+  invalidateApiKeyCache,
+  maskApiKey,
+} from '../config/agentModels.js';
+import {
+  ALL_SCIENTIFIC_SKILLS,
+  invalidateSkillOverridesCache,
+  loadSkillOverridesFromDb,
+} from '../skills/skillRegistry.js';
+import { AdminDailyMetrics, AdminSystemConfig, AgentServiceId } from '../types/sharedAi.js';
+import { getAppDb, isFirestoreAvailable } from '../lib/db.js';
+
+function buildEmptyDailyMetrics(dateStr: string): AdminDailyMetrics {
+  return {
+    dateStr,
+    totalCalls: 0,
+    totalErrors: 0,
+    totalFallbacksTriggered: 0,
+    totalInputTokens: 0,
+    totalOutputTokens: 0,
+    totalCachedTokens: 0,
+    totalAudioSeconds: 0,
+    estimatedCostUsd: 0,
+    callsByAgent: {
+      master_personal: 0,
+      teacher_copilot: 0,
+      telemetry_analyst: 0,
+      habit_companion: 0,
+      voice_asr: 0,
+      memory_embedder: 0,
+    },
+    redFlagsBlocked: 0,
+    proposalsCreated: 0,
+    proposalsConfirmed: 0,
+  };
+}
 
 /**
- * 1. Snapshot Agregado do Painel Admin (7 a 30 dias de métricas em ~30 leituras)
+ * 1. Snapshot Agregado do Painel Admin (compatível com AdminDashboardView)
  */
 export async function handleAdminGetDashboardSnapshot(authContext: any, days = 30): Promise<any> {
   const admin = await requireAdmin(authContext);
-  const db = getFirestore();
   const config = await getActiveSystemConfig();
+  const todayStr = new Date().toISOString().split('T')[0];
 
-  // Busca métricas dos últimos N dias
-  const metricsSnap = await db
-    .collection('system_metrics')
-    .orderBy('dateStr', 'desc')
-    .limit(days)
-    .get();
+  let dailyMetrics: AdminDailyMetrics[] = [];
+  let recentLogs: any[] = [];
+  let skillOverrides: Record<string, any> = {};
 
-  const dailyMetrics = metricsSnap.docs.map((d) => d.data());
+  if (isFirestoreAvailable()) {
+    const db = getAppDb();
+    const [metricsSnap, auditSnap, loadedOverrides] = await Promise.all([
+      db.collection('system_metrics').orderBy('dateStr', 'desc').limit(days).get(),
+      db.collection('admin_audit_logs').orderBy('timestamp', 'desc').limit(25).get(),
+      loadSkillOverridesFromDb(),
+    ]);
 
-  // Busca últimos 20 logs de auditoria
-  const auditSnap = await db
-    .collection('admin_audit_logs')
-    .orderBy('timestamp', 'desc')
-    .limit(20)
-    .get();
+    dailyMetrics = metricsSnap.docs.map((d) => ({
+      ...buildEmptyDailyMetrics(d.data()?.dateStr || todayStr),
+      ...(d.data() as Partial<AdminDailyMetrics>),
+    }));
+    recentLogs = auditSnap.docs.map((d) => d.data());
+    skillOverrides = loadedOverrides;
+  }
 
-  const recentLogs = auditSnap.docs.map((d) => d.data());
+  const todayMetric =
+    dailyMetrics.find((m) => m.dateStr === todayStr) ||
+    dailyMetrics[0] ||
+    buildEmptyDailyMetrics(todayStr);
+
   const apiKeyStatus = await getAdminApiKeyStatus();
 
   return {
     adminEmail: admin.email,
     isSuperAdmin: admin.isSuperAdmin,
     config,
+    metrics: todayMetric,
     dailyMetrics,
+    recentAudits: recentLogs,
     recentLogs,
+    skillOverrides,
     skillsCount: Object.keys(ALL_SCIENTIFIC_SKILLS).length,
     apiKeyStatus,
   };
@@ -51,11 +96,13 @@ export async function handleAdminGetDashboardSnapshot(authContext: any, days = 3
 /**
  * 2. Atualização das Configurações de IA e Modelos
  */
-export async function handleAdminUpdateAiSettings(authContext: any, updates: Partial<AdminSystemConfig>): Promise<AdminSystemConfig> {
+export async function handleAdminUpdateAiSettings(
+  authContext: any,
+  updates: Partial<AdminSystemConfig>
+): Promise<AdminSystemConfig> {
   const admin = await requireAdmin(authContext);
-  const db = getFirestore();
-
   const current = await getActiveSystemConfig();
+
   const nextConfig: AdminSystemConfig = {
     ...current,
     ...updates,
@@ -67,7 +114,10 @@ export async function handleAdminUpdateAiSettings(authContext: any, updates: Par
     updatedBy: admin.email,
   };
 
-  await db.collection('system_config').doc('ai_settings').set(nextConfig, { merge: true });
+  if (isFirestoreAvailable()) {
+    const db = getAppDb();
+    await db.collection('system_config').doc('ai_settings').set(nextConfig, { merge: true });
+  }
   invalidateConfigCache();
 
   await writeAdminAuditLog({
@@ -86,18 +136,24 @@ export async function handleAdminUpdateAiSettings(authContext: any, updates: Par
  */
 export async function handleAdminTestModelConnection(
   authContext: any,
-  params: { serviceId: AgentServiceId; prompt?: string; forceFallback?: boolean }
+  params: { serviceId: AgentServiceId; modelName?: string; prompt?: string; forceFallback?: boolean }
 ): Promise<any> {
   await requireAdmin(authContext);
-  const testPrompt = params.prompt || 'Olá! Teste de verificação de conexão e latência.';
+  const testPrompt = params.prompt || 'Olá! Responda em 1 frase curta confirmando conexão ativa no SuperAção.';
+  const activeConfig = await getActiveSystemConfig();
+  const baseSpec = activeConfig.models[params.serviceId];
+  const customSpec =
+    params.modelName && baseSpec
+      ? { ...baseSpec, primaryModel: params.modelName }
+      : baseSpec;
 
   const res = await callDeepInfraWithFixedFallback(
     params.serviceId,
     [
-      { role: 'system', content: 'Você é um assistente de teste de conectividade. Responda brevemente.' },
+      { role: 'system', content: 'Você é o diagnóstico de conectividade do SuperAção. Responda em 1 frase curta em português.' },
       { role: 'user', content: testPrompt },
     ],
-    { responseFormatJson: false }
+    { responseFormatJson: false, modelConfig: customSpec }
   );
 
   return {
@@ -105,7 +161,9 @@ export async function handleAdminTestModelConnection(
     modelUsed: res.modelUsed,
     isFallback: res.isFallback,
     durationMs: res.durationMs,
+    latencyMs: res.durationMs,
     replyText: res.text,
+    responsePreview: `[${res.modelUsed}${res.isFallback ? ' • Fallback' : ''}] ${res.text}`,
     tokensUsed: res.tokensUsed,
   };
 }
@@ -115,25 +173,29 @@ export async function handleAdminTestModelConnection(
  */
 export async function handleAdminUpsertSkillOverride(
   authContext: any,
-  params: { skillId: string; isEnabled: boolean; customProtocolMarkdown?: string }
+  params: { skillId: string; isEnabled: boolean; customProtocolMarkdown?: string; customProtocol?: string }
 ): Promise<any> {
   const admin = await requireAdmin(authContext);
-  const db = getFirestore();
+  const customMarkdown = params.customProtocolMarkdown ?? params.customProtocol ?? null;
 
-  await db
-    .collection('system_config')
-    .doc('skills_overrides')
-    .set(
-      {
-        [params.skillId]: {
-          isEnabled: params.isEnabled,
-          customProtocolMarkdown: params.customProtocolMarkdown || null,
-          updatedAt: Date.now(),
-          updatedBy: admin.email,
+  if (isFirestoreAvailable() && params.skillId) {
+    const db = getAppDb();
+    await db
+      .collection('system_config')
+      .doc('skills_overrides')
+      .set(
+        {
+          [params.skillId]: {
+            isEnabled: params.isEnabled,
+            customProtocolMarkdown: customMarkdown,
+            updatedAt: Date.now(),
+            updatedBy: admin.email,
+          },
         },
-      },
-      { merge: true }
-    );
+        { merge: true }
+      );
+  }
+  invalidateSkillOverridesCache();
 
   await writeAdminAuditLog({
     adminUid: admin.uid,
@@ -147,23 +209,27 @@ export async function handleAdminUpsertSkillOverride(
 }
 
 /**
- * 5. Gestão de Usuários e Reset de Cota (com privacidade LGPD por padrão)
+ * 5. Gestão de Usuários, Bloqueio de IA e Reset de Cota (com minimização LGPD)
  */
 export async function handleAdminSearchAndManageUsers(
   authContext: any,
   params: {
     searchQuery?: string;
-    action?: 'reset_daily_quota' | 'toggle_ai_block' | 'change_role';
+    action?: 'reset_daily_quota' | 'toggle_ai_block' | 'change_role' | 'reset' | 'block' | 'unblock';
     targetUid?: string;
     newRole?: 'student' | 'teacher';
   }
 ): Promise<any> {
   const admin = await requireAdmin(authContext);
-  const db = getFirestore();
 
-  // Execução de Ações
+  if (!isFirestoreAvailable()) {
+    return { users: [] };
+  }
+
+  const db = getAppDb();
+
   if (params.action && params.targetUid) {
-    if (params.action === 'reset_daily_quota') {
+    if (params.action === 'reset_daily_quota' || params.action === 'reset') {
       const today = new Date().toISOString().split('T')[0];
       await db.collection('users').doc(params.targetUid).collection('aiQuota').doc(today).delete();
 
@@ -177,11 +243,45 @@ export async function handleAdminSearchAndManageUsers(
       return { success: true, message: 'Cota diária resetada com sucesso.' };
     }
 
-    if (params.action === 'change_role' && params.newRole) {
-      await db.collection('users').doc(params.targetUid).update({
-        userRole: params.newRole,
-        updatedAt: Date.now(),
+    if (
+      params.action === 'toggle_ai_block' ||
+      params.action === 'block' ||
+      params.action === 'unblock'
+    ) {
+      const userRef = db.collection('users').doc(params.targetUid);
+      const snap = await userRef.get();
+      const currentlyBlocked = Boolean(snap.data()?.aiBlocked);
+      const nextBlocked =
+        params.action === 'block'
+          ? true
+          : params.action === 'unblock'
+          ? false
+          : !currentlyBlocked;
+
+      await userRef.set({ aiBlocked: nextBlocked, updatedAt: Date.now() }, { merge: true });
+
+      await writeAdminAuditLog({
+        adminUid: admin.uid,
+        adminEmail: admin.email,
+        action: nextBlocked ? 'block_user_ai' : 'unblock_user_ai',
+        targetId: params.targetUid,
       });
+
+      return {
+        success: true,
+        aiBlocked: nextBlocked,
+        message: nextBlocked ? 'Uso de IA bloqueado para o usuário.' : 'Uso de IA liberado para o usuário.',
+      };
+    }
+
+    if (params.action === 'change_role' && params.newRole) {
+      await db.collection('users').doc(params.targetUid).set(
+        {
+          userRole: params.newRole,
+          updatedAt: Date.now(),
+        },
+        { merge: true }
+      );
 
       await writeAdminAuditLog({
         adminUid: admin.uid,
@@ -195,32 +295,30 @@ export async function handleAdminSearchAndManageUsers(
     }
   }
 
-  // Busca de Usuários com Minimização de Dados (LGPD)
-  const usersSnap = await db.collection('users').limit(25).get();
-  const results = usersSnap.docs.map((doc) => {
-    const data = doc.data();
-    return {
-      uid: doc.id,
-      displayName: data.displayName || 'Praticante',
-      userRole: data.userRole || 'student',
-      linkedTeacherName: data.linkedTeacherName,
-      experienceLevel: data.experienceLevel,
-      primaryGoal: data.primaryGoal,
-      onboardingCompleted: Boolean(data.onboardingCompleted),
-      updatedAt: data.updatedAt || 0,
-      // Textos médicos e conversas NÃO são retornados na lista geral
-    };
-  });
+  const usersSnap = await db.collection('users').limit(30).get();
+  const qLower = (params.searchQuery || '').trim().toLowerCase();
+  const results = usersSnap.docs
+    .map((doc) => {
+      const data = doc.data();
+      return {
+        uid: doc.id,
+        displayName: data.displayName || 'Praticante',
+        userRole: data.userRole || 'student',
+        aiBlocked: Boolean(data.aiBlocked),
+        linkedTeacherName: data.linkedTeacherName,
+        experienceLevel: data.experienceLevel,
+        primaryGoal: data.primaryGoal,
+        onboardingCompleted: Boolean(data.onboardingCompleted),
+        updatedAt: data.updatedAt || 0,
+      };
+    })
+    .filter((u) => !qLower || u.displayName.toLowerCase().includes(qLower) || u.uid.toLowerCase().includes(qLower));
 
-  return {
-    users: results,
-  };
+  return { users: results };
 }
 
 /**
- * 6. Atualização Segura da Chave de API da DeepInfra
- * Armazena no cofre do sistema (system_secrets/deepinfra) acessível estritamente pelo servidor.
- * Requer privilégio de Super Administrador (gamamatheus65@gmail.com).
+ * 6. Atualização Segura da Chave de API da DeepInfra no Cofre do Servidor
  */
 export async function handleAdminUpdateApiKey(
   authContext: any,
@@ -239,10 +337,8 @@ export async function handleAdminUpdateApiKey(
   const maskedKey = maskApiKey(rawKey);
   const now = Date.now();
 
-  const { getApps } = await import('firebase-admin/app');
-  if (getApps().length > 0) {
-    const db = getFirestore();
-
+  if (isFirestoreAvailable()) {
+    const db = getAppDb();
     await db.collection('system_secrets').doc('deepinfra').set({
       apiKey: rawKey,
       maskedKey,

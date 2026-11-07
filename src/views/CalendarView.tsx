@@ -79,6 +79,8 @@ export const CalendarView: React.FC<CalendarViewProps> = ({ onStartPlanById, onO
     rest: { label: 'Descanso Total', icon: Heart, color: '#E07A5F', bg: '#FDF3F0' },
     walk: { label: 'Caminhada & Respiração', icon: Footprints, color: '#1B4332', bg: '#FAF8F5' },
     mobility: { label: 'Mobilidade & Postura', icon: Sparkles, color: '#1B4332', bg: '#E8EFE9' },
+    artes_marciais: { label: 'Arte Marcial / Luta', icon: Dumbbell, color: '#7C2D12', bg: '#FFEDD5' },
+    pratica_externa: { label: 'Prática Externa', icon: Footprints, color: '#1E3A8A', bg: '#DBEAFE' },
     unassigned: { label: 'Livre / Não definido', icon: Circle, color: '#5D6E65', bg: '#FAF8F5' },
   };
 

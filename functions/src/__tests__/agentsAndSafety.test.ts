@@ -90,4 +90,33 @@ describe('Suite de Testes Unitários de Segurança e Biomecânica dos Agentes (v
     expect(parsed.requiresConfirmation).toBe(true);
     expect(res.tokensUsed).toBeDefined();
   });
+
+  it('deve registrar todas as 15 Skills científicas incluindo Artes Marciais (14) e Programas de 8 Semanas (15)', () => {
+    expect(Object.keys(ALL_SCIENTIFIC_SKILLS).length).toBe(15);
+    expect(ALL_SCIENTIFIC_SKILLS['14_martial_arts_combat_and_external_load']).toBeDefined();
+    expect(ALL_SCIENTIFIC_SKILLS['15_long_term_periodization_and_contingency']).toBeDefined();
+
+    const combatSkills = resolveSkillsForContext({
+      userText: 'Fiz 90 minutos de Jiu-Jitsu pesado ontem e meus punhos estão cansados',
+    });
+    expect(combatSkills.map((s) => s.id)).toContain('14_martial_arts_combat_and_external_load');
+
+    const programSkills = resolveSkillsForContext({
+      userText: 'Dia corrido e cheio de imprevistos, preciso do meu programa de 8 semanas',
+    });
+    expect(programSkills.map((s) => s.id)).toContain('15_long_term_periodization_and_contingency');
+  });
+
+  it('deve respeitar overrides de desativação de Skills sem jamais desativar a Skill 01 (Ética/Red Flags)', () => {
+    const overridden = resolveSkillsForContext({
+      explicitSkillIds: ['01_red_flags_confef_ethics', '14_martial_arts_combat_and_external_load'],
+      overrides: {
+        '01_red_flags_confef_ethics': { isEnabled: false },
+        '14_martial_arts_combat_and_external_load': { isEnabled: false },
+      },
+    });
+    const ids = overridden.map((s) => s.id);
+    expect(ids).toContain('01_red_flags_confef_ethics');
+    expect(ids).not.toContain('14_martial_arts_combat_and_external_load');
+  });
 });
