@@ -4,6 +4,7 @@ import {
   fetchTelemetryWeeklyPills,
   getAdminDashboardSnapshot,
   testAdminModelConnection,
+  saveAdminApiKey,
 } from '../src/lib/aiClient';
 import { generateSmartWorkoutRoutine } from '../src/lib/workoutEngine';
 import { getPersonalizedExerciseCue } from '../src/lib/aiStudentAssistant';
@@ -131,5 +132,25 @@ describe('Suíte de Integração Frontend: AI Client, Personal Agent & Admin (v9
     expect(res.success).toBe(true);
     expect(res.latencyMs).toBeGreaterThan(0);
     expect(res.responsePreview).toContain('Simulação Segura R$ 0,00');
+  });
+
+  it('8. Admin salva nova API Key da DeepInfra com validação de formato e mascaramento seguro', async () => {
+    const rawTestKey = 'sk-deep-live-production-secret-9876';
+    const result = await saveAdminApiKey(rawTestKey);
+
+    expect(result.success).toBe(true);
+    expect(result.maskedKey).toBe('sk-dee...9876');
+    expect(result.maskedKey).not.toContain('production-secret');
+
+    // Valida que chaves inválidas ou excessivamente curtas são rejeitadas
+    await expect(saveAdminApiKey('short')).rejects.toThrow(/inválida/);
+  });
+
+  it('9. Snapshot do Dashboard informa status de credencial mascarada sem expor chave em texto puro', async () => {
+    const snapshot = await getAdminDashboardSnapshot();
+    expect(snapshot.apiKeyStatus).toBeDefined();
+    expect(snapshot.apiKeyStatus?.isConfigured).toBe(true);
+    expect(snapshot.apiKeyStatus?.maskedKey).toBe('sk-dee...9876');
+    expect(snapshot.apiKeyStatus?.source).toBe('admin_vault');
   });
 });

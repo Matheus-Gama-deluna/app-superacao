@@ -23,6 +23,11 @@ service cloud.firestore {
     }
 
     // Coleções de Administração, Métricas e Auditoria
+    // Cofre Seguro de Credenciais do Sistema (Acesso estritamente serverless via Cloud Functions)
+    match /system_secrets/{secretId} {
+      allow read, write: if false;
+    }
+
     match /system_admins/{adminUid} {
       allow read: if isAdmin();
       allow write: if false;

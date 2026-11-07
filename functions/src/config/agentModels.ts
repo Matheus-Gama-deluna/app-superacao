@@ -4,7 +4,7 @@
  * Sem motor de roteamento dinâmico.
  */
 
-import { AgentServiceId, AdminModelSpec, AdminSystemConfig } from '../types/sharedAi.js';
+import { AgentServiceId, AdminModelSpec, AdminSystemConfig, AdminApiKeyStatus } from '../types/sharedAi.js';
 
 export const DEFAULT_AGENT_MODELS: Record<AgentServiceId, AdminModelSpec> = {
   master_personal: {
@@ -104,6 +104,110 @@ export interface DeepInfraChatResponse {
   durationMs: number;
 }
 
+let cachedVaultApiKey: { key: string; expiresAt: number } | null = null;
+
+export function maskApiKey(key: string): string {
+  if (!key) return '';
+  const trimmed = key.trim();
+  if (trimmed.length <= 8) return '****';
+  return `${trimmed.slice(0, 6)}...${trimmed.slice(-4)}`;
+}
+
+/**
+ * Resolução Segura de Chave DeepInfra:
+ * 1. Secret Manager / Env Var (process.env.DEEPINFRA_API_KEY)
+ * 2. Cache em memória do cofre seguro Firestore
+ * 3. Documento blindado system_secrets/deepinfra no Firestore
+ */
+export async function getResolvedDeepInfraApiKey(): Promise<string> {
+  // 1. Prioridade: Chave injetada via Secret Manager / Variável de Ambiente
+  if (process.env.DEEPINFRA_API_KEY && process.env.DEEPINFRA_API_KEY.trim() !== '') {
+    return process.env.DEEPINFRA_API_KEY.trim();
+  }
+
+  // 2. Cache em memória para minimizar acessos ao Firestore
+  if (cachedVaultApiKey && Date.now() < cachedVaultApiKey.expiresAt) {
+    return cachedVaultApiKey.key;
+  }
+
+  // 3. Consulta ao cofre restrito system_secrets/deepinfra
+  try {
+    const { getApps } = await import('firebase-admin/app');
+    if (getApps().length === 0) {
+      return '';
+    }
+    const { getFirestore } = await import('firebase-admin/firestore');
+    const secretDoc = await getFirestore().collection('system_secrets').doc('deepinfra').get();
+    if (secretDoc.exists) {
+      const data = secretDoc.data();
+      const vaultKey = (data?.apiKey || '').trim();
+      if (vaultKey) {
+        cachedVaultApiKey = {
+          key: vaultKey,
+          expiresAt: Date.now() + 5 * 60 * 1000, // 5 min TTL
+        };
+        return vaultKey;
+      }
+    }
+  } catch (err: any) {
+    console.warn('[agentModels] Falha ao consultar cofre system_secrets/deepinfra:', err?.message || err);
+  }
+
+  return '';
+}
+
+export function invalidateApiKeyCache(): void {
+  cachedVaultApiKey = null;
+}
+
+/**
+ * Retorna o status da chave sem jamais expor o conteúdo bruto ao cliente
+ */
+export async function getAdminApiKeyStatus(): Promise<AdminApiKeyStatus> {
+  // 1. Checa Secret Manager
+  if (process.env.DEEPINFRA_API_KEY && process.env.DEEPINFRA_API_KEY.trim() !== '') {
+    return {
+      isConfigured: true,
+      maskedKey: maskApiKey(process.env.DEEPINFRA_API_KEY),
+      source: 'secret_manager',
+    };
+  }
+
+  // 2. Checa Cofre do Firestore
+  try {
+    const { getApps } = await import('firebase-admin/app');
+    if (getApps().length === 0) {
+      return {
+        isConfigured: false,
+        maskedKey: '',
+        source: 'none',
+      };
+    }
+    const { getFirestore } = await import('firebase-admin/firestore');
+    const secretDoc = await getFirestore().collection('system_secrets').doc('deepinfra').get();
+    if (secretDoc.exists) {
+      const data = secretDoc.data();
+      if (data?.apiKey) {
+        return {
+          isConfigured: true,
+          maskedKey: data.maskedKey || maskApiKey(data.apiKey),
+          source: 'admin_vault',
+          updatedAt: data.updatedAt,
+          updatedBy: data.updatedBy,
+        };
+      }
+    }
+  } catch (err: any) {
+    console.warn('[agentModels] Falha ao verificar status da chave no Firestore:', err?.message || err);
+  }
+
+  return {
+    isConfigured: false,
+    maskedKey: '',
+    source: 'none',
+  };
+}
+
 /**
  * Cliente HTTP Resiliente para DeepInfra
  * Executa chamada com Titular e, sob falha (timeout, 5xx, 429), tenta Fallback de outra família.
@@ -120,7 +224,7 @@ export async function callDeepInfraWithFixedFallback(
   } = {}
 ): Promise<DeepInfraChatResponse> {
   const config = options.modelConfig || DEFAULT_AGENT_MODELS[serviceId];
-  const apiKey = options.apiKey || process.env.DEEPINFRA_API_KEY || '';
+  const apiKey = options.apiKey || (await getResolvedDeepInfraApiKey());
   const startTime = Date.now();
 
   // Modo seguro / Mock quando sem chave ou forçado para homologação visual

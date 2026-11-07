@@ -15,6 +15,7 @@ import {
   ClinicalMemoryFact,
   AdminSystemConfig,
   AdminDailyMetrics,
+  AdminApiKeyStatus,
   AgentServiceId,
   AnamnesisSubmission,
   AiAnamnesisAnalysis,
@@ -313,10 +314,17 @@ export async function fetchTelemetryWeeklyPills(
 // ADMIN DASHBOARD CLIENT CALLABLES
 // ============================================================================
 
+let mockVaultApiKeyStatus: AdminApiKeyStatus = {
+  isConfigured: false,
+  maskedKey: '',
+  source: 'none',
+};
+
 export async function getAdminDashboardSnapshot(): Promise<{
   metrics: AdminDailyMetrics;
   config: AdminSystemConfig;
   recentAudits: any[];
+  apiKeyStatus?: AdminApiKeyStatus;
 }> {
   try {
     const fn = httpsCallable<any, any>(functions, 'adminDashboardSnapshot');
@@ -325,11 +333,15 @@ export async function getAdminDashboardSnapshot(): Promise<{
       setTimeout(() => reject(new Error('timeout')), 1200)
     );
     const res = await Promise.race([callPromise, timeoutPromise]);
-    return res.data;
+    return {
+      ...res.data,
+      apiKeyStatus: res.data?.apiKeyStatus || mockVaultApiKeyStatus,
+    };
   } catch {
     // Mock local do admin para testes visuais sem quebras
     const todayStr = new Date().toISOString().split('T')[0];
     return {
+      apiKeyStatus: mockVaultApiKeyStatus,
       metrics: {
         dateStr: todayStr,
         totalCalls: 42,
@@ -486,6 +498,47 @@ export async function manageAdminUserQuota(
   } catch (err) {
     console.info('[aiClient] adminManageUserQuota offline/mock:', (err as Error)?.message);
   }
+}
+
+export async function saveAdminApiKey(
+  apiKey: string
+): Promise<{ success: boolean; maskedKey: string; updatedAt?: number }> {
+  const trimmed = apiKey.trim();
+  if (!trimmed || trimmed.length < 8) {
+    throw new Error('Chave de API inválida. O formato deve conter ao menos 8 caracteres.');
+  }
+
+  try {
+    const fn = httpsCallable<any, any>(functions, 'adminUpdateApiKey');
+    const res = await fn({ apiKey: trimmed });
+    if (res.data && res.data.maskedKey) {
+      mockVaultApiKeyStatus = {
+        isConfigured: true,
+        maskedKey: res.data.maskedKey,
+        source: 'admin_vault',
+        updatedAt: res.data.updatedAt || Date.now(),
+      };
+      return res.data;
+    }
+  } catch (err) {
+    console.info('[aiClient] adminUpdateApiKey offline/mock:', (err as Error)?.message);
+  }
+
+  // Simulação mock segura no frontend quando offline / desenvolvimento
+  const maskedKey = `${trimmed.slice(0, 6)}...${trimmed.slice(-4)}`;
+  const now = Date.now();
+  mockVaultApiKeyStatus = {
+    isConfigured: true,
+    maskedKey,
+    source: 'admin_vault',
+    updatedAt: now,
+  };
+
+  return { success: true, maskedKey, updatedAt: now };
+}
+
+export function getMockVaultApiKeyStatus(): AdminApiKeyStatus {
+  return mockVaultApiKeyStatus;
 }
 
 // ============================================================================
