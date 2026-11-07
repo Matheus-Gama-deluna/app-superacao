@@ -58,11 +58,13 @@ import { QuickIdentificationView } from './views/QuickIdentificationView';
 import { TeacherDashboardView } from './views/TeacherDashboardView';
 import { LinkTeacherModal } from './components/LinkTeacherModal';
 import { CustomAnamnesisFlowView } from './views/CustomAnamnesisFlowView';
+import { ShieldAlert } from 'lucide-react';
+import { EmailAuthModal } from './components/EmailAuthModal';
 
 type AppFlowState = 'welcome' | 'quick_id' | 'teacher_dashboard' | 'custom_anamnesis' | 'onboarding' | 'proposal' | 'main';
 
 const MainAppContent: React.FC = () => {
-  const { user, profile, isGuest, isLoading: authLoading, updateUserProfile, logout, pendingConflict, resolveConflict } = useAuth();
+  const { user, profile, isGuest, isAdmin, isLoading: authLoading, updateUserProfile, logout, pendingConflict, resolveConflict } = useAuth();
   const {
     activeSession,
     isFocusMode,
@@ -93,6 +95,7 @@ const MainAppContent: React.FC = () => {
   const [isAdminDashboardOpen, setIsAdminDashboardOpen] = useState<boolean>(() => {
     return typeof window !== 'undefined' && window.location.search.includes('admin=1');
   });
+  const [isAdminAuthModalOpen, setIsAdminAuthModalOpen] = useState<boolean>(false);
   const [isPersonalDrawerOpen, setIsPersonalDrawerOpen] = useState<boolean>(false);
 
   // Estados para Professor, Anamnese Personalizada e Identificação Rápida
@@ -355,10 +358,60 @@ const MainAppContent: React.FC = () => {
 
   // Centro de Controle do Administrador (DeepInfra v2)
   if (isAdminDashboardOpen) {
+    // Blindagem de Segurança Frontend: Exige autenticação estrita como gamamatheus65@gmail.com ou isAdmin
+    if (!isAdmin) {
+      return (
+        <div className="min-h-screen bg-[#FAF8F5] flex flex-col items-center justify-center p-6 text-center">
+          <div className="max-w-md w-full bg-white rounded-3xl p-8 border border-rose-200 shadow-xl space-y-4">
+            <div className="w-14 h-14 bg-rose-50 text-rose-600 rounded-2xl flex items-center justify-center mx-auto">
+              <ShieldAlert className="w-8 h-8" />
+            </div>
+            <h2 className="text-xl font-extrabold text-slate-900">Acesso Restrito ao Administrador</h2>
+            <p className="text-xs text-slate-600 leading-relaxed">
+              O Painel do Administrador é restrito exclusivamente ao proprietário do sistema (<strong>gamamatheus65@gmail.com</strong>).
+              Faça login com a conta autorizada para continuar.
+            </p>
+            <div className="pt-2 flex flex-col gap-2">
+              <button
+                type="button"
+                onClick={() => setIsAdminAuthModalOpen(true)}
+                className="w-full py-3 px-4 bg-[#1B4332] text-white rounded-xl text-xs font-bold hover:bg-[#12372A] transition-colors cursor-pointer shadow-xs"
+              >
+                Fazer Login como Administrador
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setIsAdminDashboardOpen(false);
+                  if (typeof window !== 'undefined') {
+                    window.history.replaceState({}, '', window.location.pathname);
+                  }
+                }}
+                className="w-full py-2.5 px-4 bg-slate-100 text-slate-600 rounded-xl text-xs font-semibold hover:bg-slate-200 transition-colors cursor-pointer"
+              >
+                Voltar ao SuperAção
+              </button>
+            </div>
+          </div>
+          <EmailAuthModal
+            isOpen={isAdminAuthModalOpen}
+            onClose={() => setIsAdminAuthModalOpen(false)}
+            initialMode="login"
+            onSuccess={() => setIsAdminAuthModalOpen(false)}
+          />
+        </div>
+      );
+    }
+
     return (
       <React.Suspense fallback={<ViewLoadingFallback />}>
         <AdminDashboardView
-          onBackToApp={() => setIsAdminDashboardOpen(false)}
+          onBackToApp={() => {
+            setIsAdminDashboardOpen(false);
+            if (typeof window !== 'undefined') {
+              window.history.replaceState({}, '', window.location.pathname);
+            }
+          }}
           adminEmail={user?.email || 'gamamatheus65@gmail.com'}
         />
       </React.Suspense>

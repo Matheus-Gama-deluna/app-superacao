@@ -135,4 +135,32 @@ test.describe('E2E: Personal Agent IA (DeepInfra v2) & Painel do Administrador',
     await backBtn.click();
     await expect(page.locator('h1:has-text("Painel do Administrador")')).not.toBeVisible();
   });
+
+  test('3. Visitante ou usuário não-admin que tenta acessar ?admin=1 é bloqueado pela trava de segurança', async ({
+    page,
+  }) => {
+    // Sobrescreve localStorage para simular visitante comum não-admin
+    await page.addInitScript(() => {
+      const regularProfile = {
+        uid: 'user_aluno_comum',
+        displayName: 'Aluno Visitante',
+        email: 'aluno@gmail.com',
+        userRole: 'student',
+        onboardingCompleted: true,
+        isAdmin: false,
+      };
+      localStorage.setItem('superacao_user_profile', JSON.stringify(regularProfile));
+      localStorage.setItem('superacao_access_choice', '"guest"');
+    });
+
+    await page.goto('/?admin=1');
+
+    // Valida que o Painel do Administrador NÃO é renderizado
+    await expect(page.locator('h1:has-text("Painel do Administrador")')).not.toBeVisible();
+
+    // Valida que a tela de Acesso Restrito ao Administrador é exibida
+    await expect(page.locator('text=Acesso Restrito ao Administrador')).toBeVisible();
+    await expect(page.locator('text=gamamatheus65@gmail.com')).toBeVisible();
+    await expect(page.getByRole('button', { name: /Fazer Login como Administrador/i })).toBeVisible();
+  });
 });
