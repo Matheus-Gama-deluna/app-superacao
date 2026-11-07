@@ -451,7 +451,7 @@ const MainAppContent: React.FC = () => {
   }
 
   // Hidratação segura: Enquanto autentica e busca o perfil no Firestore, evita renderização prematura de telas intermediárias
-  if (authLoading) {
+  if (authLoading && (user || accessChoice === 'login' || accessChoice === 'signup')) {
     return <ViewLoadingFallback />;
   }
 
