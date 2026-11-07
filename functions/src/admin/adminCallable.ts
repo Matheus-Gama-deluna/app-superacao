@@ -6,7 +6,7 @@
 import { getFirestore } from 'firebase-admin/firestore';
 import { requireAdmin, writeAdminAuditLog } from './adminAuth.js';
 import { getActiveSystemConfig, invalidateConfigCache } from './usageLedger.js';
-import { callDeepInfraWithFixedFallback } from '../config/agentModels.js';
+import { callDeepInfraWithFixedFallback, getAdminApiKeyStatus, invalidateApiKeyCache, maskApiKey } from '../config/agentModels.js';
 import { ALL_SCIENTIFIC_SKILLS } from '../skills/skillRegistry.js';
 import { AdminSystemConfig, AgentServiceId } from '../types/sharedAi.js';
 
@@ -35,6 +35,7 @@ export async function handleAdminGetDashboardSnapshot(authContext: any, days = 3
     .get();
 
   const recentLogs = auditSnap.docs.map((d) => d.data());
+  const apiKeyStatus = await getAdminApiKeyStatus();
 
   return {
     adminEmail: admin.email,
@@ -43,6 +44,7 @@ export async function handleAdminGetDashboardSnapshot(authContext: any, days = 3
     dailyMetrics,
     recentLogs,
     skillsCount: Object.keys(ALL_SCIENTIFIC_SKILLS).length,
+    apiKeyStatus,
   };
 }
 
@@ -212,5 +214,57 @@ export async function handleAdminSearchAndManageUsers(
 
   return {
     users: results,
+  };
+}
+
+/**
+ * 6. Atualização Segura da Chave de API da DeepInfra
+ * Armazena no cofre do sistema (system_secrets/deepinfra) acessível estritamente pelo servidor.
+ * Requer privilégio de Super Administrador (gamamatheus65@gmail.com).
+ */
+export async function handleAdminUpdateApiKey(
+  authContext: any,
+  params: { apiKey: string }
+): Promise<{ success: boolean; maskedKey: string; updatedAt: number }> {
+  const admin = await requireAdmin(authContext);
+  if (!admin.isSuperAdmin) {
+    throw new Error('PERMISSION_DENIED: Somente o Super Administrador pode atualizar credenciais do sistema.');
+  }
+
+  const rawKey = (params.apiKey || '').trim();
+  if (!rawKey || rawKey.length < 8) {
+    throw new Error('INVALID_ARGUMENT: Chave de API inválida. O formato deve conter ao menos 8 caracteres.');
+  }
+
+  const maskedKey = maskApiKey(rawKey);
+  const now = Date.now();
+
+  const { getApps } = await import('firebase-admin/app');
+  if (getApps().length > 0) {
+    const db = getFirestore();
+
+    await db.collection('system_secrets').doc('deepinfra').set({
+      apiKey: rawKey,
+      maskedKey,
+      source: 'admin_vault',
+      updatedAt: now,
+      updatedBy: admin.email,
+    });
+
+    invalidateApiKeyCache();
+
+    await writeAdminAuditLog({
+      adminUid: admin.uid,
+      adminEmail: admin.email,
+      action: 'rotate_deepinfra_api_key',
+      targetId: 'system_secrets/deepinfra',
+      details: { maskedKey },
+    });
+  }
+
+  return {
+    success: true,
+    maskedKey,
+    updatedAt: now,
   };
 }

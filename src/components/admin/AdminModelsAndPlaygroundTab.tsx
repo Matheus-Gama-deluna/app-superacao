@@ -9,17 +9,19 @@ import {
   Clock,
   Sparkles,
 } from 'lucide-react';
-import { AdminSystemConfig, AgentServiceId } from '../../types';
+import { AdminSystemConfig, AdminApiKeyStatus, AgentServiceId } from '../../types';
 import { testAdminModelConnection, saveAdminSystemConfig } from '../../lib/aiClient';
 
 interface AdminModelsAndPlaygroundTabProps {
   config: AdminSystemConfig;
   onConfigUpdated: (newConfig: AdminSystemConfig) => void;
+  apiKeyStatus?: AdminApiKeyStatus | null;
 }
 
 export const AdminModelsAndPlaygroundTab: React.FC<AdminModelsAndPlaygroundTabProps> = ({
   config,
   onConfigUpdated,
+  apiKeyStatus,
 }) => {
   const [editingConfig, setEditingConfig] = useState<AdminSystemConfig>({ ...config });
   const [selectedAgent, setSelectedAgent] = useState<AgentServiceId>('master_personal');
@@ -95,9 +97,21 @@ export const AdminModelsAndPlaygroundTab: React.FC<AdminModelsAndPlaygroundTabPr
     <div className="space-y-6">
       {/* Save bar */}
       <div className="flex items-center justify-between p-3 bg-slate-50 border border-slate-200 rounded-2xl">
-        <div className="flex items-center gap-2 text-xs text-slate-600">
-          <Sparkles className="w-4 h-4 text-[#2D6A4F]" />
-          <span>Modelos e Parâmetros de Inferência DeepInfra v2</span>
+        <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2 text-xs text-slate-600">
+            <Sparkles className="w-4 h-4 text-[#2D6A4F]" />
+            <span className="font-bold">Modelos e Parâmetros DeepInfra v2</span>
+          </div>
+          {apiKeyStatus?.isConfigured ? (
+            <span className="hidden sm:inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-emerald-50 border border-emerald-200 text-emerald-800 text-[11px] font-bold">
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+              API Key: {apiKeyStatus.maskedKey}
+            </span>
+          ) : (
+            <span className="hidden sm:inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-slate-200/80 text-slate-600 text-[11px] font-medium">
+              Simulador Local (R$ 0,00)
+            </span>
+          )}
         </div>
         <button
           type="button"

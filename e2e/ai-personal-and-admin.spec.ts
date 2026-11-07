@@ -97,8 +97,22 @@ test.describe('E2E: Personal Agent IA (DeepInfra v2) & Painel do Administrador',
     await testBtn.click();
     await expect(page.getByText('Conexão Bem-Sucedida', { exact: true })).toBeVisible({ timeout: 5000 });
 
-    // 3. Aba Guardrails
+    // 3. Aba Guardrails & Cofre de Credenciais
     await page.getByRole('button', { name: /Guardrails & Travas/i }).click();
+    await expect(page.locator('text=Cofre Seguro de Credenciais (DeepInfra API Key)')).toBeVisible();
+    await expect(page.locator('text=Zero-Trust')).toBeVisible();
+    await expect(page.locator('input[placeholder="sk-deep-xxxxxxxxxxxxxxxxxxxxxxxx"]')).toBeVisible();
+
+    // Testa inserção e salvamento seguro no cofre
+    await page.fill('input[placeholder="sk-deep-xxxxxxxxxxxxxxxxxxxxxxxx"]', 'sk-deep-e2e-superadmin-key-1234');
+    await page.getByRole('button', { name: /Salvar no Cofre/i }).click();
+    await expect(page.locator('text=Chave Salva!')).toBeVisible();
+    await expect(page.locator('text=sk-dee...1234')).toBeVisible();
+
+    // Testa botão de teste de conexão com o modelo titular
+    await page.getByRole('button', { name: /Testar Conexão/i }).click();
+    await expect(page.getByText('Conexão Bem-Sucedida', { exact: true })).toBeVisible({ timeout: 5000 });
+
     await expect(page.locator('text=Kill Switch de Emergência')).toBeVisible();
     await expect(page.locator('text=Hard Stop Diário (USD)')).toBeVisible();
 

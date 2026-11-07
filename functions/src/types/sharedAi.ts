@@ -122,6 +122,14 @@ export interface AdminSystemConfig {
   updatedBy: string;
 }
 
+export interface AdminApiKeyStatus {
+  isConfigured: boolean;
+  maskedKey: string;
+  source: 'secret_manager' | 'admin_vault' | 'none';
+  updatedAt?: number;
+  updatedBy?: string;
+}
+
 export interface AdminDailyMetrics {
   dateStr: string; // YYYY-MM-DD
   totalCalls: number;

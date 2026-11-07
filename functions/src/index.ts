@@ -23,6 +23,7 @@ import {
   handleAdminTestModelConnection,
   handleAdminUpsertSkillOverride,
   handleAdminSearchAndManageUsers,
+  handleAdminUpdateApiKey,
 } from './admin/adminCallable.js';
 
 // Configurações padrão de execução das Cloud Functions v2
@@ -188,3 +189,22 @@ export const adminManageUsers = onCall(RUNTIME_OPTS, async (request) => {
     throw new HttpsError('permission-denied', err?.message || 'Acesso administrativo negado.');
   }
 });
+
+/**
+ * 6. Atualização Segura da API Key DeepInfra no Cofre do Servidor
+ */
+export const adminUpdateApiKey = onCall(RUNTIME_OPTS, async (request) => {
+  try {
+    return await handleAdminUpdateApiKey(request.auth, request.data || { apiKey: '' });
+  } catch (err: any) {
+    throw new HttpsError('permission-denied', err?.message || 'Acesso administrativo negado ao atualizar credencial.');
+  }
+});
+
+// Aliases de conveniência e compatibilidade com o cliente
+export const adminSaveApiKey = adminUpdateApiKey;
+export const adminDashboardSnapshot = adminGetDashboard;
+export const adminSaveAiSettings = adminUpdateSettings;
+export const adminTestModelConnection = adminTestModel;
+export const adminSaveSkillOverride = adminManageSkill;
+export const adminManageUserQuota = adminManageUsers;

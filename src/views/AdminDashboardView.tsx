@@ -11,7 +11,7 @@ import {
   Sparkles,
   RefreshCw,
 } from 'lucide-react';
-import { AdminDailyMetrics, AdminSystemConfig } from '../types';
+import { AdminDailyMetrics, AdminSystemConfig, AdminApiKeyStatus } from '../types';
 import { getAdminDashboardSnapshot } from '../lib/aiClient';
 import { AdminOverviewTab } from '../components/admin/AdminOverviewTab';
 import { AdminModelsAndPlaygroundTab } from '../components/admin/AdminModelsAndPlaygroundTab';
@@ -34,6 +34,7 @@ export const AdminDashboardView: React.FC<AdminDashboardViewProps> = ({
   const [activeTab, setActiveTab] = useState<AdminTabKey>('overview');
   const [metrics, setMetrics] = useState<AdminDailyMetrics | null>(null);
   const [config, setConfig] = useState<AdminSystemConfig | null>(null);
+  const [apiKeyStatus, setApiKeyStatus] = useState<AdminApiKeyStatus | null>(null);
   const [recentAudits, setRecentAudits] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
@@ -43,6 +44,7 @@ export const AdminDashboardView: React.FC<AdminDashboardViewProps> = ({
       const data = await getAdminDashboardSnapshot();
       setMetrics(data.metrics);
       setConfig(data.config);
+      setApiKeyStatus(data.apiKeyStatus || null);
       setRecentAudits(data.recentAudits || []);
     } catch (err) {
       console.error('[AdminDashboard] Erro ao carregar dados:', err);
@@ -148,12 +150,15 @@ export const AdminDashboardView: React.FC<AdminDashboardViewProps> = ({
               {activeTab === 'models' && (
                 <AdminModelsAndPlaygroundTab
                   config={config}
+                  apiKeyStatus={apiKeyStatus}
                   onConfigUpdated={(newConfig) => setConfig(newConfig)}
                 />
               )}
               {activeTab === 'guardrails' && (
                 <AdminGuardrailsTab
                   config={config}
+                  apiKeyStatus={apiKeyStatus}
+                  onApiKeyUpdated={(newStatus) => setApiKeyStatus(newStatus)}
                   onConfigUpdated={(newConfig) => setConfig(newConfig)}
                 />
               )}

@@ -4,6 +4,7 @@
  * Autoridade reside em Custom Claims (token.admin == true) + system_admins/{uid}.
  */
 
+import { getApps } from 'firebase-admin/app';
 import { getAuth } from 'firebase-admin/auth';
 import { getFirestore, FieldValue } from 'firebase-admin/firestore';
 
@@ -34,10 +35,12 @@ export async function requireAdmin(authContext: { uid?: string; token?: any } | 
 
   // 1. Bootstrap seguro do e-mail proprietário (com email_verified obrigatório)
   if (email && emailVerified && ADMIN_OWNER_EMAILS.includes(email)) {
-    if (!hasClaim) {
-      await getAuth().setCustomUserClaims(uid, { ...(authContext.token || {}), admin: true });
+    if (getApps().length > 0) {
+      if (!hasClaim) {
+        await getAuth().setCustomUserClaims(uid, { ...(authContext.token || {}), admin: true });
+      }
+      await ensureAdminDocument(uid, email, true);
     }
-    await ensureAdminDocument(uid, email, true);
     return { uid, email, isSuperAdmin: true };
   }
 
@@ -47,12 +50,14 @@ export async function requireAdmin(authContext: { uid?: string; token?: any } | 
   }
 
   // 3. Verificação em system_admins/{uid}
-  const db = getFirestore();
-  const adminSnap = await db.collection('system_admins').doc(uid).get();
-  if (adminSnap.exists) {
-    const data = adminSnap.data();
-    if (data?.active !== false) {
-      return { uid, email, isSuperAdmin: Boolean(data?.isSuperAdmin) };
+  if (getApps().length > 0) {
+    const db = getFirestore();
+    const adminSnap = await db.collection('system_admins').doc(uid).get();
+    if (adminSnap.exists) {
+      const data = adminSnap.data();
+      if (data?.active !== false) {
+        return { uid, email, isSuperAdmin: Boolean(data?.isSuperAdmin) };
+      }
     }
   }
 
