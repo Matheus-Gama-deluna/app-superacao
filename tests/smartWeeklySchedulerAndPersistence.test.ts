@@ -24,9 +24,11 @@ import { WorkoutPlan, CalendarDay, UserProfile, WorkoutSession, TeacherDayPrescr
 describe('Smart Weekly Scheduler & Persistence Suite', () => {
   const dummyPlanA: WorkoutPlan = {
     id: 'plan_a',
+    ownerUid: 'user_test',
+    version: 1,
+    isProfessional: false,
     title: 'Treino A - Superior & Core',
     description: 'Foco superior',
-    difficulty: 'iniciante',
     estimatedDurationMinutes: 20,
     exercises: [],
     createdAt: Date.now(),
@@ -35,9 +37,11 @@ describe('Smart Weekly Scheduler & Persistence Suite', () => {
 
   const dummyPlanB: WorkoutPlan = {
     id: 'plan_b',
+    ownerUid: 'user_test',
+    version: 1,
+    isProfessional: false,
     title: 'Treino B - Membros Inferiores',
     description: 'Foco pernas e mobilidade',
-    difficulty: 'iniciante',
     estimatedDurationMinutes: 20,
     exercises: [],
     createdAt: Date.now(),
@@ -260,6 +264,8 @@ describe('Smart Weekly Scheduler & Persistence Suite', () => {
       };
       const blankCalendar: CalendarDay[] = MONDAY_FIRST_DAYS.map((dow, idx) => ({
         id: `day_${idx}`,
+        ownerUid: 'user_test',
+        dateStr: `2026-05-${10 + idx}`,
         dayOfWeek: dow,
         activityType: 'unassigned',
         isCompleted: false,
@@ -275,9 +281,9 @@ describe('Smart Weekly Scheduler & Persistence Suite', () => {
         availableDays: [1, 3, 5],
       };
       const activeCalendar: CalendarDay[] = [
-        { id: '1', dayOfWeek: 1, activityType: 'strength', isCompleted: false },
-        { id: '3', dayOfWeek: 3, activityType: 'strength', isCompleted: false },
-        { id: '5', dayOfWeek: 5, activityType: 'strength', isCompleted: false },
+        { id: '1', ownerUid: 'user_test', dateStr: '2026-05-11', dayOfWeek: 1, activityType: 'strength', isCompleted: false },
+        { id: '3', ownerUid: 'user_test', dateStr: '2026-05-13', dayOfWeek: 3, activityType: 'strength', isCompleted: false },
+        { id: '5', ownerUid: 'user_test', dateStr: '2026-05-15', dayOfWeek: 5, activityType: 'strength', isCompleted: false },
       ];
 
       const goal = getCanonicalWeeklyGoal(configuredProfile as UserProfile, activeCalendar);
@@ -288,8 +294,8 @@ describe('Smart Weekly Scheduler & Persistence Suite', () => {
   describe('7. markCalendarDayCompleted idempotente', () => {
     it('deve marcar apenas o dia alvo como concluído sem mutar outros dias', () => {
       const initialCalendar: CalendarDay[] = [
-        { id: 'day_1', dayOfWeek: 1, activityType: 'strength', isCompleted: false },
-        { id: 'day_2', dayOfWeek: 2, activityType: 'active_recovery', isCompleted: false },
+        { id: 'day_1', ownerUid: 'user_test', dateStr: '2026-05-11', dayOfWeek: 1, activityType: 'strength', isCompleted: false },
+        { id: 'day_2', ownerUid: 'user_test', dateStr: '2026-05-12', dayOfWeek: 2, activityType: 'active_recovery', isCompleted: false },
       ];
 
       const updated = markCalendarDayCompleted(initialCalendar, 'day_1', true);
@@ -311,6 +317,7 @@ describe('Smart Weekly Scheduler & Persistence Suite', () => {
       const calendar: CalendarDay[] = [
         {
           id: 'seg',
+          ownerUid: 'user_test',
           dateStr: mondayDateStr,
           dayOfWeek: 1,
           activityType: 'strength',
@@ -320,6 +327,7 @@ describe('Smart Weekly Scheduler & Persistence Suite', () => {
         },
         {
           id: 'dom',
+          ownerUid: 'user_test',
           dateStr: '2026-05-10',
           dayOfWeek: 0,
           activityType: 'rest',

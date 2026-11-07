@@ -49,6 +49,7 @@ import {
 
 interface ActiveWorkoutViewProps {
   onPauseAndReturnHome?: () => void;
+  onOpenPersonalAgent?: () => void;
 }
 
 // Verifica se o exercício é compatível com sobrecarga em kg ou estritamente peso corporal / mobilidade (E06)
@@ -65,6 +66,7 @@ function supportsExternalWeight(ex: any): boolean {
 
 export const ActiveWorkoutView: React.FC<ActiveWorkoutViewProps> = ({
   onPauseAndReturnHome,
+  onOpenPersonalAgent,
 }) => {
   const { profile, updateUserProfile } = useAuth();
   const {
@@ -1023,11 +1025,23 @@ export const ActiveWorkoutView: React.FC<ActiveWorkoutViewProps> = ({
               </div>
 
               {/* Dica Biomecânica do Assistente IA */}
-              <div className="mt-1.5 px-2.5 py-1 bg-[#EAF3EF]/70 rounded-xl border border-[#125F55]/20 flex items-center gap-1.5 text-[11px] text-[#125F55]">
-                <span>💡</span>
-                <span className="line-clamp-1 font-medium">
-                  {getPersonalizedExerciseCue(currentExerciseItem.exerciseName, profile.reportedLimitations)}
-                </span>
+              <div className="mt-1.5 px-2.5 py-1 bg-[#EAF3EF]/70 rounded-xl border border-[#125F55]/20 flex items-center justify-between gap-1.5 text-[11px] text-[#125F55]">
+                <div className="flex items-center gap-1.5 min-w-0 flex-1">
+                  <span>💡</span>
+                  <span className="line-clamp-1 font-medium">
+                    {getPersonalizedExerciseCue(currentExerciseItem.exerciseName, profile.reportedLimitations)}
+                  </span>
+                </div>
+                {onOpenPersonalAgent && (
+                  <button
+                    type="button"
+                    onClick={onOpenPersonalAgent}
+                    className="shrink-0 text-[10px] font-bold text-[#1B4332] hover:text-[#12372A] bg-white px-2 py-0.5 rounded-lg border border-[#125F55]/30 hover:border-[#125F55] transition-all cursor-pointer shadow-2xs flex items-center gap-1"
+                    title="Conversar com Personal IA sobre este exercício"
+                  >
+                    <span>Perguntar ao Personal</span>
+                  </button>
+                )}
               </div>
             </div>
 

@@ -62,11 +62,26 @@ export function generateSmartWorkoutRoutine(
   options: GenerationOptions = {}
 ): ExplainableProposal {
   // Extração de parâmetros unificada (prioriza draft do onboarding, depois profile, depois padrões seguros)
+  const clinicalCtx = draft?.structuredClinicalContext || profile.structuredClinicalContext;
   const targetDays = draft?.availableDays || profile.availableDays || [1, 3, 5];
-  const targetDuration = draft?.sessionDurationMinutes || profile.sessionDurationMinutes || 20;
+  const baseTargetDuration = draft?.sessionDurationMinutes || profile.sessionDurationMinutes || 20;
+  // Modificador de volume clínico (ex: 0.8 a 1.2)
+  const volumeMod = clinicalCtx?.volumeModifier && clinicalCtx.volumeModifier > 0 ? clinicalCtx.volumeModifier : 1.0;
+  const targetDuration = Math.max(5, Math.round(baseTargetDuration * volumeMod));
+
   const userEquipments = draft?.equipments || profile.equipments || ['peso_corporal'];
-  const userAvoided = draft?.avoidedMovements || profile.avoidedMovements || [];
-  const reportedLimitations = draft?.reportedLimitations || profile.reportedLimitations || [];
+  const userAvoided = Array.from(
+    new Set([
+      ...(draft?.avoidedMovements || profile.avoidedMovements || []),
+      ...(clinicalCtx?.avoidedMovements || []),
+    ])
+  );
+  const reportedLimitations = Array.from(
+    new Set([
+      ...(draft?.reportedLimitations || profile.reportedLimitations || []),
+      ...(clinicalCtx?.reportedLimitations || []),
+    ])
+  );
   const rawGoal = draft?.orderedGoals?.[0] || profile.primaryGoal || 'Construir o hábito e me sentir melhor';
   const goalKey = normalizeGoalKey(rawGoal);
   const secondaryGoals = draft?.orderedGoals?.slice(1) || profile.secondaryGoals || [];
@@ -79,12 +94,13 @@ export function generateSmartWorkoutRoutine(
   const environment = (draft?.environmentPreference || profile.environmentPreference) === 'academia' ? 'na academia' : 'em casa';
   const userSeed = `${options.seed || profile.uid || 'guest'}_${goalKey}_${experienceLevel}`;
   const variationSeed = options.variationSeed || 0;
-  const extraRestSeconds =
+  const baseExtraRestSeconds =
     practiceObstacles.includes('dor') ||
     practiceObstacles.includes('cansaco') ||
     practiceObstacles.includes('cansaco_mental')
       ? 15
       : 0;
+  const extraRestSeconds = baseExtraRestSeconds + (clinicalCtx?.extraRestSeconds || 0);
 
   // 1. Filtragem preliminar de todos os exercícios seguros
   const safeCatalog: Exercise[] = allExercises
@@ -92,6 +108,15 @@ export function generateSmartWorkoutRoutine(
     .filter((ex) => {
       const check = isExerciseSafeForUser(ex, userEquipments, userAvoided, reportedLimitations);
       if (!check.safe) return false;
+
+      // Salvaguarda para limites articulares estruturados da IA / Anamnese
+      if (clinicalCtx?.jointStressCaps && ex.jointStress) {
+        for (const [jointKey, cap] of Object.entries(clinicalCtx.jointStressCaps)) {
+          const stressVal = (ex.jointStress as unknown as Record<string, number>)[jointKey] ?? 1;
+          if (cap === 'baixo' && stressVal > 1) return false;
+          if (cap === 'moderado' && stressVal > 2) return false;
+        }
+      }
 
       // Salvaguarda para iniciantes e praticantes em retomada: sem exercícios avançados ou complexidade extrema
       if (experienceLevel === 'iniciante' || experienceLevel === 'retomando') {
@@ -251,6 +276,14 @@ export function generateSmartWorkoutRoutine(
           },
           slot.rationale
         );
+
+        if (clinicalCtx?.protectiveCuesByPattern && selected.functionalPattern) {
+          const cue = clinicalCtx.protectiveCuesByPattern[selected.functionalPattern];
+          if (cue) {
+            planItem.notes = planItem.notes ? `${planItem.notes} • ${cue}` : cue;
+          }
+        }
+
         chosenItems.push(planItem);
       }
     }
@@ -327,7 +360,9 @@ export function generateSmartWorkoutRoutine(
   if (userContextNotes && userContextNotes.trim()) {
     justificationText += ` Observação pessoal acolhida: "${userContextNotes.trim()}".`;
   }
-  if (healthNotes && healthNotes.trim()) {
+  if (clinicalCtx?.summaryPt) {
+    justificationText += ` Cuidado clínico personalizado ativo: ${clinicalCtx.summaryPt}`;
+  } else if (healthNotes && healthNotes.trim()) {
     justificationText += ` Consideração de saúde: Levamos em conta suas observações ("${healthNotes.trim().slice(0, 70)}${healthNotes.length > 70 ? '...' : ''}"), priorizando movimentos articulares gentis.`;
   }
   if (practiceObstacles.length > 0) {

@@ -1,4 +1,5 @@
 import { initializeApp, getApps, getApp } from 'firebase/app';
+import { getFunctions, Functions } from 'firebase/functions';
 import {
   getAuth,
   GoogleAuthProvider,
@@ -48,6 +49,14 @@ export const db = firestoreInstance;
 export const auth = getAuth(app);
 export const googleProvider = new GoogleAuthProvider();
 googleProvider.setCustomParameters({ prompt: 'select_account' });
+
+let functionsInstance: Functions;
+try {
+  functionsInstance = getFunctions(app, 'southamerica-east1');
+} catch {
+  functionsInstance = getFunctions(app);
+}
+export const functions = functionsInstance;
 
 // Tipos de operação e tratamento de erros do Firestore (Skill Conformance)
 export enum OperationType {

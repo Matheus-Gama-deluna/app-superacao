@@ -31,14 +31,16 @@ interface ProfileViewProps {
   onClose: () => void;
   onOpenListening?: () => void;
   onOpenLinkTeacher?: () => void;
+  onOpenAdmin?: () => void;
 }
 
 export const ProfileView: React.FC<ProfileViewProps> = ({
   onClose,
   onOpenListening,
   onOpenLinkTeacher,
+  onOpenAdmin,
 }) => {
-  const { user, profile, isGuest, loginGoogle, logout, updateUserProfile, pendingConflict, resolveConflict } = useAuth();
+  const { user, profile, isGuest, isAdmin, loginGoogle, logout, updateUserProfile, pendingConflict, resolveConflict } = useAuth();
   const { exportBackup, syncStatus, calendar, plans, setCalendar } = useWorkout();
 
   const hasConfiguredRoutine = Boolean(
@@ -700,6 +702,29 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
           </span>
         </button>
       </section>
+
+      {/* Acesso Administrativo IA & DeepInfra v2 (Apenas gamamatheus65@gmail.com ou isAdmin) */}
+      {isAdmin && (
+        <section className="bg-gradient-to-br from-[#1B4332] to-[#2D6A4F] text-white rounded-3xl p-5 shadow-md space-y-3">
+          <div className="flex items-center gap-2">
+            <Shield className="w-5 h-5 text-[#D8F3DC]" />
+            <h4 className="text-xs font-bold uppercase tracking-wider text-[#D8F3DC]">
+              Acesso Administrativo (DeepInfra v2)
+            </h4>
+          </div>
+          <p className="text-xs text-white/90 leading-relaxed">
+            Você possui privilégios de administrador. Acesse o centro de controle para gerenciar agentes de IA, modelos, custos, guardrails e usuários.
+          </p>
+          <button
+            type="button"
+            onClick={onOpenAdmin}
+            className="w-full py-3 px-4 bg-white text-[#1B4332] hover:bg-[#D8F3DC] rounded-xl font-bold text-xs flex items-center justify-center gap-2 transition-colors cursor-pointer shadow-xs"
+          >
+            <Shield className="w-4 h-4" />
+            <span>Abrir Painel do Administrador</span>
+          </button>
+        </section>
+      )}
 
       {/* Backup, Restauração e Privacidade (A19, A20) */}
       <section className="bg-white rounded-3xl p-5 border border-[#C9DBD3] shadow-xs space-y-3">

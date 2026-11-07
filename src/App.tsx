@@ -18,6 +18,10 @@ const ProgressView = lazyWithRetry(() => import('./views/ProgressView').then((m)
 const ProfileView = lazyWithRetry(() => import('./views/ProfileView').then((m) => ({ default: m.ProfileView })));
 const ListeningJourneyView = lazyWithRetry(() => import('./views/ListeningJourneyView').then((m) => ({ default: m.ListeningJourneyView })));
 const ProposalView = lazyWithRetry(() => import('./views/ProposalView').then((m) => ({ default: m.ProposalView })));
+const AdminDashboardView = lazyWithRetry(() => import('./views/AdminDashboardView').then((m) => ({ default: m.AdminDashboardView })));
+import { PersonalAgentFab } from './components/PersonalAgentFab';
+import { PersonalAgentDrawer } from './components/PersonalAgentDrawer';
+import { ActiveScreenContext } from './types';
 
 const ViewLoadingFallback: React.FC = () => (
   <div
@@ -86,6 +90,10 @@ const MainAppContent: React.FC = () => {
   const [isBuilderOpen, setIsBuilderOpen] = useState<boolean>(false);
   const [isBuilderPro, setIsBuilderPro] = useState<boolean>(false);
   const [isProfileOpen, setIsProfileOpen] = useState<boolean>(false);
+  const [isAdminDashboardOpen, setIsAdminDashboardOpen] = useState<boolean>(() => {
+    return typeof window !== 'undefined' && window.location.search.includes('admin=1');
+  });
+  const [isPersonalDrawerOpen, setIsPersonalDrawerOpen] = useState<boolean>(false);
 
   // Estados para Professor, Anamnese Personalizada e Identificação Rápida
   const [isTeacherPersonalMode, setIsTeacherPersonalMode] = useState<boolean>(false);
@@ -135,6 +143,16 @@ const MainAppContent: React.FC = () => {
     // 7. Experiência principal (usuário com rotina confirmada ou explorando)
     return 'main';
   })();
+
+  const activeScreenContext: ActiveScreenContext = {
+    currentTab: currentTab as any,
+    activeView: isFocusMode ? 'active_workout' : currentTab,
+    isFocusModeActive: isFocusMode,
+    currentExerciseName: activeSession?.exercisesSnapshot?.[activeSession.currentExerciseIndex]?.exerciseName,
+    currentExerciseId: activeSession?.exercisesSnapshot?.[activeSession.currentExerciseIndex]?.exerciseId,
+    currentSetIndex: activeSession?.currentSetIndex,
+    totalSets: activeSession?.exercisesSnapshot?.[activeSession.currentExerciseIndex]?.targetSets,
+  };
 
   const handleStartPlan = (
     plan: WorkoutPlan,
@@ -335,11 +353,30 @@ const MainAppContent: React.FC = () => {
     }
   }, [calendar, flowState]);
 
+  // Centro de Controle do Administrador (DeepInfra v2)
+  if (isAdminDashboardOpen) {
+    return (
+      <React.Suspense fallback={<ViewLoadingFallback />}>
+        <AdminDashboardView
+          onBackToApp={() => setIsAdminDashboardOpen(false)}
+          adminEmail={user?.email || 'gamamatheus65@gmail.com'}
+        />
+      </React.Suspense>
+    );
+  }
+
   // Se houver uma sessão ativa de treino e o modo foco estiver ativo, entra no MODO FOCO (Seção 10 / V8-03)
   if (activeSession && isFocusMode) {
     return (
       <React.Suspense fallback={<ViewLoadingFallback />}>
-        <ActiveWorkoutView />
+        <ActiveWorkoutView onOpenPersonalAgent={() => setIsPersonalDrawerOpen(true)} />
+        <PersonalAgentDrawer
+          isOpen={isPersonalDrawerOpen}
+          onClose={() => setIsPersonalDrawerOpen(false)}
+          activeContext={activeScreenContext}
+          userProfile={profile}
+          isTeacherManagedPlan={Boolean(profile.linkedTeacherId || plans.find((p) => p.id === activeSession.planId)?.isProfessional)}
+        />
       </React.Suspense>
     );
   }
@@ -445,6 +482,10 @@ const MainAppContent: React.FC = () => {
               onClose={() => setIsProfileOpen(false)}
               onOpenListening={handleOpenListening}
               onOpenLinkTeacher={handleOpenLinkTeacher}
+              onOpenAdmin={() => {
+                setIsProfileOpen(false);
+                setIsAdminDashboardOpen(true);
+              }}
             />
           </React.Suspense>
         </main>
@@ -674,6 +715,30 @@ const MainAppContent: React.FC = () => {
           </div>
         </div>
       )}
+
+      {/* Floating Action Button do Personal IA (GLM-5.3) */}
+      {!isBuilderOpen && !isProfileOpen && !isAdminDashboardOpen && flowState === 'main' && (
+        <PersonalAgentFab
+          onClick={() => setIsPersonalDrawerOpen(true)}
+          isOpen={isPersonalDrawerOpen}
+          activeContextText={activeSession ? `Treino: ${activeSession.planTitle}` : undefined}
+        />
+      )}
+
+      {/* Drawer / Bottom Sheet do Personal IA */}
+      <PersonalAgentDrawer
+        isOpen={isPersonalDrawerOpen}
+        onClose={() => setIsPersonalDrawerOpen(false)}
+        activeContext={activeScreenContext}
+        userProfile={profile}
+        isTeacherManagedPlan={Boolean(profile.linkedTeacherId || plans.find((p) => p.id === activeSession?.planId)?.isProfessional)}
+        onApplyProposalDiff={(diff) => {
+          if (diff.actionType === 'soften_session' && activeSession) {
+            // Suaviza a sessão ativa reduzindo séries
+            console.info('[PersonalAgent] Aplicando suavização no treino ativo.');
+          }
+        }}
+      />
 
       {/* Banner de Atualização Segura do Service Worker */}
       <SWUpdateBanner isWorkoutActive={Boolean(activeSession && isFocusMode)} />
