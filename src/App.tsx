@@ -50,6 +50,7 @@ import { WorkoutPlan, ExplainableProposal, OnboardingDraft, PreWorkoutMood, Cust
 import { premadeWorkouts } from './data/premadeWorkouts';
 import { buildCustomWorkoutForPurpose } from './lib/aiCatalogBridge';
 import { allExercises } from './data/catalog';
+import { buildAiUserContext, normalizeExternalModality } from './lib/aiActions';
 import {
   getLocal,
   setLocal,
@@ -75,6 +76,8 @@ const MainAppContent: React.FC = () => {
     startWorkout,
     activeProgram,
     calendar,
+    sessions,
+    advanceProgramWeek,
     savePlan,
     swapExerciseInActiveSession,
     softenActiveSessionTargets,
@@ -244,12 +247,20 @@ const MainAppContent: React.FC = () => {
       if (diff.actionType === 'log_external_practice') {
         const payload = diff.payload || {};
         await recordExternalPractice(
-          payload.modality || 'artes_marciais',
+          normalizeExternalModality(payload.modality),
           payload.durationMinutes || 45,
           payload.effortScore || 4,
           payload.mood || 'renovado',
           payload.notes || diff.descriptionPt
         );
+        setIsPersonalDrawerOpen(false);
+        return;
+      }
+
+      // 5.1. Avançar fase ou semana do programa de longo prazo
+      if (diff.actionType === 'advance_program_phase') {
+        advanceProgramWeek();
+        setIsPersonalDrawerOpen(false);
         return;
       }
 
@@ -566,6 +577,7 @@ const MainAppContent: React.FC = () => {
                 }
               : undefined
           }
+          userContext={buildAiUserContext(profile, calendar, sessions)}
           onApplyProposalDiff={handleApplyAiProposalDiff}
         />
       </React.Suspense>
@@ -955,6 +967,7 @@ const MainAppContent: React.FC = () => {
               }
             : undefined
         }
+        userContext={buildAiUserContext(profile, calendar, sessions)}
         onApplyProposalDiff={handleApplyAiProposalDiff}
       />
 

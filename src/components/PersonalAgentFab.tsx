@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Bot, Sparkles } from 'lucide-react';
+import { useAuth } from '../context/AuthContext';
 
 interface PersonalAgentFabProps {
   onClick: () => void;
@@ -14,6 +15,7 @@ export const PersonalAgentFab: React.FC<PersonalAgentFabProps> = ({
   activeContextText,
   hasActiveProposal = false,
 }) => {
+  const { user } = useAuth();
   const [isScrolledDown, setIsScrolledDown] = useState(false);
   const [lastScrollY, setLastScrollY] = useState(0);
 
@@ -67,7 +69,7 @@ export const PersonalAgentFab: React.FC<PersonalAgentFabProps> = ({
             <span className="text-xs font-bold leading-tight tracking-wide flex items-center gap-1">
               Personal IA
               <span className="text-[10px] font-normal text-[#D8F3DC]/80 bg-[#2D6A4F]/60 px-1.5 py-0.2 rounded-full">
-                GLM-5.3
+                {user ? 'IA' : 'Básico'}
               </span>
             </span>
             {activeContextText && (

@@ -27,6 +27,19 @@ import {
   handleAdminUpdateApiKey,
 } from './admin/adminCallable.js';
 
+/**
+ * Todas as funções de IA exigem usuário autenticado. O uid vem SEMPRE do token validado
+ * (nunca do payload do cliente), evitando forja de cota e consumo anônimo.
+ * Convidados (sem conta) usam apenas o motor local no app.
+ */
+function requireAuthUid(request: { auth?: { uid?: string } | null }): string {
+  const uid = request.auth?.uid;
+  if (!uid) {
+    throw new HttpsError('unauthenticated', 'Crie ou conecte sua conta para usar o assistente de IA.');
+  }
+  return uid;
+}
+
 const RUNTIME_OPTS = {
   region: 'us-central1',
   memory: '512MiB' as const,
@@ -41,7 +54,7 @@ const RUNTIME_OPTS = {
 export const masterPersonalAssistant = onCall(RUNTIME_OPTS, async (request) => {
   try {
     const data = request.data || {};
-    const uid = request.auth?.uid || data.uid || 'guest';
+    const uid = requireAuthUid(request);
     return await runMasterPersonalAgent({
       uid,
       userMessage: data.userMessage || data.message || '',
@@ -57,8 +70,10 @@ export const masterPersonalAssistant = onCall(RUNTIME_OPTS, async (request) => {
       sessionExercises: data.sessionExercises || [],
       catalogCandidates: data.catalogCandidates || [],
       programSummary: data.programSummary,
+      userContext: data.userContext,
     });
   } catch (err: any) {
+    if (err instanceof HttpsError) throw err;
     console.error('[Function:masterPersonalAssistant] Erro:', err);
     throw new HttpsError('internal', err?.message || 'Erro ao processar com o Personal Principal.');
   }
@@ -87,6 +102,7 @@ export const partnerTeacherCopilot = onCall(RUNTIME_OPTS, async (request) => {
       analysis,
     };
   } catch (err: any) {
+    if (err instanceof HttpsError) throw err;
     console.error('[Function:partnerTeacherCopilot] Erro:', err);
     throw new HttpsError('internal', err?.message || 'Erro ao analisar anamnese.');
   }
@@ -98,7 +114,7 @@ export const partnerTeacherCopilot = onCall(RUNTIME_OPTS, async (request) => {
 export const telemetryAnalyst = onCall(RUNTIME_OPTS, async (request) => {
   try {
     const data = request.data || {};
-    const uid = request.auth?.uid || data.uid || 'guest';
+    const uid = requireAuthUid(request);
     return await runTelemetryAnalyst({
       uid,
       displayName: data.displayName,
@@ -114,6 +130,7 @@ export const telemetryAnalyst = onCall(RUNTIME_OPTS, async (request) => {
       totalProgramWeeks: Number(data.totalProgramWeeks) || 8,
     });
   } catch (err: any) {
+    if (err instanceof HttpsError) throw err;
     console.error('[Function:telemetryAnalyst] Erro:', err);
     throw new HttpsError('internal', err?.message || 'Erro na análise de telemetria.');
   }
@@ -125,7 +142,7 @@ export const telemetryAnalyst = onCall(RUNTIME_OPTS, async (request) => {
 export const habitCompanion = onCall(RUNTIME_OPTS, async (request) => {
   try {
     const data = request.data || {};
-    const uid = request.auth?.uid || data.uid || 'guest';
+    const uid = requireAuthUid(request);
     return await runHabitCompanion({
       uid,
       userMessage: data.userMessage || data.message || '',
@@ -138,6 +155,7 @@ export const habitCompanion = onCall(RUNTIME_OPTS, async (request) => {
       completedThisWeek: data.completedThisWeek,
     });
   } catch (err: any) {
+    if (err instanceof HttpsError) throw err;
     console.error('[Function:habitCompanion] Erro:', err);
     throw new HttpsError('internal', err?.message || 'Erro no companheiro de hábitos.');
   }
@@ -149,7 +167,7 @@ export const habitCompanion = onCall(RUNTIME_OPTS, async (request) => {
 export const voiceTranscription = onCall(RUNTIME_OPTS, async (request) => {
   try {
     const data = request.data || {};
-    const uid = request.auth?.uid || data.uid || 'guest';
+    const uid = requireAuthUid(request);
     if (!data.audioBase64) {
       throw new HttpsError('invalid-argument', 'O áudio em base64 é obrigatório.');
     }
@@ -160,6 +178,7 @@ export const voiceTranscription = onCall(RUNTIME_OPTS, async (request) => {
       mimeType: data.mimeType,
     });
   } catch (err: any) {
+    if (err instanceof HttpsError) throw err;
     console.error('[Function:voiceTranscription] Erro:', err);
     throw new HttpsError('internal', err?.message || 'Erro ao transcrever áudio.');
   }

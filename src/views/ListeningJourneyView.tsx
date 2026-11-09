@@ -18,11 +18,15 @@ import {
   HelpCircle,
   Edit2,
   X,
+  Bot,
+  MessageSquare,
+  Mic,
 } from 'lucide-react';
 import { UserProfile, OnboardingDraft } from '../types';
 import { getLocal, setLocal, STORAGE_KEYS, EQUIPMENT_LABELS, AVOIDANCE_LABELS } from '../lib/storage';
 import { MONDAY_FIRST_DAYS, DOW_LABELS_MAP } from '../lib/dateUtils';
 import { sendMessageToPersonalAssistant } from '../lib/aiClient';
+import { VoiceOrTextContextInput } from '../components/VoiceOrTextContextInput';
 
 interface ListeningJourneyViewProps {
   onCompleteListening: (draft: OnboardingDraft, nextAction: 'proposal' | 'builder_manual' | 'builder_pro') => void;
@@ -163,11 +167,90 @@ export const ListeningJourneyView: React.FC<ListeningJourneyViewProps> = ({
     savedDraft?.planSourcePreference || profile.planSourcePreference || 'modelo_revisado'
   );
 
+  // Modo da Escuta: Conversacional (Escuta 2.0 com IA & Voz) vs Passo a Passo Tradicional
+  const [interviewMode, setInterviewMode] = useState<'conversational' | 'step_by_step'>('conversational');
+
+  // Histórico de mensagens da Entrevista Conversacional
+  interface OnboardingChatMessage {
+    id: string;
+    sender: 'ai' | 'user';
+    text: string;
+    timestamp: number;
+  }
+
+  const [chatMessages, setChatMessages] = useState<OnboardingChatMessage[]>(() => [
+    {
+      id: 'ai-init',
+      sender: 'ai',
+      text: `Olá${displayName && displayName !== 'Praticante' ? `, ${displayName}` : ''}! Sou seu Personal SuperAção. Me conte como é sua rotina: quantos dias quer treinar na semana, onde prefere praticar e se tem alguma dor ou cuidado especial que devemos respeitar.`,
+      timestamp: Date.now(),
+    },
+  ]);
+
   // Co-criação assistida pelo Personal IA na Escuta Inicial
   const [showAiExpressBar, setShowAiExpressBar] = useState<boolean>(false);
   const [aiInputText, setAiInputText] = useState<string>('');
   const [isAiFilling, setIsAiFilling] = useState<boolean>(false);
   const [aiReplyPreview, setAiReplyPreview] = useState<string | null>(null);
+
+  const handleSendConversationalMessage = async (trimmed: string) => {
+    if (!trimmed) return;
+    const userMsgId = 'user-' + Date.now();
+    setChatMessages((prev) => [
+      ...prev,
+      { id: userMsgId, sender: 'user', text: trimmed, timestamp: Date.now() },
+    ]);
+
+    setIsAiFilling(true);
+    try {
+      const res = await sendMessageToPersonalAssistant({
+        message: trimmed,
+        activeContext: { currentTab: 'home', activeView: 'listening' },
+        userProfile: profile,
+      });
+
+      const p = res.proposedDiff?.payload || {};
+      if (Array.isArray(p.equipments) && p.equipments.length > 0) {
+        setEquipments(Array.from(new Set([...equipments, ...p.equipments])));
+      }
+      if (Array.isArray(p.reportedLimitations) && p.reportedLimitations.length > 0) {
+        setReportedLimitations(p.reportedLimitations);
+      }
+      if (Array.isArray(p.availableDays) && p.availableDays.length > 0) {
+        setAvailableDays(p.availableDays);
+      }
+      if (typeof p.sessionDurationMinutes === 'number') {
+        setSessionDurationMinutes(p.sessionDurationMinutes);
+      }
+      if (orderedGoals.length === 0) {
+        setOrderedGoals([DEFAULT_GOALS[0]]);
+      }
+      setUserContextNotes((prev) => (prev ? `${prev} · ${trimmed}` : trimmed));
+
+      setChatMessages((prev) => [
+        ...prev,
+        {
+          id: 'ai-' + Date.now(),
+          sender: 'ai',
+          text: res.replyPt,
+          timestamp: Date.now(),
+        },
+      ]);
+    } catch {
+      // Fallback amigável
+      setChatMessages((prev) => [
+        ...prev,
+        {
+          id: 'ai-fallback-' + Date.now(),
+          sender: 'ai',
+          text: 'Entendi suas anotações! Já registrei suas preferências para montar seu treino.',
+          timestamp: Date.now(),
+        },
+      ]);
+    } finally {
+      setIsAiFilling(false);
+    }
+  };
 
   const handleAiOnboardingAssist = async () => {
     const trimmed = aiInputText.trim();
@@ -187,14 +270,12 @@ export const ListeningJourneyView: React.FC<ListeningJourneyViewProps> = ({
       }
       if (Array.isArray(p.availableDays) && p.availableDays.length > 0) {
         setAvailableDays(p.availableDays);
-      } else if (availableDays.length === 0) {
-        setAvailableDays([1, 3, 5]);
       }
       if (typeof p.sessionDurationMinutes === 'number') {
         setSessionDurationMinutes(p.sessionDurationMinutes);
       }
       if (orderedGoals.length === 0) {
-        setOrderedGoals([DEFAULT_GOALS[0], DEFAULT_GOALS[2]]);
+        setOrderedGoals([DEFAULT_GOALS[0]]);
       }
       setUserContextNotes(trimmed);
       setStep(7); // Leva direto à revisão final para o aluno validar em 1 clique!
@@ -450,53 +531,255 @@ export const ListeningJourneyView: React.FC<ListeningJourneyViewProps> = ({
         </div>
       </header>
 
-      {/* Conteúdo Principal do Passo */}
+      {/* Conteúdo Principal */}
       <main className="flex-1 max-w-xl mx-auto w-full px-4 py-6 space-y-6">
-        {/* Co-Criação Opcional com o Personal IA (Atalho Conversacional) */}
-        {step < 7 && (
-          <div className="bg-linear-to-r from-[#EAF4F0] to-[#F4F9F6] rounded-2xl p-3.5 border border-[#B7D7C8] space-y-2.5">
-            <div className="flex items-center justify-between gap-2">
-              <div className="flex items-center gap-2">
-                <Sparkles className="w-4 h-4 text-[#125F55] shrink-0" />
-                <span className="text-xs font-bold text-[#152A29]">
-                  Prefere contar sua rotina em 1 frase para o Personal IA preencher?
+        {/* Seletor de Modo: Entrevista Conversacional (IA & Áudio) vs Passo a Passo Tradicional */}
+        <div className="flex bg-[#EAF3EF] p-1 rounded-2xl border border-[#C9DBD3]/80 shadow-2xs">
+          <button
+            type="button"
+            onClick={() => setInterviewMode('conversational')}
+            className={`flex-1 py-2 px-3 rounded-xl font-bold text-xs flex items-center justify-center gap-1.5 transition-all cursor-pointer ${
+              interviewMode === 'conversational'
+                ? 'bg-[#125F55] text-white shadow-xs'
+                : 'text-[#5B7170] hover:text-[#152A29]'
+            }`}
+          >
+            <Sparkles className="w-3.5 h-3.5" />
+            <span>Entrevista Inteligente (Voz & IA)</span>
+          </button>
+          <button
+            type="button"
+            onClick={() => setInterviewMode('step_by_step')}
+            className={`flex-1 py-2 px-3 rounded-xl font-bold text-xs flex items-center justify-center gap-1.5 transition-all cursor-pointer ${
+              interviewMode === 'step_by_step'
+                ? 'bg-[#125F55] text-white shadow-xs'
+                : 'text-[#5B7170] hover:text-[#152A29]'
+            }`}
+          >
+            <span>📋 Passo a Passo Tradicional</span>
+          </button>
+        </div>
+
+        {/* ================================================================= */}
+        {/* MODO 1: ENTREVISTA CONVERSACIONAL INTELIGENTE (ESCUTA 2.0)       */}
+        {/* ================================================================= */}
+        {interviewMode === 'conversational' && (
+          <div className="space-y-5 animate-in fade-in">
+            {/* Bloco 1: Identificação Acolhedora */}
+            <section className="bg-white rounded-3xl p-5 border border-[#C9DBD3] shadow-xs space-y-3">
+              <div className="flex items-center justify-between">
+                <h2 className="text-xl font-bold text-[#152A29]">
+                  Como prefere ser chamado?
+                </h2>
+                <span className="text-[10px] font-bold px-2.5 py-0.5 rounded-full bg-[#EAF3EF] text-[#125F55]">
+                  Escuta 2.0
                 </span>
               </div>
+              <p className="text-xs text-[#5B7170]">
+                {displayName && displayName !== 'Praticante'
+                  ? `Identificamos você como ${displayName}. Ajuste abaixo se preferir outro nome:`
+                  : 'Identificação simples para personalizarmos suas sessões:'}
+              </p>
+              <input
+                id="display_name_input"
+                type="text"
+                value={displayName}
+                onChange={(e) => setDisplayName(e.target.value)}
+                placeholder="Seu nome ou apelido"
+                className="w-full p-3 rounded-xl border border-[#C9DBD3] text-sm focus:outline-none focus:border-[#125F55] bg-[#F5F8F5]"
+              />
+            </section>
+
+            {/* Bloco 2: Painel de Diretrizes Reconhecidas em Tempo Real */}
+            <section className="bg-[#FAF8F5] rounded-3xl p-4 border border-[#C9DBD3]/80 space-y-2.5">
+              <div className="flex items-center justify-between">
+                <span className="text-[11px] font-extrabold uppercase tracking-wider text-[#125F55] flex items-center gap-1.5">
+                  <Sparkles className="w-3.5 h-3.5" />
+                  Diretrizes Reconhecidas pelo Personal IA
+                </span>
+                <span className="text-[10px] text-[#5B7170]">Atualiza em tempo real</span>
+              </div>
+
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs">
+                <div className="bg-white p-2.5 rounded-xl border border-[#C9DBD3]/60 space-y-0.5">
+                  <span className="text-[10px] uppercase font-bold text-[#5B7170]">Frequência</span>
+                  <p className="font-bold text-[#125F55] truncate">
+                    {availableDays.length > 0
+                      ? `${availableDays.length} dias (${availableDays.map((d) => DOW_LABELS_MAP[d]).join(', ')})`
+                      : 'A definir'}
+                  </p>
+                </div>
+                <div className="bg-white p-2.5 rounded-xl border border-[#C9DBD3]/60 space-y-0.5">
+                  <span className="text-[10px] uppercase font-bold text-[#5B7170]">Duração</span>
+                  <p className="font-bold text-[#125F55]">
+                    {sessionDurationMinutes} min / sessão
+                  </p>
+                </div>
+                <div className="bg-white p-2.5 rounded-xl border border-[#C9DBD3]/60 space-y-0.5">
+                  <span className="text-[10px] uppercase font-bold text-[#5B7170]">Apoios / Equip.</span>
+                  <p className="font-bold text-[#125F55] truncate">
+                    {equipments.map((e) => EQUIPMENT_LABELS[e] || e).join(', ')}
+                  </p>
+                </div>
+                <div className="bg-white p-2.5 rounded-xl border border-[#C9DBD3]/60 space-y-0.5">
+                  <span className="text-[10px] uppercase font-bold text-[#5B7170]">Cuidados</span>
+                  <p className="font-bold text-[#125F55] truncate">
+                    {reportedLimitations.length > 0 && !reportedLimitations.includes('nenhuma')
+                      ? reportedLimitations.join(', ')
+                      : 'Sem restrições'}
+                  </p>
+                </div>
+              </div>
+            </section>
+
+            {/* Bloco 3: Diálogo Conversacional com Áudio e Texto */}
+            <section className="bg-white rounded-3xl p-5 border border-[#C9DBD3] shadow-xs space-y-4">
+              <div className="flex items-center gap-2 border-b border-[#C9DBD3]/50 pb-3">
+                <div className="w-8 h-8 rounded-full bg-[#125F55] text-white flex items-center justify-center shrink-0">
+                  <Bot className="w-4 h-4" />
+                </div>
+                <div>
+                  <h3 className="text-sm font-bold text-[#152A29]">
+                    Personal SuperAção
+                  </h3>
+                  <p className="text-[11px] text-[#5B7170]">
+                    Fale pelo microfone (Whisper) ou digite para montar seu plano
+                  </p>
+                </div>
+              </div>
+
+              {/* Balões do Chat */}
+              <div className="space-y-3 max-h-64 overflow-y-auto pr-1">
+                {chatMessages.map((msg) => (
+                  <div
+                    key={msg.id}
+                    className={`flex ${msg.sender === 'user' ? 'justify-end' : 'justify-start'}`}
+                  >
+                    <div
+                      className={`p-3.5 rounded-2xl text-xs leading-relaxed max-w-[85%] ${
+                        msg.sender === 'user'
+                          ? 'bg-[#125F55] text-white rounded-tr-xs shadow-xs'
+                          : 'bg-[#F5F8F5] text-[#152A29] border border-[#C9DBD3]/70 rounded-tl-xs'
+                      }`}
+                    >
+                      {msg.text}
+                    </div>
+                  </div>
+                ))}
+                {isAiFilling && (
+                  <div className="flex justify-start">
+                    <div className="p-3 bg-[#F5F8F5] border border-[#C9DBD3]/70 rounded-2xl rounded-tl-xs text-xs text-[#5B7170] flex items-center gap-2">
+                      <span className="w-2 h-2 rounded-full bg-[#125F55] animate-ping" />
+                      <span>Personal organizando suas preferências...</span>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* Input com Microfone e Sugestões */}
+              <div className="pt-2">
+                <VoiceOrTextContextInput
+                  placeholder="Fale no microfone ou digite: Ex: Quero treinar 3x por semana uns 20 min..."
+                  onSend={handleSendConversationalMessage}
+                  isLoading={isAiFilling}
+                  quickChips={[
+                    { label: '📅 3x por semana (20 min)', text: 'Quero treinar 3 dias por semana por cerca de 20 minutos' },
+                    { label: '🏠 Em casa (peso corporal)', text: 'Vou treinar em casa usando apenas o peso do próprio corpo' },
+                    { label: '⚠️ Sensibilidade no joelho', text: 'Sinto dor ou desconforto nos joelhos ao agachar profundo' },
+                    { label: '⚠️ Cuidado na coluna lombar', text: 'Tenho sensibilidade na coluna lombar e prefiro movimentos sem sobrecarga' },
+                    { label: '🎯 Foco em constância e hábito', text: 'Meu objetivo principal é saúde preventiva e criar o hábito diário' },
+                  ]}
+                />
+              </div>
+
+              {/* Ajuste Direto de Frequência em 1 Toque */}
+              <div className="pt-2 border-t border-[#C9DBD3]/40 space-y-2">
+                <span className="text-[10px] font-bold text-[#5B7170] uppercase">
+                  Ajuste rápido de dias disponíveis:
+                </span>
+                <div className="flex flex-wrap items-center gap-1.5 text-xs">
+                  {[
+                    { days: [1, 3, 5], label: '3 dias (Seg/Qua/Sex)' },
+                    { days: [2, 4], label: '2 dias (Ter/Qui)' },
+                    { days: [1, 2, 4, 5], label: '4 dias (Seg/Ter/Qui/Sex)' },
+                    { days: [6, 0], label: 'Fins de semana (Sáb/Dom)' },
+                  ].map((item, idx) => {
+                    const isSelected = JSON.stringify(availableDays) === JSON.stringify(item.days);
+                    return (
+                      <button
+                        key={idx}
+                        type="button"
+                        onClick={() => setAvailableDays(item.days)}
+                        className={`py-1 px-2.5 rounded-full text-[11px] font-bold transition-all cursor-pointer ${
+                          isSelected
+                            ? 'bg-[#125F55] text-white shadow-xs'
+                            : 'bg-[#FAF8F5] border border-[#C9DBD3] text-[#19231E] hover:bg-[#EAF3EF]'
+                        }`}
+                      >
+                        {item.label}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            </section>
+
+            {/* Ações de Conclusão da Entrevista Conversacional */}
+            <div className="space-y-2.5 pt-2">
               <button
                 type="button"
-                onClick={() => setShowAiExpressBar((v) => !v)}
-                className="text-[11px] font-bold text-[#125F55] bg-white px-2.5 py-1 rounded-lg border border-[#C9DBD3] hover:bg-[#FAF8F5] cursor-pointer shrink-0"
+                onClick={() => {
+                  if (availableDays.length === 0) {
+                    setAvailableDays([1, 3, 5]);
+                  }
+                  if (orderedGoals.length === 0) {
+                    setOrderedGoals([DEFAULT_GOALS[0]]);
+                  }
+                  handleFinalChoice('proposal');
+                }}
+                className="w-full min-h-[52px] p-3.5 bg-[#125F55] text-white rounded-2xl font-bold text-sm flex items-center justify-between hover:bg-[#0C5148] transition-all cursor-pointer shadow-md active:scale-[0.99]"
               >
-                {showAiExpressBar ? 'Fechar' : 'Preencher com IA'}
+                <div className="flex items-center gap-2.5 text-left">
+                  <Sparkles className="w-5 h-5 text-[#D9F277]" />
+                  <div>
+                    <div>Ver Proposta Personalizada para Mim</div>
+                    <div className="text-[11px] font-normal text-white/80">
+                      Gera seu plano sob medida com base nas preferências coletadas
+                    </div>
+                  </div>
+                </div>
+                <ArrowRight className="w-5 h-5" />
               </button>
-            </div>
-            {showAiExpressBar && (
-              <div className="space-y-2 pt-1">
-                <textarea
-                  rows={2}
-                  value={aiInputText}
-                  onChange={(e) => setAiInputText(e.target.value)}
-                  placeholder="Ex: Tenho halteres e mini band em casa, sinto leve incômodo no joelho e quero treinar 3x por semana uns 20 min."
-                  className="w-full text-xs p-2.5 rounded-xl bg-white border border-[#C9DBD3] text-[#152A29] focus:outline-hidden focus:border-[#125F55]"
-                />
+
+              <div className="flex flex-col sm:flex-row items-center justify-between gap-2 pt-1 text-xs">
                 <button
                   type="button"
-                  disabled={isAiFilling || !aiInputText.trim()}
-                  onClick={handleAiOnboardingAssist}
-                  className="w-full py-2 rounded-xl bg-[#125F55] text-white text-xs font-bold hover:bg-[#0D4A42] disabled:opacity-50 cursor-pointer"
+                  onClick={() => {
+                    setInterviewMode('step_by_step');
+                    setStep(2);
+                  }}
+                  className="px-4 py-2.5 rounded-xl border border-[#C9DBD3] bg-white text-[#125F55] font-bold hover:bg-[#FAF8F5] cursor-pointer flex items-center gap-1.5"
                 >
-                  {isAiFilling ? 'Organizando sua rotina...' : '✨ Preencher Escuta e Revisar Resumo'}
+                  <span>Avançar para Passo a Passo Detalhado</span>
+                  <ArrowRight className="w-3.5 h-3.5" />
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleFinalChoice('builder_manual')}
+                  className="text-[#5B7170] hover:text-[#19231E] cursor-pointer underline text-[11px]"
+                >
+                  Montar rotina manual
                 </button>
               </div>
-            )}
+            </div>
           </div>
         )}
-        {aiReplyPreview && step === 7 && (
-          <div className="bg-[#EAF4F0] border border-[#B7D7C8] rounded-2xl p-3.5 text-xs text-[#152A29] flex items-start gap-2">
-            <Sparkles className="w-4 h-4 text-[#125F55] shrink-0 mt-0.5" />
-            <span>{aiReplyPreview}</span>
-          </div>
-        )}
+
+        {/* ================================================================= */}
+        {/* MODO 2: PASSOS TRADICIONAIS (PASSOS 1 A 7)                        */}
+        {/* ================================================================= */}
+        {interviewMode === 'step_by_step' && (
+          <div className="space-y-6">
 
         {/* PASSO 1: SEU MOMENTO */}
         {step === 1 && (
@@ -1227,6 +1510,8 @@ export const ListeningJourneyView: React.FC<ListeningJourneyViewProps> = ({
               <span>Avançar</span>
               <ArrowRight className="w-4 h-4" />
             </button>
+          </div>
+        )}
           </div>
         )}
       </main>

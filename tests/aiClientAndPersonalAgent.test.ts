@@ -153,4 +153,67 @@ describe('Suíte de Integração Frontend: AI Client, Personal Agent & Admin (v9
     expect(snapshot.apiKeyStatus?.maskedKey).toBe('sk-dee...9876');
     expect(snapshot.apiKeyStatus?.source).toBe('admin_vault');
   });
+
+  it('10. normalizeExternalModality normaliza variações livres do LLM para o enum do sistema', async () => {
+    const { normalizeExternalModality } = await import('../src/lib/aiActions');
+    expect(normalizeExternalModality('Jiu-Jitsu')).toBe('artes_marciais');
+    expect(normalizeExternalModality('treino de muay thai no tatame')).toBe('artes_marciais');
+    expect(normalizeExternalModality('Caminhada ao ar livre')).toBe('caminhada_corrida');
+    expect(normalizeExternalModality('yoga e mobilidade')).toBe('mobilidade_yoga');
+    expect(normalizeExternalModality('musculação pesada')).toBe('forca_academia');
+    expect(normalizeExternalModality('partida de futebol')).toBe('esporte_coletivo');
+    expect(normalizeExternalModality('natação e bike')).toBe('ciclismo_natacao');
+    expect(normalizeExternalModality(null)).toBe('outra');
+  });
+
+  it('11. buildAiUserContext extrai contexto vivo de treino, dias e histórico recente', async () => {
+    const { buildAiUserContext } = await import('../src/lib/aiActions');
+    const ctx = buildAiUserContext(
+      {
+        experienceLevel: 'retomando',
+        practiceObstacles: ['falta_tempo'],
+        availableDays: [1, 3, 5],
+        exerciseReason: 'Qualidade de vida',
+      },
+      [
+        {
+          id: '2026-11-09',
+          dateStr: '2026-11-09',
+          dayOfWeek: 1,
+          activityType: 'strength',
+          planTitle: 'Treino A',
+          isCompleted: false,
+          ownerUid: 'test',
+        },
+      ],
+      [
+        {
+          id: 's1',
+          ownerUid: 'test',
+          planId: 'p1',
+          planTitle: 'Treino Anterior',
+          status: 'completed',
+          startedAt: Date.now() - 86400000,
+          completedAt: Date.now() - 86400000 + 1200000,
+          durationSeconds: 1200,
+          currentExerciseIndex: 0,
+          currentSetIndex: 1,
+          totalSetsPlanned: 3,
+          totalSetsCompleted: 3,
+          totalRepsCompleted: 30,
+          prsAchieved: 0,
+          feedbackEffort: 3,
+          exercisesSnapshot: [],
+        },
+      ],
+      Date.parse('2026-11-09T10:00:00Z')
+    );
+
+    expect(ctx.experienceLevel).toBe('retomando');
+    expect(ctx.obstacles).toContain('falta_tempo');
+    expect(ctx.availableDays).toEqual([1, 3, 5]);
+    expect(ctx.today?.kind).toBe('strength');
+    expect(ctx.recentSessions?.length).toBe(1);
+    expect(ctx.daysSinceLastWorkout).toBe(1);
+  });
 });

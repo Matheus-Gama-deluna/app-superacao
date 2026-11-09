@@ -53,6 +53,49 @@ export interface MasterPersonalRequest {
     currentPhaseLabel?: string;
     scheduledDaysCount?: number;
   };
+  /** Contexto vivo do aluno (perfil + dia atual + histórico recente) para respostas realmente personalizadas */
+  userContext?: AiUserContext;
+}
+
+export interface AiUserContext {
+  experienceLevel?: string;
+  obstacles?: string[];
+  availableDays?: number[];
+  habitAnchor?: string;
+  exerciseReason?: string;
+  goalPriority?: string[];
+  preferredTime?: string;
+  environment?: string;
+  today?: { kind?: string; planTitle?: string; completed?: boolean; dateStr?: string };
+  recentSessions?: Array<{ date?: string; title?: string; rpe?: number; durationMin?: number; mood?: string; external?: boolean }>;
+  daysSinceLastWorkout?: number;
+  weeklyCompleted?: number;
+  weeklyTarget?: number;
+}
+
+function formatUserContextForPrompt(ctx?: AiUserContext): string {
+  if (!ctx) return '- Contexto pessoal adicional: não informado.';
+  const dayNames = ['dom', 'seg', 'ter', 'qua', 'qui', 'sex', 'sáb'];
+  const lines: string[] = [];
+  if (ctx.experienceLevel) lines.push(`- Nível de experiência: ${ctx.experienceLevel}`);
+  if (ctx.goalPriority?.length) lines.push(`- Objetivos (em ordem de prioridade): ${ctx.goalPriority.slice(0, 4).join(' > ')}`);
+  if (ctx.exerciseReason) lines.push(`- Porquê pessoal: "${String(ctx.exerciseReason).slice(0, 140)}"`);
+  if (ctx.obstacles?.length) lines.push(`- Obstáculos declarados: ${ctx.obstacles.slice(0, 5).join(', ')}`);
+  if (ctx.availableDays?.length) lines.push(`- Dias disponíveis: ${ctx.availableDays.map((d) => dayNames[d] || d).join(', ')}${ctx.preferredTime ? ` (prefere ${ctx.preferredTime})` : ''}`);
+  if (ctx.habitAnchor) lines.push(`- Âncora de hábito: ${String(ctx.habitAnchor).slice(0, 100)}`);
+  if (ctx.environment) lines.push(`- Ambiente preferido: ${ctx.environment}`);
+  if (ctx.today) {
+    lines.push(`- HOJE: ${ctx.today.kind || 'livre'}${ctx.today.planTitle ? ` — "${ctx.today.planTitle}"` : ''}${ctx.today.completed ? ' (já concluído)' : ''}`);
+  }
+  if (typeof ctx.weeklyCompleted === 'number') lines.push(`- Semana: ${ctx.weeklyCompleted}/${ctx.weeklyTarget ?? '?'} sessões`);
+  if (typeof ctx.daysSinceLastWorkout === 'number') lines.push(`- Dias desde o último treino: ${ctx.daysSinceLastWorkout}`);
+  if (ctx.recentSessions?.length) {
+    lines.push('- Últimas sessões (mais recente primeiro):');
+    for (const r of ctx.recentSessions.slice(0, 5)) {
+      lines.push(`  • ${r.date || '?'} ${r.external ? '[externo] ' : ''}${String(r.title || 'Treino').slice(0, 50)}${r.durationMin ? ` ${r.durationMin}min` : ''}${typeof r.rpe === 'number' ? ` RPE ${r.rpe}/5` : ''}${r.mood ? ` humor ${r.mood}` : ''}`);
+    }
+  }
+  return lines.length ? lines.join('\n') : '- Contexto pessoal adicional: não informado.';
 }
 
 const TEACHER_LOCKED_ACTIONS = new Set([
@@ -172,6 +215,7 @@ CONTEXTO VIVO DO ALUNO E DO APLICATIVO:
 - Programa de Longo Prazo: ${programText}
 - Equipamentos disponíveis: ${(req.equipments && req.equipments.length > 0 ? req.equipments : ['peso_corporal']).join(', ')}
 - Limitações reportadas: ${(activeLimitationTags.length > 0 ? activeLimitationTags : ['nenhuma']).join(', ')}
+${formatUserContextForPrompt(req.userContext)}
 - Ficha gerenciada por Professor Parceiro: ${req.isTeacherManaged ? 'SIM (PROIBIDO alterar ficha permanente/programa com update_routine/create_program; permitido apenas ajuste pontual de hoje como soften_session, swap_exercise por dor aguda ou log_external_practice)' : 'NÃO (autonomia completa com confirmação do aluno)'}
 
 EXERCÍCIOS DA SESSÃO ATUAL:

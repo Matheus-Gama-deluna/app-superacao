@@ -7,6 +7,7 @@ import {
   TeacherDayRegime,
   ActiveRestActivityType,
   WorkoutPlan,
+  AiAnamnesisAnalysis,
 } from '../types';
 import {
   getTeacherLinks,
@@ -26,6 +27,7 @@ import {
   evaluateTeacherRosterRadar,
   TeacherStudentRadarAlert,
 } from '../lib/aiTeacherCopilot';
+import { analyzeAnamnesisWithCopilot } from '../lib/aiClient';
 import { AnamnesisBuilderModal } from '../components/teacher/AnamnesisBuilderModal';
 import { allTemplates } from '../data/catalog';
 import { MONDAY_FIRST_DAYS } from '../lib/dateUtils';
@@ -63,6 +65,10 @@ export const TeacherDashboardView: React.FC<TeacherDashboardViewProps> = ({
   const [currentAssignedPlans, setCurrentAssignedPlans] = useState<WorkoutPlan[]>([]);
   const [zoomPhotoUrl, setZoomPhotoUrl] = useState<string | null>(null);
 
+  // Co-piloto de Visão e Anamnese (execução autônoma sob demanda / seleção de aluno)
+  const [copilotAnalysis, setCopilotAnalysis] = useState<AiAnamnesisAnalysis | null>(null);
+  const [isAnalyzingCopilot, setIsAnalyzingCopilot] = useState<boolean>(false);
+
   const inviteCode = generateTeacherInviteCode(teacherUid);
 
   // Garante que o template default PROF-XXXX esteja salvo no storage ao abrir o painel
@@ -85,6 +91,50 @@ export const TeacherDashboardView: React.FC<TeacherDashboardViewProps> = ({
   const selectedSubmission = selectedLink?.lastSubmissionId
     ? submissions.find((s) => s.id === selectedLink.lastSubmissionId) || null
     : null;
+
+  // Executa o Co-Piloto de Visão & Anamnese autonomamente quando seleciona aluno com anamnese
+  useEffect(() => {
+    if (!selectedSubmission) {
+      setCopilotAnalysis(null);
+      setIsAnalyzingCopilot(false);
+      return;
+    }
+
+    // Se já tem análise persistida no submission, usa imediatamente
+    if (selectedSubmission.aiAnalysis) {
+      setCopilotAnalysis(selectedSubmission.aiAnalysis);
+      return;
+    }
+
+    let isMounted = true;
+    setIsAnalyzingCopilot(true);
+
+    analyzeAnamnesisWithCopilot(selectedSubmission)
+      .then((analysis) => {
+        if (!isMounted) return;
+        setCopilotAnalysis(analysis);
+        const updatedSub: AnamnesisSubmission = {
+          ...selectedSubmission,
+          aiAnalysis: analysis,
+        };
+        saveAnamnesisSubmission(updatedSub);
+        setSubmissions(getSavedSubmissionsForTeacher(teacherUid));
+      })
+      .catch((err) => {
+        console.warn('[TeacherDashboard] Falha na análise do copiloto:', err);
+        if (isMounted) {
+          const fallback = runClinicalHeuristicAnalysis(selectedSubmission);
+          setCopilotAnalysis(fallback);
+        }
+      })
+      .finally(() => {
+        if (isMounted) setIsAnalyzingCopilot(false);
+      });
+
+    return () => {
+      isMounted = false;
+    };
+  }, [selectedSubmission?.id, teacherUid]);
 
   // Quando seleciona um aluno, carrega suas prescrições
   useEffect(() => {
@@ -115,7 +165,7 @@ export const TeacherDashboardView: React.FC<TeacherDashboardViewProps> = ({
   };
 
   // Co-Piloto IA: gera rascunho de prescrição automático para o aluno selecionado
-  const handleGenerateAiDraft = () => {
+  const handleGenerateAiDraft = async () => {
     if (!selectedLink) return;
     const sub = selectedSubmission || {
       id: 'sub_temp',
@@ -132,7 +182,20 @@ export const TeacherDashboardView: React.FC<TeacherDashboardViewProps> = ({
       status: 'pending_review' as const,
     };
 
-    const analysis = runClinicalHeuristicAnalysis(sub);
+    let analysis = copilotAnalysis;
+    if (!analysis) {
+      setIsAnalyzingCopilot(true);
+      try {
+        analysis = await analyzeAnamnesisWithCopilot(sub);
+        setCopilotAnalysis(analysis);
+      } catch {
+        analysis = runClinicalHeuristicAnalysis(sub);
+        setCopilotAnalysis(analysis);
+      } finally {
+        setIsAnalyzingCopilot(false);
+      }
+    }
+
     const draft = draftWeeklyPrescriptionForTeacher(selectedLink.studentName, analysis);
 
     setCurrentPrescriptions(draft.weeklyPrescriptions);
@@ -520,40 +583,78 @@ export const TeacherDashboardView: React.FC<TeacherDashboardViewProps> = ({
                         </div>
                       )}
 
-                      {/* Análise Clínica e Postural • Co-Piloto IA */}
-                      {(() => {
-                        const clinical = runClinicalHeuristicAnalysis(selectedSubmission);
+                      {/* Análise Clínica e Postural • Co-Piloto IA (Visão Multimodal & Heurística) */}
+                      {isAnalyzingCopilot ? (
+                        <div className="p-4 rounded-2xl bg-[#EAF3EF] border border-[#125F55]/30 space-y-2 text-xs animate-pulse">
+                          <div className="flex items-center gap-2 text-[#125F55] font-extrabold text-xs uppercase tracking-wider">
+                            <span className="animate-spin inline-block">⚙️</span>
+                            <span>Co-Piloto de Visão & Anamnese em Execução Autônoma...</span>
+                          </div>
+                          <p className="text-[#5B7170] text-[11px] leading-relaxed">
+                            Processando imagens anexadas (alinhamento escapular/lombar) e cruzando queixas articulares com o catálogo biomecânico.
+                          </p>
+                        </div>
+                      ) : (() => {
+                        const clinical = copilotAnalysis || runClinicalHeuristicAnalysis(selectedSubmission);
                         return (
-                          <div className="p-4 rounded-2xl bg-[#EAF3EF] border border-[#125F55]/25 space-y-2.5 text-xs">
-                            <div className="flex items-center gap-2 text-[#125F55] font-extrabold text-xs uppercase tracking-wider">
-                              <span>🤖</span>
-                              <span>Análise Clínica & Postural • Co-Piloto IA</span>
+                          <div className="p-4 rounded-2xl bg-[#EAF3EF] border border-[#125F55]/25 space-y-3 text-xs">
+                            <div className="flex flex-wrap items-center justify-between gap-2 border-b border-[#125F55]/15 pb-2">
+                              <div className="flex items-center gap-2 text-[#125F55] font-extrabold text-xs uppercase tracking-wider">
+                                <span>🤖</span>
+                                <span>Análise Clínica & Postural • Co-Piloto</span>
+                              </div>
+                              <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-[#125F55]/10 text-[#125F55]">
+                                {clinical.source === 'ai_model' ? 'Visão Multimodal Ativa' : 'Triagem Heurística'}
+                              </span>
                             </div>
+
                             <p className="text-[#19231E] leading-relaxed">
                               {clinical.clinicalSummary}
                             </p>
+
                             {clinical.posturalFlags.length > 0 && (
                               <div className="space-y-1">
-                                <span className="font-bold text-[#8B4513] text-[11px] block">Pontos de Atenção Postural:</span>
+                                <span className="font-bold text-[#8B4513] text-[11px] block">
+                                  📸 Observações Posturais & Visuais:
+                                </span>
                                 <ul className="list-disc list-inside space-y-0.5 text-[11px] text-[#5C4033]">
-                                  {clinical.posturalFlags.map((flag, i) => (
+                                  {clinical.posturalFlags.map((flag: string, i: number) => (
                                     <li key={i}>{flag}</li>
                                   ))}
                                 </ul>
                               </div>
                             )}
+
                             {clinical.avoidedMovements.length > 0 && (
                               <div className="space-y-1">
-                                <span className="font-bold text-[#C84B31] text-[11px] block">Movimentos Sugeridos a Evitar:</span>
+                                <span className="font-bold text-[#C84B31] text-[11px] block">
+                                  ⚠️ Movimentos Sugeridos a Evitar:
+                                </span>
                                 <div className="flex flex-wrap gap-1">
-                                  {clinical.avoidedMovements.map((mov, i) => (
-                                    <span key={i} className="bg-[#C84B31]/15 text-[#C84B31] font-bold text-[10px] px-2 py-0.5 rounded-full">
+                                  {clinical.avoidedMovements.map((mov: string, i: number) => (
+                                    <span
+                                      key={i}
+                                      className="bg-[#C84B31]/15 text-[#C84B31] font-bold text-[10px] px-2 py-0.5 rounded-full"
+                                    >
                                       {mov.replace(/_/g, ' ')}
                                     </span>
                                   ))}
                                 </div>
                               </div>
                             )}
+
+                            <div className="pt-1 flex items-center justify-between gap-2">
+                              <span className="text-[11px] text-[#5B7170]">
+                                Sugestão: Divisão <strong>{clinical.suggestedSplit.toUpperCase()}</strong> ({clinical.suggestedFrequencyDays} dias/sem)
+                              </span>
+                              <button
+                                type="button"
+                                onClick={handleGenerateAiDraft}
+                                className="py-1.5 px-3 rounded-full bg-[#125F55] text-white text-[11px] font-bold hover:bg-[#0E4B43] transition-all cursor-pointer flex items-center gap-1 shadow-2xs"
+                              >
+                                <span>⚡</span> Aplicar à Prescrição
+                              </button>
+                            </div>
                           </div>
                         );
                       })()}

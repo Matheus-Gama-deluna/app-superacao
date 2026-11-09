@@ -482,6 +482,8 @@ export function simulatePersonalAssistantReply(
   };
 }
 
+import type { AiUserContextPayload } from './aiActions';
+
 // ============================================================================
 // SERVIÇOS EXPORTADOS DO AI CLIENT (ALINHADOS 1:1 COM CLOUD FUNCTIONS v9.5)
 // ============================================================================
@@ -500,6 +502,7 @@ export interface SendAiMessageParams {
     currentPhaseLabel?: string;
     scheduledDaysCount?: number;
   };
+  userContext?: AiUserContextPayload;
 }
 
 export async function sendMessageToPersonalAssistant(
@@ -528,6 +531,7 @@ export async function sendMessageToPersonalAssistant(
         sessionExercises: params.sessionExercises || [],
         catalogCandidates,
         programSummary: params.programSummary,
+        userContext: params.userContext,
       });
 
       const result = await withTimeout(callPromise, getSmartCallableTimeoutMs(18000));

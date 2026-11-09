@@ -21,6 +21,8 @@ import {
   ProposalDiff,
 } from '../types';
 import { VoiceOrTextContextInput } from './VoiceOrTextContextInput';
+import { useAuth } from '../context/AuthContext';
+import type { AiUserContextPayload } from '../lib/aiActions';
 import {
   sendMessageToPersonalAssistant,
   fetchStudentCoreMemory,
@@ -42,6 +44,7 @@ interface PersonalAgentDrawerProps {
     currentPhaseLabel?: string;
     scheduledDaysCount?: number;
   };
+  userContext?: AiUserContextPayload;
 }
 
 interface ChatMessage {
@@ -61,7 +64,9 @@ export const PersonalAgentDrawer: React.FC<PersonalAgentDrawerProps> = ({
   isTeacherManagedPlan = false,
   sessionExercises,
   programSummary,
+  userContext,
 }) => {
+  const { user } = useAuth();
   const [activeTab, setActiveTab] = useState<'chat' | 'memory'>('chat');
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [isLoading, setIsLoading] = useState(false);
@@ -125,6 +130,7 @@ export const PersonalAgentDrawer: React.FC<PersonalAgentDrawerProps> = ({
         isTeacherManaged: isTeacherManagedPlan,
         sessionExercises,
         programSummary,
+        userContext,
       });
 
       const assistantMsg: ChatMessage = {
@@ -190,7 +196,7 @@ export const PersonalAgentDrawer: React.FC<PersonalAgentDrawerProps> = ({
               <div className="flex items-center gap-1.5">
                 <span className="font-bold text-sm text-slate-900">Personal IA</span>
                 <span className="px-1.5 py-0.5 rounded-full text-[10px] font-semibold bg-[#D8F3DC] text-[#1B4332]">
-                  GLM-5.3 ACSM
+                  {user ? 'IA em Nuvem' : 'Modo Básico Local'}
                 </span>
               </div>
               <p className="text-[11px] text-slate-500 line-clamp-1">
@@ -233,6 +239,14 @@ export const PersonalAgentDrawer: React.FC<PersonalAgentDrawerProps> = ({
           <>
             {/* Messages Scroll Area */}
             <div className="flex-1 overflow-y-auto p-4 space-y-3">
+              {!user && (
+                <div className="bg-[#EAF3EF] border border-[#125F55]/20 rounded-2xl p-2.5 sm:p-3 text-[11px] text-[#125F55] flex items-center gap-2 shadow-2xs">
+                  <Sparkles className="w-4 h-4 shrink-0 text-[#125F55]" />
+                  <span>
+                    <strong>Modo Básico Local:</strong> Suas respostas usam regras determinísticas locais. Conecte sua conta no Perfil para ativar a IA avançada em nuvem.
+                  </span>
+                </div>
+              )}
               {messages.map((msg) => (
                 <div
                   key={msg.id}
