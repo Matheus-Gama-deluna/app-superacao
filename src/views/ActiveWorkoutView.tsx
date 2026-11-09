@@ -27,6 +27,8 @@ import {
   Play,
   Square,
   Timer,
+  ThumbsUp,
+  ThumbsDown,
 } from 'lucide-react';
 import { soundManager } from '../lib/audio';
 import { mediaSessionManager } from '../lib/backgroundWorkout';
@@ -36,6 +38,7 @@ import { generateSessionFocusInvite, generateTurnaroundMessage, formatWorkoutSha
 import { findSafeEquivalentExercises, analyzeSessionProgression } from '../lib/workoutEngine';
 import { ProgressionItemUpgrade, SessionProgressionAnalysis } from '../types';
 import { getPersonalizedExerciseCue } from '../lib/aiStudentAssistant';
+import { getCachedExerciseFeedbacks, toggleExerciseFeedback, ExerciseFeedbacksCache } from '../lib/aiClient';
 import { SetConfirmDrawer } from '../components/superacao/SetConfirmDrawer';
 import {
   requestWorkoutWakeLock,
@@ -129,6 +132,14 @@ export const ActiveWorkoutView: React.FC<ActiveWorkoutViewProps> = ({
   const [isoTimerPaused, setIsoTimerPaused] = useState<boolean>(false);
   const [isoTimeRemaining, setIsoTimeRemaining] = useState<number>(0);
   const [isoTargetSeconds, setIsoTargetSeconds] = useState<number>(30);
+
+  // Memória M2: Feedbacks de Exercícios (Curtir / Descurtir)
+  const [exerciseFeedbacks, setExerciseFeedbacks] = useState<ExerciseFeedbacksCache>(() => getCachedExerciseFeedbacks());
+
+  const handleToggleFeedback = async (exerciseId: string, feedback: 'like' | 'dislike') => {
+    const updated = await toggleExerciseFeedback(profile?.uid || '', exerciseId, feedback);
+    setExerciseFeedbacks(updated);
+  };
 
 
   const isAnyWorkoutOverlayOpen = Boolean(
@@ -686,6 +697,62 @@ export const ActiveWorkoutView: React.FC<ActiveWorkoutViewProps> = ({
             </div>
           </div>
 
+          {/* Memória M2: Avaliação de Exercícios da Sessão */}
+          {activeSession.exercisesSnapshot.length > 0 && (
+            <div className="bg-white p-4 rounded-2xl border border-[#C9DBD3] shadow-xs space-y-2.5">
+              <div className="flex items-center justify-between">
+                <label className="block text-xs font-bold text-[#152A29]">
+                  Exercícios Desta Sessão (Memória IA)
+                </label>
+                <span className="text-[10px] text-[#5B7170]">Personaliza seus próximos treinos</span>
+              </div>
+              <div className="space-y-1.5 max-h-44 overflow-y-auto pr-1">
+                {activeSession.exercisesSnapshot.map((ex) => {
+                  const isLiked = exerciseFeedbacks.liked.includes(ex.exerciseId);
+                  const isDisliked = exerciseFeedbacks.disliked.includes(ex.exerciseId);
+                  return (
+                    <div
+                      key={ex.exerciseId}
+                      className="flex items-center justify-between p-2 rounded-xl bg-[#FAF8F5] border border-[#E4DDD3] text-xs"
+                    >
+                      <span className="font-semibold text-[#19231E] truncate max-w-[200px]">
+                        {ex.exerciseName}
+                      </span>
+                      <div className="flex items-center gap-1.5 shrink-0">
+                        <button
+                          type="button"
+                          onClick={() => handleToggleFeedback(ex.exerciseId, 'like')}
+                          className={`p-1.5 rounded-lg border transition-all cursor-pointer ${
+                            isLiked
+                              ? 'bg-[#125F55] text-white border-[#125F55]'
+                              : 'bg-white text-[#5B7170] border-[#E4DDD3] hover:text-[#125F55]'
+                          }`}
+                          title="Gostei"
+                          aria-label={`Gostei de ${ex.exerciseName}`}
+                        >
+                          <ThumbsUp className="w-3 h-3" />
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => handleToggleFeedback(ex.exerciseId, 'dislike')}
+                          className={`p-1.5 rounded-lg border transition-all cursor-pointer ${
+                            isDisliked
+                              ? 'bg-[#C84B31] text-white border-[#C84B31]'
+                              : 'bg-white text-[#5B7170] border-[#E4DDD3] hover:text-[#C84B31]'
+                          }`}
+                          title="Não gostei"
+                          aria-label={`Não gostei de ${ex.exerciseName}`}
+                        >
+                          <ThumbsDown className="w-3 h-3" />
+                        </button>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
           {/* Card de Celebração de Conclusão / Compartilhar */}
           <div className="bg-white p-4 rounded-2xl border border-[#C9DBD3] shadow-xs space-y-2.5">
             <div className="flex items-center justify-between text-xs">
@@ -1012,16 +1079,44 @@ export const ActiveWorkoutView: React.FC<ActiveWorkoutViewProps> = ({
                 <h2 className="font-serif text-lg sm:text-xl font-bold text-[#19231E] line-clamp-2 leading-snug flex-1">
                   {currentExerciseItem.exerciseName}
                 </h2>
-                <button
-                  type="button"
-                  onClick={() => setShowSwapModal(true)}
-                  className="px-2.5 py-1 rounded-xl bg-white border border-[#E4DDD3] text-xs font-bold text-[#1B4332] hover:bg-[#E8EFE9] hover:border-[#1B4332] focus-visible:ring-2 focus-visible:ring-[#1B4332] focus-visible:outline-none flex items-center gap-1 transition-all shadow-2xs cursor-pointer shrink-0 mt-0.5"
-                  title="Trocar este exercício por outro equivalente"
-                  aria-label="Trocar exercício por equivalente seguro"
-                >
-                  <ArrowLeftRight className="w-3.5 h-3.5" />
-                  <span>Trocar</span>
-                </button>
+                <div className="flex items-center gap-1 shrink-0 mt-0.5">
+                  <button
+                    type="button"
+                    onClick={() => handleToggleFeedback(currentExerciseItem.exerciseId, 'like')}
+                    className={`p-1.5 rounded-xl border transition-all cursor-pointer ${
+                      exerciseFeedbacks.liked.includes(currentExerciseItem.exerciseId)
+                        ? 'bg-[#125F55] text-white border-[#125F55]'
+                        : 'bg-white text-[#5B7170] border-[#E4DDD3] hover:text-[#125F55]'
+                    }`}
+                    title="Gostei deste exercício"
+                    aria-label="Gostei deste exercício"
+                  >
+                    <ThumbsUp className="w-3.5 h-3.5" />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleToggleFeedback(currentExerciseItem.exerciseId, 'dislike')}
+                    className={`p-1.5 rounded-xl border transition-all cursor-pointer ${
+                      exerciseFeedbacks.disliked.includes(currentExerciseItem.exerciseId)
+                        ? 'bg-[#C84B31] text-white border-[#C84B31]'
+                        : 'bg-white text-[#5B7170] border-[#E4DDD3] hover:text-[#C84B31]'
+                    }`}
+                    title="Desconfortável / não gostei"
+                    aria-label="Não gostei deste exercício"
+                  >
+                    <ThumbsDown className="w-3.5 h-3.5" />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setShowSwapModal(true)}
+                    className="px-2.5 py-1 rounded-xl bg-white border border-[#E4DDD3] text-xs font-bold text-[#1B4332] hover:bg-[#E8EFE9] hover:border-[#1B4332] focus-visible:ring-2 focus-visible:ring-[#1B4332] focus-visible:outline-none flex items-center gap-1 transition-all shadow-2xs cursor-pointer"
+                    title="Trocar este exercício por outro equivalente"
+                    aria-label="Trocar exercício por equivalente seguro"
+                  >
+                    <ArrowLeftRight className="w-3.5 h-3.5" />
+                    <span>Trocar</span>
+                  </button>
+                </div>
               </div>
 
               {/* Dica Biomecânica do Assistente IA */}

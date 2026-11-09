@@ -135,4 +135,35 @@ describe('Sprint 3: Co-Piloto de IA do Professor e Assistente do Aluno', () => {
     expect(translated.avoidedMovements).toContain('exercicios_chao');
     expect(translated.explanation).toContain('joelho');
   });
+
+  it('6. Radar de alertas identifica imediatamente desconforto articular relatado pelo aluno com prioridade alta', () => {
+    const linkWithDiscomfort: TeacherStudentLink = {
+      id: 'link_3',
+      teacherUid: 'teacher_999',
+      teacherName: 'Prof. Treinador',
+      studentUid: 'student_789',
+      studentName: 'Lucas Ferreira',
+      status: 'active',
+      weeklyPrescriptions: [],
+      assignedPlans: [],
+      studentDiscomfortReports: [
+        {
+          id: 'disc_1',
+          timestamp: Date.now() - 2 * 60 * 60 * 1000, // 2h atrás
+          exerciseName: 'Agachamento Búlgaro',
+          discomfortType: 'dor_joelho',
+          notes: 'Senti pontada no joelho direito na 2a serie',
+          source: 'workout_completion',
+        },
+      ],
+      updatedAt: Date.now(),
+    };
+
+    const alerts = evaluateTeacherRosterRadar([linkWithDiscomfort], []);
+    expect(alerts.length).toBe(1);
+    expect(alerts[0].type).toBe('discomfort_reported');
+    expect(alerts[0].priority).toBe('high');
+    expect(alerts[0].studentName).toBe('Lucas Ferreira');
+    expect(alerts[0].detail).toContain('pontada no joelho');
+  });
 });

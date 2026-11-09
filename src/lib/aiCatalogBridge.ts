@@ -17,16 +17,23 @@ import {
 import { allExercises, ensureFullCatalogLoaded } from '../data/catalog';
 import { enrichExercise, isExerciseSafeForUser } from './workoutEngine/filters';
 import { MOVEMENT_LADDERS } from './workoutEngine/progression';
+import { composeTargetedWorkout } from './workoutEngine/composer';
 
 export type WorkoutPurpose =
   | 'forca_hipertrofia'
   | 'mobilidade_alongamento'
+  | 'relaxamento_muscular'
+  | 'membros_superiores'
+  | 'membros_inferiores'
+  | 'costas_postura'
+  | 'gluteos_pernas'
   | 'pos_luta_artes_marciais'
   | 'pos_esporte_descompressao'
   | 'cardio_sem_impacto'
   | 'viagem_hotel'
   | 'pausa_escritorio_sem_chao'
-  | 'core_estabilidade';
+  | 'core_estabilidade'
+  | string;
 
 export interface CustomWorkoutOptions {
   purpose: WorkoutPurpose;
@@ -92,6 +99,7 @@ export async function searchCatalogForAgent(params: {
 
 /**
  * Cria uma sessão sob medida para propósitos específicos (Personal IA Multi-Propósito)
+ * com cálculo cinesiológico dinâmico de volume e adequação motora.
  */
 export async function buildCustomWorkoutForPurpose(
   profile: Partial<UserProfile> | null | undefined,
@@ -99,171 +107,24 @@ export async function buildCustomWorkoutForPurpose(
 ): Promise<WorkoutPlan> {
   await ensureFullCatalogLoaded();
 
-  const duration = options.durationMinutes || (options.purpose === 'pausa_escritorio_sem_chao' ? 8 : 15);
-  const userEq = options.equipmentOverride || profile?.equipments || ['peso_corporal'];
-  const userAvoided = [...(profile?.avoidedMovements || [])];
-  if (options.avoidFloor) userAvoided.push('exercicios_chao');
-  const userLims = profile?.reportedLimitations || [];
-
-  const safeCatalog = allExercises
-    .map(enrichExercise)
-    .filter((ex) => {
-      if (options.avoidFloor && ex.floorTransition) return false;
-      return isExerciseSafeForUser(ex, userEq, userAvoided, userLims).safe;
-    });
-
-  let selectedExercises: Exercise[] = [];
-  let title = 'Treino Personalizado';
-  let desc = 'Sessão elaborada pelo seu Personal IA.';
-
-  switch (options.purpose) {
-    case 'pos_luta_artes_marciais':
-    case 'pos_esporte_descompressao': {
-      title = options.purpose === 'pos_luta_artes_marciais'
-        ? 'Descompressão Pós-Arte Marcial & Luta'
-        : 'Recuperação & Soltura Pós-Esporte';
-      desc = 'Soltura de punhos, abertura de quadril (90/90), descompressão torácica e respiração regenerativa.';
-      const priorityIds = [
-        'mob_punhos_antebracos_tatame',
-        'along_abertura_quadril',
-        'mob_rotacao_toracica_livro',
-        'along_flexor_quadril_semi_ajoelhado',
-        'along_crianca_lombar',
-        'respiracao_diafragmatica_recuperacao',
-      ];
-      for (const id of priorityIds) {
-        const found = safeCatalog.find((e) => e.id === id);
-        if (found) selectedExercises.push(found);
-      }
-      break;
-    }
-
-    case 'mobilidade_alongamento': {
-      title = `Recuperação Ativa & Mobilidade (${duration} min)`;
-      desc = 'Soltura muscular progressiva, amplitude articular e alívio do estresse diário.';
-      const priorityIds = [
-        'mob_gato_vaca',
-        'along_abertura_quadril',
-        'mob_rotacao_toracica_livro',
-        'along_peitoral_parede_porta',
-        'along_piriforme_cadeira',
-        'along_crianca_lombar',
-        'respiracao_diafragmatica_recuperacao',
-      ];
-      for (const id of priorityIds) {
-        const found = safeCatalog.find((e) => e.id === id);
-        if (found && selectedExercises.length < 5) selectedExercises.push(found);
-      }
-      break;
-    }
-
-    case 'pausa_escritorio_sem_chao': {
-      title = 'Pausa Ativa no Trabalho (Sem Solo)';
-      desc = 'Alívio da rigidez do pescoço, peitoral e lombar em pé ou na cadeira em poucos minutos.';
-      const priorityIds = [
-        'mob_descompressao_cervical_trapezio',
-        'along_peitoral_parede_porta',
-        'along_piriforme_cadeira',
-        'along_isquiotibiais_em_pe',
-        'standing_scapular_y_t_w',
-        'mob_tornozelo_parede',
-      ];
-      for (const id of priorityIds) {
-        const found = safeCatalog.find((e) => e.id === id);
-        if (found && selectedExercises.length < 5) selectedExercises.push(found);
-      }
-      break;
-    }
-
-    case 'cardio_sem_impacto': {
-      title = `Cardio Ativo Sem Impacto (${duration} min)`;
-      desc = 'Circulação, fôlego e queima calórica com impacto articular zero para proteger joelhos e coluna.';
-      const priorityIds = [
-        'cardio_step_jack_sem_salto',
-        'cardio_shadow_boxing_tatame',
-        'bodyweight_squat',
-        'butt_lift_bridge',
-        'respiracao_diafragmatica_recuperacao',
-      ];
-      for (const id of priorityIds) {
-        const found = safeCatalog.find((e) => e.id === id);
-        if (found) selectedExercises.push(found);
-      }
-      break;
-    }
-
-    case 'core_estabilidade': {
-      title = `Estabilidade de Core & Lombar McGill (${duration} min)`;
-      desc = 'Firmeza abdominal profunda e proteção da coluna sem flexões repetitivas.';
-      const priorityIds = [
-        'bird_dog_hold',
-        'core_dead_bug_mcgill',
-        'butt_lift_bridge',
-        'plank',
-        'along_crianca_lombar',
-      ];
-      for (const id of priorityIds) {
-        const found = safeCatalog.find((e) => e.id === id);
-        if (found) selectedExercises.push(found);
-      }
-      break;
-    }
-
-    default: {
-      // Força / Viagem / Geral
-      title = `Força Funcional Personalizada (${duration} min)`;
-      desc = 'Sessão balanceada cobrindo empurrar, agachar, quadril e estabilização de tronco.';
-      const pushEx = safeCatalog.find((e) => e.functionalPattern === 'push_horizontal' || e.functionalPattern === 'push_vertical') || safeCatalog[0];
-      const squatEx = safeCatalog.find((e) => e.functionalPattern === 'squat' || e.functionalPattern === 'lunge') || safeCatalog[1];
-      const hingeEx = safeCatalog.find((e) => e.functionalPattern === 'hinge') || safeCatalog[2];
-      const coreEx = safeCatalog.find((e) => e.functionalPattern?.includes('core')) || safeCatalog[3];
-      if (pushEx) selectedExercises.push(pushEx);
-      if (squatEx && !selectedExercises.includes(squatEx)) selectedExercises.push(squatEx);
-      if (hingeEx && !selectedExercises.includes(hingeEx)) selectedExercises.push(hingeEx);
-      if (coreEx && !selectedExercises.includes(coreEx)) selectedExercises.push(coreEx);
-      break;
-    }
+  let muscleFocus: any = undefined;
+  if (options.targetMusclesOrFocus && options.targetMusclesOrFocus.length > 0) {
+    const raw = options.targetMusclesOrFocus[0].toLowerCase();
+    if (raw.includes('superior') || raw.includes('braco') || raw.includes('peito')) muscleFocus = 'superior';
+    else if (raw.includes('costas')) muscleFocus = 'costas';
+    else if (raw.includes('gluteo') || raw.includes('perna') || raw.includes('inferior')) muscleFocus = 'inferior';
+    else if (raw.includes('core') || raw.includes('abd')) muscleFocus = 'core';
+    else if (raw.includes('along') || raw.includes('relax')) muscleFocus = 'alongamento';
   }
 
-  // Se a lista ainda for menor que 3, completa com qualquer movimento seguro
-  if (selectedExercises.length < 3) {
-    for (const ex of safeCatalog) {
-      if (!selectedExercises.some((s) => s.id === ex.id)) {
-        selectedExercises.push(ex);
-        if (selectedExercises.length >= 3) break;
-      }
-    }
-  }
-
-  const items: ExercisePlanItem[] = selectedExercises.map((ex) => {
-    const isMobility = ex.modality === 'alongamento' || ex.modality === 'mobilidade';
-    const isCardioTime = ex.tracking === 'time';
-    return {
-      exerciseId: ex.id,
-      exerciseName: ex.name_pt,
-      targetSets: isMobility ? 2 : 3,
-      targetReps: isMobility || isCardioTime ? 0 : 10,
-      targetDurationSeconds: isMobility ? 35 : isCardioTime ? 45 : undefined,
-      restSeconds: isMobility ? 20 : 45,
-      notes: ex.caution_pt || '',
-    };
+  return composeTargetedWorkout(profile, {
+    purpose: options.purpose,
+    durationMinutes: options.durationMinutes,
+    equipmentOverride: options.equipmentOverride,
+    avoidFloor: options.avoidFloor,
+    muscleFocus,
+    experienceLevel: profile?.experienceLevel,
   });
-
-  return {
-    id: `plan_custom_${Date.now()}`,
-    ownerUid: profile?.uid || 'guest',
-    title,
-    description: desc,
-    version: 1,
-    isProfessional: false,
-    authorName: 'Personal IA',
-    sourceKind: 'usuario',
-    category: options.purpose.includes('mobilidade') ? 'mobilidade' : 'casa',
-    estimatedDurationMinutes: duration,
-    exercises: items,
-    createdAt: Date.now(),
-    updatedAt: Date.now(),
-  };
 }
 
 /**

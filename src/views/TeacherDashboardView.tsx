@@ -738,6 +738,147 @@ export const TeacherDashboardView: React.FC<TeacherDashboardViewProps> = ({
                     </button>
                   </div>
                 )}
+
+                {/* 📡 Registros de Telemetria & Tudo que o Aluno Informou */}
+                <div className="bg-white rounded-3xl p-5 border border-[#C9DBD3]/60 space-y-4">
+                  <div className="border-b border-[#C9DBD3]/40 pb-3">
+                    <h3 className="text-base font-extrabold text-[#19231E] flex items-center gap-2">
+                      <span>📡</span> Registros de Treinos & Atividades do Aluno
+                    </h3>
+                    <p className="text-xs text-[#5B7170]">
+                      Histórico contínuo de execuções, esforço (RPE), substituições de exercícios e queixas informadas pelo aluno.
+                    </p>
+                  </div>
+
+                  {/* Relatos de Desconforto Articular com Alerta Destacado */}
+                  {selectedLink.studentDiscomfortReports && selectedLink.studentDiscomfortReports.length > 0 && (
+                    <div className="p-4 rounded-2xl bg-[#C84B31]/10 border border-[#C84B31]/30 space-y-2.5">
+                      <div className="flex items-center gap-2 text-[#C84B31] font-extrabold text-xs uppercase tracking-wider">
+                        <span>⚠️</span>
+                        <span>Relatos de Desconforto Articular ({selectedLink.studentDiscomfortReports.length})</span>
+                      </div>
+                      <div className="space-y-2">
+                        {selectedLink.studentDiscomfortReports.map((report) => (
+                          <div
+                            key={report.id}
+                            className="bg-white p-3 rounded-xl border border-[#C84B31]/20 text-xs space-y-1 shadow-2xs"
+                          >
+                            <div className="flex items-center justify-between text-[11px]">
+                              <span className="font-bold text-[#C84B31]">
+                                {report.exerciseName ? `Exercício: ${report.exerciseName}` : 'Desconforto em sessão prescrita'}
+                              </span>
+                              <span className="text-[#5B7170]">
+                                {new Date(report.timestamp).toLocaleDateString('pt-BR')} às{' '}
+                                {new Date(report.timestamp).toLocaleTimeString('pt-BR', {
+                                  hour: '2-digit',
+                                  minute: '2-digit',
+                                })}
+                              </span>
+                            </div>
+                            {report.notes && (
+                              <p className="text-[#19231E] text-xs italic bg-[#FAF8F5] p-2 rounded-lg border border-[#E4DDD3]">
+                                "{report.notes}"
+                              </p>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Linha do Tempo de Treinos e Atividades */}
+                  <div className="space-y-2">
+                    <h4 className="text-xs font-bold uppercase tracking-wider text-[#19231E]">
+                      Linha do Tempo de Treinos & Feedbacks
+                    </h4>
+                    {selectedLink.studentRecentActivity && selectedLink.studentRecentActivity.length > 0 ? (
+                      <div className="space-y-2">
+                        {selectedLink.studentRecentActivity.map((act) => (
+                          <div
+                            key={act.id}
+                            className="p-3 rounded-2xl bg-[#FAF8F5] border border-[#C9DBD3]/50 flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs"
+                          >
+                            <div className="space-y-0.5">
+                              <div className="flex items-center gap-2 flex-wrap">
+                                <span className="font-bold text-[#19231E]">{act.title}</span>
+                                {act.rpe !== undefined && (
+                                  <span className="bg-[#EAF3EF] text-[#125F55] font-bold text-[10px] px-2 py-0.5 rounded-full">
+                                    RPE {act.rpe}/5
+                                  </span>
+                                )}
+                                {act.postMood && (
+                                  <span className="bg-white text-[#5B7170] border border-[#C9DBD3] font-bold text-[10px] px-2 py-0.5 rounded-full capitalize">
+                                    {act.postMood}
+                                  </span>
+                                )}
+                              </div>
+                              {act.details && (
+                                <p className="text-[11px] text-[#5B7170]">{act.details}</p>
+                              )}
+                            </div>
+                            <div className="text-[10px] text-[#5B7170] shrink-0 sm:text-right">
+                              {act.durationMinutes ? `${act.durationMinutes} min · ` : ''}
+                              {new Date(act.timestamp).toLocaleDateString('pt-BR')}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <div className="p-4 rounded-2xl bg-[#FAF8F5] border border-dashed border-[#C9DBD3] text-center text-xs text-[#5B7170]">
+                        Nenhuma atividade recente registrada pelo aluno ainda. Treinos realizados, trocas de exercícios e percepção de esforço aparecerão aqui em tempo real.
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Preferências e Memória Biopsicossocial M2 do Aluno */}
+                  {selectedLink.studentCoreMemory && (
+                    <div className="p-3.5 rounded-2xl bg-[#FAF8F5] border border-[#C9DBD3]/50 space-y-2 text-xs">
+                      <span className="font-bold text-[#5B7170] uppercase text-[10px] block">
+                        Preferências Motoras (Memória M2)
+                      </span>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                        <div>
+                          <span className="text-[11px] font-bold text-[#125F55] block">
+                            Exercícios Curtidos ({selectedLink.studentCoreMemory.likedExerciseIds?.length || 0})
+                          </span>
+                          <div className="flex flex-wrap gap-1 mt-1">
+                            {selectedLink.studentCoreMemory.likedExerciseIds?.length ? (
+                              selectedLink.studentCoreMemory.likedExerciseIds.map((id) => (
+                                <span
+                                  key={id}
+                                  className="bg-[#EAF3EF] text-[#125F55] text-[10px] font-semibold px-2 py-0.5 rounded-full"
+                                >
+                                  ✓ {id.replace(/_/g, ' ')}
+                                </span>
+                              ))
+                            ) : (
+                              <span className="text-[11px] text-[#5B7170]">Nenhum marcado ainda</span>
+                            )}
+                          </div>
+                        </div>
+                        <div>
+                          <span className="text-[11px] font-bold text-[#C84B31] block">
+                            Exercícios com Aversão ({selectedLink.studentCoreMemory.dislikedExerciseIds?.length || 0})
+                          </span>
+                          <div className="flex flex-wrap gap-1 mt-1">
+                            {selectedLink.studentCoreMemory.dislikedExerciseIds?.length ? (
+                              selectedLink.studentCoreMemory.dislikedExerciseIds.map((id) => (
+                                <span
+                                  key={id}
+                                  className="bg-[#C84B31]/10 text-[#C84B31] text-[10px] font-semibold px-2 py-0.5 rounded-full"
+                                >
+                                  ✕ {id.replace(/_/g, ' ')}
+                                </span>
+                              ))
+                            ) : (
+                              <span className="text-[11px] text-[#5B7170]">Nenhum marcado ainda</span>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </div>
               </div>
             )}
 
@@ -1139,16 +1280,32 @@ export const TeacherDashboardView: React.FC<TeacherDashboardViewProps> = ({
                               {link.studentEmail || 'Aluno vinculado'}
                             </p>
                           </div>
-                          <span
-                            className={`text-[10px] font-bold px-2 py-0.5 rounded-full uppercase shrink-0 ${
-                              isPending
-                                ? 'bg-[#C84B31]/15 text-[#C84B31]'
-                                : 'bg-[#EAF3EF] text-[#125F55]'
-                            }`}
-                          >
-                            {isPending ? 'Anamnese Pendente' : 'Plano Ativo'}
-                          </span>
+                          <div className="flex flex-wrap items-center gap-1 justify-end">
+                            {link.studentDiscomfortReports && link.studentDiscomfortReports.length > 0 && (
+                              <span className="text-[10px] font-bold px-2 py-0.5 rounded-full uppercase bg-[#C84B31]/15 text-[#C84B31] shrink-0 flex items-center gap-0.5">
+                                <span>⚠️</span> Desconforto
+                              </span>
+                            )}
+                            <span
+                              className={`text-[10px] font-bold px-2 py-0.5 rounded-full uppercase shrink-0 ${
+                                isPending
+                                  ? 'bg-[#C84B31]/15 text-[#C84B31]'
+                                  : 'bg-[#EAF3EF] text-[#125F55]'
+                              }`}
+                            >
+                              {isPending ? 'Anamnese Pendente' : 'Plano Ativo'}
+                            </span>
+                          </div>
                         </div>
+
+                        {link.studentDiscomfortReports && link.studentDiscomfortReports.length > 0 && (
+                          <div className="text-xs bg-[#C84B31]/10 text-[#C84B31] p-2.5 rounded-2xl border border-[#C84B31]/25 space-y-0.5">
+                            <span className="font-bold text-[10px] uppercase block">⚠️ Alerta Clínico: Desconforto Relatado</span>
+                            <p className="text-[11px] line-clamp-1 italic">
+                              "{link.studentDiscomfortReports[0].notes || link.studentDiscomfortReports[0].exerciseName || 'Desconforto recente'}"
+                            </p>
+                          </div>
+                        )}
 
                         {sub && (
                           <div className="text-xs text-[#5B7170] space-y-1 bg-[#FAF8F5] p-2.5 rounded-2xl border border-[#C9DBD3]/40">

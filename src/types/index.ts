@@ -661,6 +661,27 @@ export interface TeacherDayPrescription {
   teacherNotes?: string;
 }
 
+export interface StudentDiscomfortReport {
+  id: string;
+  timestamp: number;
+  exerciseId?: string;
+  exerciseName?: string;
+  discomfortType: string;
+  notes?: string;
+  source: 'workout_completion' | 'exercise_swap' | 'listening_chat';
+}
+
+export interface StudentActivityLogItem {
+  id: string;
+  timestamp: number;
+  type: 'workout_completed' | 'workout_partial' | 'exercise_swap' | 'discomfort_reported' | 'external_practice' | 'rpe_feedback';
+  title: string;
+  details?: string;
+  rpe?: number;
+  postMood?: string;
+  durationMinutes?: number;
+}
+
 export interface TeacherStudentLink {
   id: string;
   teacherUid: string;
@@ -673,6 +694,9 @@ export interface TeacherStudentLink {
   assignedPlans: WorkoutPlan[];
   lastSubmissionId?: string;
   lastPrescribedAt?: number;
+  studentRecentActivity?: StudentActivityLogItem[];
+  studentDiscomfortReports?: StudentDiscomfortReport[];
+  studentCoreMemory?: CoreBiopsychosocialMemory;
   updatedAt: number;
 }
 

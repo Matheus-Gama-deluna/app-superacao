@@ -1,10 +1,11 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useWorkout } from '../context/WorkoutContext';
 import { useAuth } from '../context/AuthContext';
 import { calculateCanonicalMetrics, getCanonicalWeeklyGoal, PRE_MOOD_LABELS, POST_MOOD_LABELS } from '../lib/storage';
 import { calculateMovementLaddersProgress } from '../lib/workoutEngine';
 import { generateWeeklyProcessReview } from '../lib/motivationEngine';
 import { shareWorkoutVictory } from '../lib/pwaNative';
+import { fetchTelemetryWeeklyPills } from '../lib/aiClient';
 import {
   Trophy,
   Sparkles,
@@ -34,11 +35,12 @@ export const ProgressView: React.FC = () => {
   const [showAllBadges, setShowAllBadges] = useState<boolean>(false);
   const [showAllLadders, setShowAllLadders] = useState<boolean>(false);
   const [copiedShare, setCopiedShare] = useState<boolean>(false);
+  const [telemetryPills, setTelemetryPills] = useState<string[]>([]);
 
   // Métricas canônicas unificadas (E03 / Seção 5 / T18)
   // Fase 4: Trilhas de Evolução Biomecânica (Escadas de 4 degraus)
   const movementLadders = calculateMovementLaddersProgress(sessions, personalRecords);
-    const metrics = calculateCanonicalMetrics(sessions, calendar, personalRecords);
+  const metrics = calculateCanonicalMetrics(sessions, calendar, personalRecords);
   const totalReps = setEvents.reduce((acc, curr) => acc + (curr.actualReps || 0), 0);
   const totalVolumeKg = metrics.totalVolumeKg;
   const recoveryDaysCompleted = calendar.filter((c) => c.activityType === 'active_recovery' && c.isCompleted).length;
@@ -47,6 +49,24 @@ export const ProgressView: React.FC = () => {
   const targetWeeklyGoal = canonicalWeekly.targetWeeklyGoal;
   const completedThisWeek = metrics.weeklyCompletedCount;
   const weeklyReview = generateWeeklyProcessReview(sessions, calendar, targetWeeklyGoal);
+
+  useEffect(() => {
+    let isMounted = true;
+    if (profile) {
+      fetchTelemetryWeeklyPills(profile, sessions)
+        .then((pills) => {
+          if (isMounted && pills && pills.length > 0) {
+            setTelemetryPills(pills);
+          }
+        })
+        .catch(() => {
+          // offline/local fallback já tratado no fetchTelemetryWeeklyPills
+        });
+    }
+    return () => {
+      isMounted = false;
+    };
+  }, [profile, sessions.length]);
 
   const handleShareProgress = async () => {
     const goalLine =
@@ -278,6 +298,27 @@ export const ProgressView: React.FC = () => {
                 Suavizar (-1 dia)
               </button>
             )}
+          </div>
+        )}
+
+        {/* Pílulas de Telemetria Biomecânica & Motivação (Agente TelemetryAnalyst) */}
+        {telemetryPills.length > 0 && (
+          <div className="pt-2 border-t border-[#1B4332]/10 space-y-2">
+            <div className="flex items-center gap-1.5 text-[11px] font-bold text-[#1B4332]">
+              <Sparkles className="w-3.5 h-3.5 text-[#1B4332]" />
+              <span>Insights do Assistente Biomecânico</span>
+            </div>
+            <div className="flex flex-col gap-1.5">
+              {telemetryPills.slice(0, 3).map((pill, idx) => (
+                <div
+                  key={idx}
+                  className="bg-white/80 text-[#19231E] text-xs font-medium px-3 py-2 rounded-xl border border-[#1B4332]/15 flex items-start gap-2 shadow-2xs"
+                >
+                  <span className="text-[#1B4332] font-bold shrink-0">✓</span>
+                  <span className="leading-snug">{pill}</span>
+                </div>
+              ))}
+            </div>
           </div>
         )}
       </section>

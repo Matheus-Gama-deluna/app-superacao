@@ -75,6 +75,7 @@ import {
   subscribeToLiveSync,
   applyTeacherPrescriptionToCalendar,
   getStudentActiveLink,
+  logStudentActivityToTeacherLink,
 } from '../lib/teacherStudentSync';
 import { buildEvolvingWorkoutProgram } from '../lib/aiCatalogBridge';
 import confetti from 'canvas-confetti';
@@ -799,6 +800,14 @@ export const WorkoutProvider: React.FC<{ children: React.ReactNode }> = ({ child
     setActiveSession(updatedSession);
     setLocal('superacao_active_session', updatedSession);
     triggerHaptic(50, profile.hapticEnabled);
+
+    // Notifica prontuário do professor se vinculado
+    const currentStudentUid = profile?.uid || (user ? user.uid : 'guest_user');
+    logStudentActivityToTeacherLink(currentStudentUid, {
+      type: 'exercise_swap',
+      title: `Substituição: ${oldItem.exerciseName} ➔ ${newExercise.name_pt || newExercise.name_en}`,
+      details: `Exercício substituído durante o treino em andamento.`,
+    }).catch(() => {});
   };
 
   const replaceExerciseInPlan = async (
@@ -1222,6 +1231,34 @@ export const WorkoutProvider: React.FC<{ children: React.ReactNode }> = ({ child
       origin: { y: 0.6 },
       colors: ['#125F55', '#D9F277', '#246747'],
     });
+
+    // Registra telemetria e relatos no prontuário do professor se vinculado
+    const currentStudentUid = profile?.uid || (user ? user.uid : 'guest_user');
+    const isDiscomfort =
+      completedSession.postMood === 'desconforto' ||
+      Boolean(notes && /dor|desconforto|inc[oô]modo|les[aã]o/i.test(notes));
+
+    logStudentActivityToTeacherLink(
+      currentStudentUid,
+      {
+        type: 'workout_completed',
+        title: completedSession.planTitle,
+        durationMinutes: Math.round(finalDuration / 60),
+        rpe: finalEffort,
+        postMood: completedSession.postMood,
+        details: notes || `Treino concluído com ${completedSession.totalSetsCompleted} séries realizadas.`,
+      },
+      isDiscomfort
+        ? {
+            discomfortType:
+              completedSession.postMood === 'desconforto'
+                ? 'post_mood_desconforto'
+                : 'relato_notas',
+            notes: notes || 'Aluno selecionou sensação de desconforto após o treino.',
+            source: 'workout_completion',
+          }
+        : undefined
+    ).catch(() => {});
   };
 
   // A14 / R02 / Seção 5: Sessão parcial confirmada é identificada como parcial e NÃO marca dias de descanso como concluídos
@@ -1246,6 +1283,15 @@ export const WorkoutProvider: React.FC<{ children: React.ReactNode }> = ({ child
     const newSessions = [partialSession, ...sessions];
     setSessions(newSessions);
     setLocal('superacao_sessions', newSessions);
+
+    // Registra treino parcial no prontuário do professor se vinculado
+    const currentStudentUid = profile?.uid || (user ? user.uid : 'guest_user');
+    logStudentActivityToTeacherLink(currentStudentUid, {
+      type: 'workout_partial',
+      title: partialSession.planTitle,
+      durationMinutes: Math.round(finalDuration / 60),
+      details: notes || `Sessão parcial com ${partialSession.totalSetsCompleted} séries concluídas.`,
+    }).catch(() => {});
 
     setActiveSession(null);
     localStorage.removeItem('superacao_active_session');

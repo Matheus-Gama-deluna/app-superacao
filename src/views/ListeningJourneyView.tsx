@@ -216,14 +216,28 @@ export const ListeningJourneyView: React.FC<ListeningJourneyViewProps> = ({
       if (Array.isArray(p.reportedLimitations) && p.reportedLimitations.length > 0) {
         setReportedLimitations(p.reportedLimitations);
       }
+      if (Array.isArray(p.avoidedMovements) && p.avoidedMovements.length > 0) {
+        setAvoidedMovements(Array.from(new Set([...avoidedMovements, ...p.avoidedMovements])));
+      }
       if (Array.isArray(p.availableDays) && p.availableDays.length > 0) {
         setAvailableDays(p.availableDays);
       }
       if (typeof p.sessionDurationMinutes === 'number') {
         setSessionDurationMinutes(p.sessionDurationMinutes);
       }
-      if (orderedGoals.length === 0) {
+      if (p.experienceLevel) {
+        setExperienceLevel(p.experienceLevel);
+      }
+      if (p.environmentPreference) {
+        setEnvironmentPreference(p.environmentPreference);
+      }
+      if (p.primaryGoal) {
+        setOrderedGoals([p.primaryGoal]);
+      } else if (orderedGoals.length === 0) {
         setOrderedGoals([DEFAULT_GOALS[0]]);
+      }
+      if (p.exerciseReason) {
+        setExerciseReason(p.exerciseReason);
       }
       setUserContextNotes((prev) => (prev ? `${prev} · ${trimmed}` : trimmed));
 
@@ -628,6 +642,22 @@ export const ListeningJourneyView: React.FC<ListeningJourneyViewProps> = ({
                       ? reportedLimitations.join(', ')
                       : 'Sem restrições'}
                   </p>
+                </div>
+
+                {/* Sub-faixa de Nível, Ambiente e Salvaguardas */}
+                <div className="bg-white p-2 rounded-xl border border-[#C9DBD3]/60 col-span-2 sm:col-span-4 flex flex-wrap items-center justify-between gap-2 text-[11px]">
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-[#5B7170]">Nível:</span>
+                    <strong className="text-[#125F55] capitalize">{experienceLevel}</strong>
+                    <span className="text-[#C9DBD3]">·</span>
+                    <span className="text-[#5B7170]">Ambiente:</span>
+                    <strong className="text-[#125F55] capitalize">{environmentPreference === 'ar_livre' ? 'Ar Livre' : environmentPreference}</strong>
+                  </div>
+                  {avoidedMovements.length > 0 && (
+                    <span className="text-[#C84B31] font-bold text-[10px] bg-[#C84B31]/10 px-2 py-0.5 rounded-full">
+                      ⚠️ Movimentos a evitar: {avoidedMovements.map((m) => m.replace(/_/g, ' ')).join(', ')}
+                    </span>
+                  )}
                 </div>
               </div>
             </section>

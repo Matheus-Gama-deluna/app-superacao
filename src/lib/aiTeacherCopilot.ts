@@ -246,6 +246,24 @@ export function evaluateTeacherRosterRadar(
         });
       }
     }
+
+    // 3. Alunos com relatos de dor ou desconforto recente (Prioridade Alta)
+    if (link.studentDiscomfortReports && link.studentDiscomfortReports.length > 0) {
+      const latest = link.studentDiscomfortReports[0];
+      const daysAgo = (Date.now() - latest.timestamp) / (1000 * 60 * 60 * 24);
+      if (daysAgo <= 7) {
+        alerts.push({
+          studentUid: link.studentUid,
+          studentName: link.studentName,
+          type: 'discomfort_reported',
+          headline: `Desconforto Articular Relatado`,
+          detail: latest.notes
+            ? `${link.studentName} relatou: "${latest.notes}". Verifique na ficha do aluno.`
+            : `${link.studentName} relatou desconforto em "${latest.exerciseName || 'exercício recente'}". Verifique na ficha do aluno.`,
+          priority: 'high',
+        });
+      }
+    }
   }
 
   return alerts;

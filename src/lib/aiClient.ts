@@ -195,13 +195,16 @@ export function simulatePersonalAssistantReply(
     };
   }
 
-  // 2. Co-criação de Escuta Inicial (autofill_onboarding)
+  // 2. Co-criação de Escuta Inicial (autofill_onboarding) com extração multidimensional
   if (context.activeView === 'listening') {
     const inferredEquipments = ['peso_corporal'];
     if (lower.includes('halter') || lower.includes('peso')) inferredEquipments.push('halteres');
-    if (lower.includes('mini band') || lower.includes('elastico')) inferredEquipments.push('mini_band');
+    if (lower.includes('mini band') || lower.includes('elastico') || lower.includes('elástico')) inferredEquipments.push('mini_band');
     if (lower.includes('faixa')) inferredEquipments.push('faixa_longa');
+    if (lower.includes('tubo')) inferredEquipments.push('tubos_elasticos');
+    if (lower.includes('kettlebell')) inferredEquipments.push('kettlebell');
     if (lower.includes('cadeira')) inferredEquipments.push('cadeira');
+    if (lower.includes('parede')) inferredEquipments.push('parede');
     if (lower.includes('colchonete') || lower.includes('tapete')) inferredEquipments.push('colchonete');
 
     const inferredLimitations: string[] = [];
@@ -210,8 +213,44 @@ export function simulatePersonalAssistantReply(
     if (lower.includes('ombro')) inferredLimitations.push('ombros');
     if (lower.includes('punho') || lower.includes('pulso')) inferredLimitations.push('punhos');
 
-    const minMatch = lower.match(/(\d{2})\s*min/);
-    const duration = minMatch ? Math.min(45, Math.max(10, Number(minMatch[1]))) : 20;
+    const inferredAvoided: string[] = [];
+    if (/sem salto|sem pul|n[aã]o posso pular|sem impacto/i.test(lower)) inferredAvoided.push('impacto_saltos');
+    if (/sem ch[aã]o|sem solo|n[aã]o consigo deitar|evitar ch[aã]o/i.test(lower)) inferredAvoided.push('exercicios_chao');
+    if (/flex[aã]o no ch[aã]o|flex[aã]o de bra[çc]o/i.test(lower)) inferredAvoided.push('flexao_chao');
+    if (/agachamento profundo|agachar fundo/i.test(lower)) inferredAvoided.push('agachamento_profundo');
+
+    // Nível de experiência
+    let inferredLevel: 'iniciante' | 'retomando' | 'pratica' | undefined;
+    if (/voltar|voltando|retomando|parado|parei|tempo parado|recome[çc]/i.test(lower)) {
+      inferredLevel = 'retomando';
+    } else if (/nunca treinei|sedent[aá]rio|primeira vez|come[çc]ando|iniciante/i.test(lower)) {
+      inferredLevel = 'iniciante';
+    } else if (/j[aá] treino|costumo treinar|treino direto|pratico|avan[çc]ado|intermedi[aá]rio/i.test(lower)) {
+      inferredLevel = 'pratica';
+    }
+
+    // Ambiente preferido
+    let inferredEnvironment: 'casa' | 'academia' | 'ar_livre' | undefined;
+    if (/academia/i.test(lower)) inferredEnvironment = 'academia';
+    else if (/ar livre|parque|pra[çc]a|rua/i.test(lower)) inferredEnvironment = 'ar_livre';
+    else if (/casa|sala|quarto/i.test(lower)) inferredEnvironment = 'casa';
+
+    // Objetivo central
+    let inferredGoal: string | undefined;
+    if (/h[aá]bito|consist[eê]ncia|rotina|regularidade/i.test(lower)) {
+      inferredGoal = 'Construir o hábito e consistência diária';
+    } else if (/postura|al[ií]vio|tens[aã]o|along/i.test(lower)) {
+      inferredGoal = 'Melhorar postura e aliviar tensões';
+    } else if (/for[çc]a|massa|m[uú]sculo|hipertrofia/i.test(lower)) {
+      inferredGoal = 'Ganhar força funcional e mobilidade';
+    } else if (/energia|disposi[çc][aã]o|vitalidade|cansa[çc]o/i.test(lower)) {
+      inferredGoal = 'Mais energia e disposição no dia a dia';
+    } else if (/sa[uú]de|emagrecer|queimar|peso/i.test(lower)) {
+      inferredGoal = 'Saúde preventiva e bem-estar geral';
+    }
+
+    const minMatch = lower.match(/(\d{1,2})\s*min/);
+    const duration = minMatch ? Math.min(60, Math.max(8, Number(minMatch[1]))) : 20;
     const freqMatch = lower.match(/([2-6])\s*(x|vezes|dias)/);
     const freq = freqMatch ? Number(freqMatch[1]) : 3;
     const defaultDaysByFreq: Record<number, number[]> = {
@@ -222,20 +261,30 @@ export function simulatePersonalAssistantReply(
       6: [1, 2, 3, 4, 5, 6],
     };
 
+    const details: string[] = [`${freq}x por semana (~${duration} min)`];
+    if (inferredLevel) details.push(`nível: ${inferredLevel}`);
+    if (inferredEnvironment) details.push(`ambiente: ${inferredEnvironment}`);
+    details.push(`apoios: ${inferredEquipments.join(', ')}`);
+    if (inferredLimitations.length > 0) details.push(`cuidados: ${inferredLimitations.join(', ')}`);
+
     return {
-      replyPt: `Perfeito! Já organizei suas preferências: ${freq}x por semana (~${duration} min), equipamentos (${inferredEquipments.join(', ')}) e cuidados articulares (${inferredLimitations.length > 0 ? inferredLimitations.join(', ') : 'nenhuma restrição'}). Quer preencher os campos automaticamente agora?`,
-      clinicalReasoningSummary: 'Extração estruturada para Escuta Inicial sem fricção.',
+      replyPt: `Perfeito! Já compreendi suas diretrizes: ${details.join(' • ')}. Deseja validar e ver sua proposta personalizada agora?`,
+      clinicalReasoningSummary: 'Extração estruturada multidimensional para Escuta Inicial sem fricção.',
       actionRequired: true,
       requiresConfirmation: true,
       proposedDiff: {
         actionType: 'autofill_onboarding',
-        titlePt: 'Preencher Escuta Inicial com estes dados',
+        titlePt: 'Confirmar Diretrizes da Escuta Inicial',
         descriptionPt: `${freq} dias/sem • ${duration} min • ${inferredEquipments.length} equip.`,
         payload: {
           sessionDurationMinutes: duration,
           availableDays: defaultDaysByFreq[freq] || [1, 3, 5],
           equipments: inferredEquipments,
           reportedLimitations: inferredLimitations.length > 0 ? inferredLimitations : ['nenhuma'],
+          avoidedMovements: inferredAvoided,
+          experienceLevel: inferredLevel,
+          environmentPreference: inferredEnvironment,
+          primaryGoal: inferredGoal,
           userContextNotes: userMessage,
         },
       },
@@ -1038,3 +1087,85 @@ export async function dismissTemporaryClinicalFact(
     updatedAt: now,
   });
 }
+
+// ============================================================================
+// M2 FEEDBACK DE EXERCÍCIOS (CURTIR / DESCURTIR)
+// ============================================================================
+
+const LOCAL_FEEDBACK_STORAGE_KEY = 'superacao_exercise_feedbacks_m2';
+
+export interface ExerciseFeedbacksCache {
+  liked: string[];
+  disliked: string[];
+}
+
+export function getCachedExerciseFeedbacks(): ExerciseFeedbacksCache {
+  if (typeof window === 'undefined') return { liked: [], disliked: [] };
+  try {
+    const raw = localStorage.getItem(LOCAL_FEEDBACK_STORAGE_KEY);
+    if (raw) return JSON.parse(raw);
+  } catch {
+    // fallback
+  }
+  return { liked: [], disliked: [] };
+}
+
+export async function toggleExerciseFeedback(
+  studentUid: string,
+  exerciseId: string,
+  targetFeedback: 'like' | 'dislike'
+): Promise<ExerciseFeedbacksCache> {
+  const current = getCachedExerciseFeedbacks();
+  const likedSet = new Set(current.liked);
+  const dislikedSet = new Set(current.disliked);
+
+  if (targetFeedback === 'like') {
+    if (likedSet.has(exerciseId)) {
+      likedSet.delete(exerciseId);
+    } else {
+      likedSet.add(exerciseId);
+      dislikedSet.delete(exerciseId);
+    }
+  } else if (targetFeedback === 'dislike') {
+    if (dislikedSet.has(exerciseId)) {
+      dislikedSet.delete(exerciseId);
+    } else {
+      dislikedSet.add(exerciseId);
+      likedSet.delete(exerciseId);
+    }
+  }
+
+  const updated: ExerciseFeedbacksCache = {
+    liked: Array.from(likedSet),
+    disliked: Array.from(dislikedSet),
+  };
+
+  if (typeof window !== 'undefined') {
+    try {
+      localStorage.setItem(LOCAL_FEEDBACK_STORAGE_KEY, JSON.stringify(updated));
+    } catch {
+      // storage quota or private window
+    }
+  }
+
+  // Sincroniza assincronamente com o documento de memória M2 no Firestore se logado
+  if (studentUid && !studentUid.startsWith('guest_')) {
+    fetchStudentCoreMemory(studentUid)
+      .then((mem) => {
+        if (mem) {
+          saveStudentCoreMemory(studentUid, {
+            ...mem,
+            likedExerciseIds: updated.liked,
+            dislikedExerciseIds: updated.disliked,
+            updatedAt: Date.now(),
+          });
+        }
+      })
+      .catch(() => {
+        // tolerar offline
+      });
+  }
+
+  return updated;
+}
+

@@ -4,6 +4,9 @@ import {
   WorkoutPlan,
   CalendarDay,
   UserProfile,
+  StudentActivityLogItem,
+  StudentDiscomfortReport,
+  CoreBiopsychosocialMemory,
 } from '../types';
 import { getLocal, setLocal, STORAGE_KEYS } from './storage';
 import { ANAMNESIS_STORAGE_KEYS } from './anamnesisEngine';
@@ -15,6 +18,7 @@ export type LiveSyncEventType =
   | 'PLAN_UPDATED'
   | 'ANAMNESIS_SUBMITTED'
   | 'LINK_STATUS_CHANGED'
+  | 'STUDENT_TELEMETRY_UPDATED'
   | 'PING';
 
 export interface LiveSyncMessage {
@@ -153,6 +157,81 @@ export function getStudentActiveLink(studentUid: string): TeacherStudentLink | n
     (l) => l.studentUid === studentUid && l.status === 'active'
   );
   return found || null;
+}
+
+/**
+ * Registra atividades, sessões e relatos de dor do aluno no vínculo do professor
+ */
+export async function logStudentActivityToTeacherLink(
+  studentUid: string,
+  activity: Omit<StudentActivityLogItem, 'id' | 'timestamp'>,
+  discomfort?: Omit<StudentDiscomfortReport, 'id' | 'timestamp'>
+): Promise<void> {
+  const link = getStudentActiveLink(studentUid);
+  if (!link) return;
+
+  const now = Date.now();
+  const newActivityItem: StudentActivityLogItem = {
+    ...activity,
+    id: `act_${now}_${Math.random().toString(36).substring(2, 7)}`,
+    timestamp: now,
+  };
+
+  const updatedActivities = [newActivityItem, ...(link.studentRecentActivity || [])].slice(0, 30);
+  let updatedDiscomfort = link.studentDiscomfortReports || [];
+
+  if (discomfort) {
+    const newDiscomfortItem: StudentDiscomfortReport = {
+      ...discomfort,
+      id: `disc_${now}_${Math.random().toString(36).substring(2, 7)}`,
+      timestamp: now,
+    };
+    updatedDiscomfort = [newDiscomfortItem, ...updatedDiscomfort].slice(0, 20);
+  }
+
+  const updatedLink: TeacherStudentLink = {
+    ...link,
+    studentRecentActivity: updatedActivities,
+    studentDiscomfortReports: updatedDiscomfort,
+    updatedAt: now,
+  };
+
+  await saveTeacherStudentLink(updatedLink);
+
+  broadcastLiveSync({
+    type: 'STUDENT_TELEMETRY_UPDATED',
+    teacherUid: link.teacherUid,
+    studentUid: link.studentUid,
+    timestamp: now,
+    payload: updatedLink,
+  });
+}
+
+/**
+ * Sincroniza a memória M2 (preferências, limitações) do aluno para a ficha no professor
+ */
+export async function syncStudentCoreMemoryToTeacherLink(
+  studentUid: string,
+  memory: CoreBiopsychosocialMemory
+): Promise<void> {
+  const link = getStudentActiveLink(studentUid);
+  if (!link) return;
+
+  const updatedLink: TeacherStudentLink = {
+    ...link,
+    studentCoreMemory: memory,
+    updatedAt: Date.now(),
+  };
+
+  await saveTeacherStudentLink(updatedLink);
+
+  broadcastLiveSync({
+    type: 'STUDENT_TELEMETRY_UPDATED',
+    teacherUid: link.teacherUid,
+    studentUid: link.studentUid,
+    timestamp: Date.now(),
+    payload: updatedLink,
+  });
 }
 
 /**
